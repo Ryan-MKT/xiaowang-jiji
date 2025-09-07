@@ -9,6 +9,7 @@ const { authenticateUser } = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+console.log('🚀 小汪記記 with LINE Login starting...');
 
 // LINE Bot 設定
 const config = {
