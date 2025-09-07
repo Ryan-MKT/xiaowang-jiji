@@ -1,0 +1,191 @@
+// LINE Login 路由 - 獨立模組，不污染主要 Bot 邏輯
+const express = require('express');
+const router = express.Router();
+const lineLogin = require('./line-login');
+const { supabase } = require('./supabase-client');
+
+// 狀態存儲（生產環境應使用 Redis）
+const stateStore = new Map();
+
+// 登入頁面
+router.get('/login', (req, res) => {
+  const { url, state } = lineLogin.getAuthUrl();
+  
+  // 儲存 state 用於驗證（30分鐘過期）
+  stateStore.set(state, Date.now());
+  setTimeout(() => stateStore.delete(state), 30 * 60 * 1000);
+  
+  // 簡單的 HTML 登入頁面
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>LINE Login</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { 
+          font-family: -apple-system, sans-serif; 
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+          text-align: center;
+          background: white;
+          padding: 40px;
+          border-radius: 10px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 30px; }
+        .login-btn {
+          display: inline-block;
+          background-color: #00B900;
+          color: white;
+          padding: 12px 30px;
+          text-decoration: none;
+          border-radius: 5px;
+          font-size: 16px;
+          font-weight: bold;
+          transition: background-color 0.3s;
+        }
+        .login-btn:hover { background-color: #009900; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>小汪記記</h1>
+        <a href="${url}" class="login-btn">使用 LINE 登入</a>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// OAuth 回調處理
+router.get('/callback', async (req, res) => {
+  const { code, state, error, error_description } = req.query;
+  
+  // 錯誤處理
+  if (error) {
+    return res.status(400).send(`登入失敗: ${error_description || error}`);
+  }
+  
+  // 驗證 state
+  if (!state || !stateStore.has(state)) {
+    return res.status(400).send('無效的 state 參數');
+  }
+  stateStore.delete(state);
+  
+  // 處理 OAuth callback
+  const result = await lineLogin.handleCallback(code);
+  
+  if (!result.success) {
+    return res.status(400).send('登入失敗');
+  }
+  
+  // 儲存使用者資料（如果有資料庫）
+  if (supabase && result.profile) {
+    try {
+      await supabase.from('users').upsert({
+        id: result.profile.userId,
+        display_name: result.profile.displayName,
+        picture_url: result.profile.pictureUrl,
+        status_message: result.profile.statusMessage,
+        last_login: new Date().toISOString()
+      }, { onConflict: 'id' });
+    } catch (err) {
+      console.error('儲存使用者資料失敗:', err);
+    }
+  }
+  
+  // 設定 session（簡化版本）
+  req.session = req.session || {};
+  req.session.user = result.profile;
+  req.session.tokens = result.tokens;
+  
+  // 成功頁面
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>登入成功</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { 
+          font-family: -apple-system, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .success {
+          background: white;
+          padding: 40px;
+          border-radius: 10px;
+          text-align: center;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .avatar {
+          width: 100px;
+          height: 100px;
+          border-radius: 50%;
+          margin-bottom: 20px;
+        }
+        h2 { color: #333; }
+        .info { 
+          background: #f5f5f5;
+          padding: 15px;
+          border-radius: 5px;
+          margin: 20px 0;
+        }
+        .user-id {
+          font-family: monospace;
+          background: #e0e0e0;
+          padding: 5px 10px;
+          border-radius: 3px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="success">
+        ${result.profile.pictureUrl ? `<img src="${result.profile.pictureUrl}" class="avatar">` : ''}
+        <h2>登入成功！</h2>
+        <div class="info">
+          <p><strong>名稱：</strong>${result.profile.displayName}</p>
+          <p><strong>User ID：</strong><span class="user-id">${result.profile.userId}</span></p>
+          ${result.profile.statusMessage ? `<p><strong>狀態：</strong>${result.profile.statusMessage}</p>` : ''}
+        </div>
+        <p>您現在可以關閉此視窗</p>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// 登出
+router.get('/logout', (req, res) => {
+  req.session = null;
+  res.redirect('/');
+});
+
+// API：取得目前登入狀態
+router.get('/status', (req, res) => {
+  if (req.session?.user) {
+    res.json({
+      loggedIn: true,
+      user: {
+        userId: req.session.user.userId,
+        displayName: req.session.user.displayName
+      }
+    });
+  } else {
+    res.json({ loggedIn: false });
+  }
+});
+
+module.exports = router;
