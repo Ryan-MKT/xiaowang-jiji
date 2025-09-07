@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: linebot-echo
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        fromGroup: line-bot-secrets
+      - key: LINE_CHANNEL_SECRET
+        fromGroup: line-bot-secrets
