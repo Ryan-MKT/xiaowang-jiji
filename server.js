@@ -1,5 +1,6 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
+const { supabase } = require('./supabase-client');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,16 +18,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // 處理 LINE 事件
-function handleEvent(event) {
+async function handleEvent(event) {
   console.log('Received event:', event);
   
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
 
+  const userMessage = event.message.text;
+  const userId = event.source.userId;
+  
+  try {
+    // 儲存訊息到 Supabase
+    const { data, error } = await supabase
+      .from('messages')
+      .insert([
+        {
+          user_id: userId,
+          message_text: userMessage,
+          created_at: new Date().toISOString()
+        }
+      ]);
+    
+    if (error) {
+      console.error('Supabase error:', error);
+    } else {
+      console.log('Message saved to Supabase:', data);
+    }
+  } catch (err) {
+    console.error('Database save error:', err);
+  }
+
   const echo = { 
     type: 'text', 
-    text: `收到訊息: ${event.message.text}` 
+    text: `✅ 已收到並儲存訊息: ${userMessage}` 
   };
   
   return client.replyMessage(event.replyToken, echo);

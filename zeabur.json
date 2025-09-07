@@ -1,0 +1,9 @@
+{
+  "name": "xiaowang-linebot",
+  "buildCommand": "npm install",
+  "startCommand": "npm start",
+  "environment": "nodejs",
+  "nodeVersion": "18",
+  "port": 3000,
+  "healthCheck": "/health"
+}
