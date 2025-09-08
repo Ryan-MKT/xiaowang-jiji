@@ -126,7 +126,149 @@ function createMinimalFlexMessage(userMessage) {
   };
 }
 
+/**
+ * 創建任務清單 Flex Message（符合 LINE 官方規範）
+ * @param {Array} taskList - 任務陣列
+ * @returns {Object} 任務清單的 LINE Flex Message 物件
+ */
+function createTaskListFlexMessage(taskList) {
+  // 限制最多顯示 10 個任務，按照截圖設計
+  const displayTasks = taskList.slice(-10);
+  
+  // 統計完成狀況
+  const completedCount = displayTasks.filter(task => task.completed).length;
+  const totalCount = displayTasks.length;
+  const pendingCount = totalCount - completedCount;
+  
+  // 根據截圖創建任務行 - 每個任務一行，帶黑色方框圖標
+  const taskRows = [];
+  displayTasks.forEach((task, index) => {
+    const isCompleted = task.completed;
+    let taskText = typeof task === 'string' ? task : task.text;
+    // 限制為 12 個字元寬度
+    if (taskText.length > 12) {
+      taskText = taskText.substring(0, 11) + '…';
+    }
+    const taskId = task.id || Date.now() + index;
+    
+    // 添加任務行
+    taskRows.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: `${index + 1}. ${taskText}`,
+          size: "md",
+          color: "#333333",
+          weight: "regular",
+          wrap: true,
+          flex: 5
+        },
+        {
+          type: "text",
+          text: "✎",
+          size: "md",
+          color: "#000000",
+          align: "center",
+          action: {
+            type: "uri",
+            uri: "https://github.com/Ryan-MKT/xiaowang-jiji"
+          },
+          flex: 0
+        },
+        {
+          type: "spacer",
+          size: "md"
+        },
+        {
+          type: "text",
+          text: isCompleted ? "☑" : "□",
+          size: "md",
+          color: "#000000",
+          align: "center",
+          action: {
+            type: "postback",
+            data: JSON.stringify({
+              action: "complete_task",
+              taskId: taskId
+            })
+          },
+          flex: 0
+        }
+      ],
+      spacing: "sm",
+      paddingAll: "sm"
+    });
+    
+    // 在每個任務後添加分隔線（除了最後一個）
+    if (index < displayTasks.length - 1) {
+      taskRows.push({
+        type: "separator",
+        margin: "sm",
+        color: "#E0E0E0"
+      });
+    }
+  });
+
+  return {
+    type: "flex",
+    altText: `總共 ${totalCount} 件事要做`,
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: `總共 ${totalCount} 件事要做`,
+            weight: "bold",
+            size: "lg",
+            color: "#ffffff",
+            align: "center"
+          }
+        ],
+        backgroundColor: "#DDA368",
+        paddingAll: "lg",
+        cornerRadius: "20px"
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          ...taskRows,
+          {
+            type: "separator",
+            margin: "lg"
+          },
+          {
+            type: "text",
+            text: `已完成 ${completedCount} 件，待完成 ${pendingCount} 件`,
+            size: "sm",
+            color: "#666666",
+            align: "center",
+            margin: "md"
+          }
+        ],
+        spacing: "none",
+        backgroundColor: "#FFF8DC",
+        paddingAll: "md"
+      },
+      styles: {
+        header: {
+          backgroundColor: "#DDA368"
+        },
+        body: {
+          backgroundColor: "#FFF8DC"
+        }
+      }
+    }
+  };
+}
+
 module.exports = {
   createEchoFlexMessage,
-  createMinimalFlexMessage
+  createMinimalFlexMessage,
+  createTaskListFlexMessage
 };

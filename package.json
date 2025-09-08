@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js",
+    "dev": "nodemon server.js",
+    "dev:basic": "node server.js",
+    "kill-servers": "node kill-servers.js",
+    "restart": "npm run kill-servers && timeout /t 3 && npm run dev",
     "env:dev": "node switch-env.js dev",
     "env:prod": "node switch-env.js prod",
     "switch:dev": "node switch-env.js dev && npm run dev",
@@ -22,5 +25,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

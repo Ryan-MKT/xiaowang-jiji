@@ -6,7 +6,11 @@ const line = require('@line/bot-sdk');
 const session = require('express-session');
 const { supabase } = require('./supabase-client');
 const { authenticateUser } = require('./auth');
-const { createMinimalFlexMessage } = require('./flex-message-builder');
+const { createMinimalFlexMessage, createTaskListFlexMessage } = require('./flex-message-builder');
+
+// 用戶任務堆疊存儲（記憶體版本）
+// 資料結構: Map<userId, Array<{text: string, completed: boolean, id: number}>>
+const userTaskLists = new Map();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +43,11 @@ app.use(session({
 async function handleEvent(event) {
   console.log('Received event:', event);
   
+  // 處理 postback 事件（任務完成）
+  if (event.type === 'postback') {
+    return handlePostbackEvent(event);
+  }
+  
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
   }
@@ -48,6 +57,33 @@ async function handleEvent(event) {
   
   // Linus 式認證：簡單直接，沒有廢話
   const user = await authenticateUser(userId);
+  
+  // 特殊指令處理
+  if (userMessage.toLowerCase() === 'clear' || userMessage === '清除') {
+    // 清除該用戶的任務清單
+    userTaskLists.delete(userId);
+    const clearMessage = createMinimalFlexMessage('✨ 任務清單已清除');
+    
+    if (client) {
+      return client.replyMessage(event.replyToken, clearMessage);
+    } else {
+      console.log('測試模式：任務清單已清除');
+      console.log('🎨 生成的 Flex Message:', JSON.stringify(clearMessage, null, 2));
+      return Promise.resolve(null);
+    }
+  }
+
+  // 處理任務堆疊邏輯 - Linus 式簡潔資料結構
+  let currentTasks = userTaskLists.get(userId) || [];
+  const taskId = Date.now(); // 簡單的 ID 生成
+  currentTasks.push({
+    id: taskId,
+    text: userMessage,
+    completed: false
+  });
+  userTaskLists.set(userId, currentTasks);
+  
+  console.log(`📋 用戶 ${userId} 的任務清單:`, currentTasks);
   
   // 嘗試儲存到 Supabase
   if (supabase) {
@@ -78,15 +114,57 @@ async function handleEvent(event) {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', userMessage);
   }
 
-  // 創建 Flex Message 回音
-  const flexMessage = createMinimalFlexMessage(userMessage);
+  // 創建任務清單 Flex Message
+  const flexMessage = createTaskListFlexMessage(currentTasks);
+  
+  // 添加詳細日誌
+  console.log('🎨 生成的 Flex Message:', JSON.stringify(flexMessage, null, 2));
   
   // 只在有 client 時回覆
   if (client) {
     return client.replyMessage(event.replyToken, flexMessage);
   } else {
     console.log('測試模式：無法回覆訊息（缺少真實 LINE token）');
-    console.log('🎨 生成的 Flex Message:', JSON.stringify(flexMessage, null, 2));
+    return Promise.resolve(null);
+  }
+}
+
+// 處理 postback 事件（任務完成）- 符合品味要求
+async function handlePostbackEvent(event) {
+  const userId = event.source.userId;
+  const postbackData = JSON.parse(event.postback.data);
+  
+  if (postbackData.action === 'complete_task') {
+    const taskId = postbackData.taskId;
+    let currentTasks = userTaskLists.get(userId) || [];
+    
+    // 找到並標記任務為完成
+    currentTasks = currentTasks.map(task => 
+      task.id === taskId ? { ...task, completed: true } : task
+    );
+    userTaskLists.set(userId, currentTasks);
+    
+    // 找到完成的任務
+    const completedTask = currentTasks.find(task => task.id === taskId);
+    const confirmMessage = {
+      type: 'text',
+      text: `恭喜"${completedTask.text}"完成!`
+    };
+    
+    // 回覆確認訊息
+    if (client) {
+      await client.replyMessage(event.replyToken, confirmMessage);
+      
+      // 延遲 1 秒後發送更新的任務清單
+      setTimeout(() => {
+        const updatedFlexMessage = createTaskListFlexMessage(currentTasks);
+        client.pushMessage(userId, updatedFlexMessage);
+      }, 1000);
+    } else {
+      console.log('測試模式：任務已完成', completedTask.text);
+      console.log('🎨 確認訊息:', JSON.stringify(confirmMessage, null, 2));
+    }
+    
     return Promise.resolve(null);
   }
 }
