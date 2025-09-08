@@ -209,7 +209,7 @@ function createTaskListFlexMessage(taskList) {
 
   return {
     type: "flex",
-    altText: `總共 ${totalCount} 件事要做`,
+    altText: `今天 ${totalCount} 件事要做`,
     contents: {
       type: "bubble",
       header: {
@@ -218,7 +218,7 @@ function createTaskListFlexMessage(taskList) {
         contents: [
           {
             type: "text",
-            text: `總共 ${totalCount} 件事要做`,
+            text: `今天 ${totalCount} 件事要做`,
             weight: "bold",
             size: "lg",
             color: "#ffffff",

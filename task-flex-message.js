@@ -124,7 +124,7 @@ function createTaskStackFlexMessage(tasks) {
 
   return {
     type: 'flex',
-    altText: `總共 ${totalTasks} 件事要做`,
+    altText: `今天 ${totalTasks} 件事要做`,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -136,7 +136,7 @@ function createTaskStackFlexMessage(tasks) {
         contents: [
           {
             type: 'text',
-            text: `總共 ${totalTasks} 件事要做`,
+            text: `今天 ${totalTasks} 件事要做`,
             color: '#FFFFFF',
             size: 'md',
             weight: 'bold',
