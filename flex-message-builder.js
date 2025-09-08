@@ -166,34 +166,34 @@ function createTaskListFlexMessage(taskList) {
           flex: 5
         },
         {
-          type: "text",
-          text: "✎",
-          size: "md",
-          color: "#000000",
-          align: "center",
+          type: "button",
           action: {
             type: "uri",
+            label: "✎",
             uri: "https://github.com/Ryan-MKT/xiaowang-jiji"
           },
+          style: "link",
+          height: "sm",
+          color: "#000000",
           flex: 0
         },
         {
           type: "spacer",
-          size: "md"
+          size: "sm"
         },
         {
-          type: "text",
-          text: isCompleted ? "☑" : "□",
-          size: "md",
-          color: "#000000",
-          align: "center",
+          type: "button",
           action: {
             type: "postback",
+            label: isCompleted ? "☑" : "□",
             data: JSON.stringify({
               action: "complete_task",
               taskId: taskId
             })
           },
+          style: "link",
+          height: "sm",
+          color: "#000000",
           flex: 0
         }
       ],
