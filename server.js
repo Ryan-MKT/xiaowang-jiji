@@ -146,10 +146,7 @@ async function handlePostbackEvent(event) {
     
     // 找到完成的任務
     const completedTask = currentTasks.find(task => task.id === taskId);
-    const confirmMessage = {
-      type: 'text',
-      text: `恭喜"${completedTask.text}"完成!`
-    };
+    const confirmMessage = createMinimalFlexMessage(`恭喜"${completedTask.text}"完成!`);
     
     // 回覆確認訊息
     if (client) {
