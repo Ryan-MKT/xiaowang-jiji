@@ -1,5 +1,6 @@
-// 簡單的任務 Flex Message 建構器
+// 任務 Flex Message 建構器
 
+// 單一任務 Flex Message
 function createTaskFlexMessage(taskText) {
   const timestamp = new Date().toLocaleString('zh-TW', {
     timeZone: 'Asia/Taipei',
@@ -58,6 +59,117 @@ function createTaskFlexMessage(taskText) {
   };
 }
 
+// 任務堆疊 Flex Message - 100% 模仿原始設計
+function createTaskStackFlexMessage(tasks) {
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(task => task.completed).length;
+  const pendingTasks = totalTasks - completedTasks;
+
+  // 創建任務清單內容，每個任務之間加上分隔線
+  const taskContents = [];
+  
+  tasks.forEach((task, index) => {
+    const isCompleted = task.completed || false;
+    
+    // 添加任務項目
+    taskContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      paddingAll: 'md',
+      alignItems: 'center',
+      contents: [
+        {
+          type: 'text',
+          text: `${index + 1}. ${task.text}`,
+          size: 'sm',
+          color: isCompleted ? '#999999' : '#333333',
+          flex: 1,
+          wrap: true,
+          decoration: isCompleted ? 'line-through' : 'none',
+          margin: 'none'
+        },
+        {
+          type: 'text',
+          text: '✎',
+          size: 'md',
+          color: '#000000',
+          flex: 0,
+          margin: 'sm'
+        },
+        {
+          type: 'text',
+          text: isCompleted ? '☑' : '□',
+          size: 'lg',
+          color: '#000000',
+          flex: 0,
+          align: 'center',
+          action: {
+            type: 'postback',
+            data: `complete_task_${task.id}`
+          }
+        }
+      ]
+    });
+    
+    // 如果不是最後一個任務，添加筆記本風格分隔線
+    if (index < tasks.length - 1) {
+      taskContents.push({
+        type: 'separator',
+        margin: 'xs',
+        color: '#C0C0C0'
+      });
+    }
+  });
+
+  return {
+    type: 'flex',
+    altText: `總共 ${totalTasks} 件事要做`,
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'md',
+        backgroundColor: '#CD853F',
+        contents: [
+          {
+            type: 'text',
+            text: `總共 ${totalTasks} 件事要做`,
+            color: '#FFFFFF',
+            size: 'md',
+            weight: 'bold',
+            align: 'center'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        backgroundColor: '#FFF8DC',
+        contents: taskContents.concat([
+          {
+            type: 'separator',
+            margin: 'md',
+            color: '#E0E0E0'
+          },
+          {
+            type: 'text',
+            text: `已完成 ${completedTasks} 件，待完成 ${pendingTasks} 件`,
+            size: 'xs',
+            color: '#999999',
+            align: 'center',
+            margin: 'md'
+          }
+        ])
+      }
+    }
+  };
+}
+
 module.exports = {
-  createTaskFlexMessage
+  createTaskFlexMessage,
+  createTaskStackFlexMessage
 };
