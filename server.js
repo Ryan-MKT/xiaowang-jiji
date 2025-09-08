@@ -6,6 +6,7 @@ const line = require('@line/bot-sdk');
 const session = require('express-session');
 const { supabase } = require('./supabase-client');
 const { authenticateUser } = require('./auth');
+const { createMinimalFlexMessage } = require('./flex-message-builder');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,8 +52,12 @@ async function handleEvent(event) {
   // 嘗試儲存到 Supabase
   if (supabase) {
     try {
+      // 根據環境選擇表格名稱
+      const tablePrefix = process.env.TABLE_PREFIX || '';
+      const tableName = tablePrefix + 'messages';
+      
       const { data, error } = await supabase
-        .from('messages')
+        .from(tableName)
         .insert([
           {
             user_id: userId,
@@ -73,16 +78,15 @@ async function handleEvent(event) {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', userMessage);
   }
 
-  const echo = { 
-    type: 'text', 
-    text: `✅ 已收到訊息: ${userMessage}` 
-  };
+  // 創建 Flex Message 回音
+  const flexMessage = createMinimalFlexMessage(userMessage);
   
   // 只在有 client 時回覆
   if (client) {
-    return client.replyMessage(event.replyToken, echo);
+    return client.replyMessage(event.replyToken, flexMessage);
   } else {
     console.log('測試模式：無法回覆訊息（缺少真實 LINE token）');
+    console.log('🎨 生成的 Flex Message:', JSON.stringify(flexMessage, null, 2));
     return Promise.resolve(null);
   }
 }
@@ -179,8 +183,12 @@ app.get('/db-status', async (req, res) => {
   }
   
   try {
+    // 根據環境選擇表格名稱
+    const tablePrefix = process.env.TABLE_PREFIX || '';
+    const tableName = tablePrefix + 'messages';
+    
     const { data, error } = await supabase
-      .from('messages')
+      .from(tableName)
       .select('count', { count: 'exact' })
       .limit(1);
     

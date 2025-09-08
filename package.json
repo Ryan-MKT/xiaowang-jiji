@@ -4,7 +4,12 @@
   "description": "Simple LINE Bot Echo Server",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "env:dev": "node switch-env.js dev",
+    "env:prod": "node switch-env.js prod",
+    "switch:dev": "node switch-env.js dev && npm run dev",
+    "switch:prod": "node switch-env.js prod"
   },
   "dependencies": {
     "@line/bot-sdk": "^9.0.0",
