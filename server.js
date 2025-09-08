@@ -114,15 +114,29 @@ async function handleEvent(event) {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', userMessage);
   }
 
-  // 創建任務清單 Flex Message
-  const flexMessage = createTaskListFlexMessage(currentTasks);
+  // 最小可測試單位：簡單文字回覆
+  const simpleMessage = {
+    type: 'text',
+    text: `收到您的任務「${userMessage}」，已加入待辦清單！`
+  };
   
-  // 添加詳細日誌
-  console.log('🎨 生成的 Flex Message:', JSON.stringify(flexMessage, null, 2));
+  console.log('📤 準備發送簡單文字訊息:', simpleMessage);
   
   // 只在有 client 時回覆
   if (client) {
-    return client.replyMessage(event.replyToken, flexMessage);
+    try {
+      const result = await client.replyMessage(event.replyToken, simpleMessage);
+      console.log('✅ LINE 訊息發送成功:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ LINE 訊息發送失敗:', error);
+      console.error('📋 錯誤詳情:', {
+        statusCode: error.statusCode,
+        statusMessage: error.statusMessage,
+        response: error.originalError?.response?.data
+      });
+      throw error;
+    }
   } else {
     console.log('測試模式：無法回覆訊息（缺少真實 LINE token）');
     return Promise.resolve(null);
