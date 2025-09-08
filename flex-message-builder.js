@@ -173,9 +173,7 @@ function createTaskListFlexMessage(taskList) {
             uri: "https://github.com/Ryan-MKT/xiaowang-jiji"
           },
           style: "link",
-          height: "sm",
-          color: "#000000",
-          flex: 0
+          height: "sm"
         },
         {
           type: "spacer",
@@ -192,9 +190,7 @@ function createTaskListFlexMessage(taskList) {
             })
           },
           style: "link",
-          height: "sm",
-          color: "#000000",
-          flex: 0
+          height: "sm"
         }
       ],
       spacing: "sm",
@@ -230,8 +226,7 @@ function createTaskListFlexMessage(taskList) {
           }
         ],
         backgroundColor: "#DDA368",
-        paddingAll: "lg",
-        cornerRadius: "20px"
+        paddingAll: "lg"
       },
       body: {
         type: "box",

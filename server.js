@@ -6,15 +6,18 @@ const line = require('@line/bot-sdk');
 const session = require('express-session');
 const { supabase } = require('./supabase-client');
 const { authenticateUser } = require('./auth');
-const { createMinimalFlexMessage, createTaskListFlexMessage } = require('./flex-message-builder');
-
-// 用戶任務堆疊存儲（記憶體版本）
-// 資料結構: Map<userId, Array<{text: string, completed: boolean, id: number}>>
-const userTaskLists = new Map();
+const OpenAI = require('openai');
+const { createTaskFlexMessage } = require('./task-flex-message');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 console.log('🚀 小汪記記 with LINE Login starting...');
+
+// 初始化 OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-testing',
+});
+console.log('🤖 OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
 
 // LINE Bot 設定
 const config = {
@@ -23,12 +26,14 @@ const config = {
 };
 
 // 只在有真實 token 時建立 client
+console.log('🔑 LINE_CHANNEL_ACCESS_TOKEN exists:', !!process.env.LINE_CHANNEL_ACCESS_TOKEN);
 const client = process.env.LINE_CHANNEL_ACCESS_TOKEN ? 
   new line.Client(config) : 
   null;
+console.log('📱 LINE Client created:', !!client);
 
 // Express middleware
-app.use(express.json());
+app.use(express.json({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
 
 // Session 設定（LINE Login 需要）
@@ -39,14 +44,35 @@ app.use(session({
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 小時
 }));
 
+// 判斷是否為問句或請求
+function isQuestion(text) {
+  // 問句特徵
+  const questionPatterns = [
+    /？$/,           // 中文問號結尾
+    /\?$/,           // 英文問號結尾
+    /嗎[？?]?$/,       // 嗎結尾
+    /吧[？?]?$/,       // 吧結尾
+    /呢[？?]?$/,       // 呢結尾
+    /^幫我/,         // 「幫我」開頭
+    /^請問/,         // 「請問」開頭
+    /什麼/,          // 包含「什麼」
+    /為什麼/,        // 包含「為什麼」
+    /怎麼/,          // 包含「怎麼」
+    /如何/,          // 包含「如何」
+    /有沒有/,        // 包含「有沒有」
+    /有哪些/,        // 包含「有哪些」
+    /整理/,          // 包含「整理」
+    /列出/,          // 包含「列出」
+    /查詢/,          // 包含「查詢」
+    /分析/           // 包含「分析」
+  ];
+  
+  return questionPatterns.some(pattern => pattern.test(text));
+}
+
 // 處理 LINE 事件
 async function handleEvent(event) {
   console.log('Received event:', event);
-  
-  // 處理 postback 事件（任務完成）
-  if (event.type === 'postback') {
-    return handlePostbackEvent(event);
-  }
   
   if (event.type !== 'message' || event.message.type !== 'text') {
     return Promise.resolve(null);
@@ -55,40 +81,12 @@ async function handleEvent(event) {
   const userMessage = event.message.text;
   const userId = event.source.userId;
   
-  // Linus 式認證：簡單直接，沒有廢話
+  // 簡單認證
   const user = await authenticateUser(userId);
-  
-  // 特殊指令處理
-  if (userMessage.toLowerCase() === 'clear' || userMessage === '清除') {
-    // 清除該用戶的任務清單
-    userTaskLists.delete(userId);
-    const clearMessage = createMinimalFlexMessage('✨ 任務清單已清除');
-    
-    if (client) {
-      return client.replyMessage(event.replyToken, clearMessage);
-    } else {
-      console.log('測試模式：任務清單已清除');
-      console.log('🎨 生成的 Flex Message:', JSON.stringify(clearMessage, null, 2));
-      return Promise.resolve(null);
-    }
-  }
-
-  // 處理任務堆疊邏輯 - Linus 式簡潔資料結構
-  let currentTasks = userTaskLists.get(userId) || [];
-  const taskId = Date.now(); // 簡單的 ID 生成
-  currentTasks.push({
-    id: taskId,
-    text: userMessage,
-    completed: false
-  });
-  userTaskLists.set(userId, currentTasks);
-  
-  console.log(`📋 用戶 ${userId} 的任務清單:`, currentTasks);
   
   // 嘗試儲存到 Supabase
   if (supabase) {
     try {
-      // 根據環境選擇表格名稱
       const tablePrefix = process.env.TABLE_PREFIX || '';
       const tableName = tablePrefix + 'messages';
       
@@ -114,69 +112,67 @@ async function handleEvent(event) {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', userMessage);
   }
 
-  // 最小可測試單位：簡單文字回覆
-  const simpleMessage = {
-    type: 'text',
-    text: `收到您的任務「${userMessage}」，已加入待辦清單！`
-  };
+  // 判斷是問句還是任務
+  const isQuestionMessage = isQuestion(userMessage);
   
-  console.log('📤 準備發送簡單文字訊息:', simpleMessage);
-  
-  // 只在有 client 時回覆
-  if (client) {
-    try {
-      const result = await client.replyMessage(event.replyToken, simpleMessage);
-      console.log('✅ LINE 訊息發送成功:', result);
-      return result;
-    } catch (error) {
-      console.error('❌ LINE 訊息發送失敗:', error);
-      console.error('📋 錯誤詳情:', {
-        statusCode: error.statusCode,
-        statusMessage: error.statusMessage,
-        response: error.originalError?.response?.data
-      });
-      throw error;
+  if (isQuestionMessage) {
+    // 問句或請求：使用 AI 回覆
+    console.log('💬 偵測到問句/請求，使用 AI 回覆');
+    
+    let aiResponse = `收到您的問題：${userMessage}`; // 預設回覆
+    
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== '你的OpenAI_API_Key') {
+      try {
+        console.log('🤖 正在生成 AI 回覆...');
+        const completion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "你是一個友善的助手，名字叫小汪。請用繁體中文回覆，回覆要簡潔親切。"
+            },
+            {
+              role: "user",
+              content: userMessage
+            }
+          ],
+          max_tokens: 150,
+          temperature: 0.7,
+        });
+        
+        aiResponse = completion.choices[0].message.content;
+        console.log('✅ AI 回覆生成成功');
+      } catch (error) {
+        console.error('❌ OpenAI API 錯誤:', error.message);
+        aiResponse = '抱歉，我現在無法處理您的請求，請稍後再試。';
+      }
+    } else {
+      console.log('⚠️ OpenAI API Key 未設定，使用預設回覆');
+    }
+    
+    const replyMessage = {
+      type: 'text',
+      text: aiResponse
+    };
+    
+    if (client) {
+      return client.replyMessage(event.replyToken, replyMessage);
+    } else {
+      console.log('測試模式：回覆訊息', replyMessage.text);
+      return Promise.resolve(null);
     }
   } else {
-    console.log('測試模式：無法回覆訊息（缺少真實 LINE token）');
-    return Promise.resolve(null);
-  }
-}
-
-// 處理 postback 事件（任務完成）- 符合品味要求
-async function handlePostbackEvent(event) {
-  const userId = event.source.userId;
-  const postbackData = JSON.parse(event.postback.data);
-  
-  if (postbackData.action === 'complete_task') {
-    const taskId = postbackData.taskId;
-    let currentTasks = userTaskLists.get(userId) || [];
+    // 任務：使用 Flex Message 記錄
+    console.log('📝 偵測到任務，使用 Flex Message 記錄');
     
-    // 找到並標記任務為完成
-    currentTasks = currentTasks.map(task => 
-      task.id === taskId ? { ...task, completed: true } : task
-    );
-    userTaskLists.set(userId, currentTasks);
+    const flexMessage = createTaskFlexMessage(userMessage);
     
-    // 找到完成的任務
-    const completedTask = currentTasks.find(task => task.id === taskId);
-    const confirmMessage = createMinimalFlexMessage(`恭喜"${completedTask.text}"完成!`);
-    
-    // 回覆確認訊息
     if (client) {
-      await client.replyMessage(event.replyToken, confirmMessage);
-      
-      // 延遲 1 秒後發送更新的任務清單
-      setTimeout(() => {
-        const updatedFlexMessage = createTaskListFlexMessage(currentTasks);
-        client.pushMessage(userId, updatedFlexMessage);
-      }, 1000);
+      return client.replyMessage(event.replyToken, flexMessage);
     } else {
-      console.log('測試模式：任務已完成', completedTask.text);
-      console.log('🎨 確認訊息:', JSON.stringify(confirmMessage, null, 2));
+      console.log('測試模式：Flex Message', JSON.stringify(flexMessage, null, 2));
+      return Promise.resolve(null);
     }
-    
-    return Promise.resolve(null);
   }
 }
 
