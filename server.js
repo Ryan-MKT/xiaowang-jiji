@@ -135,12 +135,30 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  const userMessage = event.message.text;
+  let userMessage = event.message.text;
   const userId = event.source.userId;
   
   // 簡單認證
   const user = await authenticateUser(userId);
   
+  // 清理訊息中的無效字元
+  const cleanedMessage = userMessage
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 移除控制字元
+    .replace(/[\uFFFD\uFEFF]/g, '') // 移除替換字元和字節順序標記
+    .trim();
+    
+  // 如果清理後的訊息為空，忽略此訊息
+  if (!cleanedMessage) {
+    console.log('⚠️ 訊息清理後為空，忽略處理');
+    return Promise.resolve(null);
+  }
+  
+  console.log('🧹 原始訊息:', userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''));
+  console.log('✨ 清理後訊息:', cleanedMessage.substring(0, 100) + (cleanedMessage.length > 100 ? '...' : ''));
+  
+  // 更新 userMessage 為清理後的版本
+  userMessage = cleanedMessage;
+
   // 嘗試儲存到 Supabase
   if (supabase) {
     try {
@@ -152,7 +170,7 @@ async function handleEvent(event) {
         .insert([
           {
             user_id: userId,
-            message_text: userMessage,
+            message_text: cleanedMessage,
             created_at: new Date().toISOString()
           }
         ]);
@@ -160,15 +178,144 @@ async function handleEvent(event) {
       if (error) {
         console.error('Supabase 儲存錯誤:', error);
       } else {
-        console.log('✅ 訊息已儲存到 Supabase:', { userId, userMessage });
+        console.log('✅ 訊息已儲存到 Supabase:', { userId, userMessage: cleanedMessage });
       }
     } catch (err) {
       console.error('資料庫連線錯誤:', err);
     }
   } else {
-    console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', userMessage);
+    console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
   }
 
+  // 特殊指令：任務更新完成，重新生成任務堆疊
+  if (userMessage.includes('任務更新完成') || userMessage.includes('刷新任務列表') || userMessage.includes('SYNC_TASKS')) {
+    console.log('🔄 收到任務更新指令，重新生成任務堆疊');
+    console.log('📥 原始指令內容:', userMessage.substring(0, 200) + '...');
+    
+    // 檢查是否包含 SYNC_TASKS 資料
+    if (userMessage.includes('SYNC_TASKS:')) {
+      try {
+        // 提取 JSON 資料
+        const jsonStart = userMessage.indexOf('SYNC_TASKS:') + 'SYNC_TASKS:'.length;
+        const jsonData = userMessage.substring(jsonStart).trim();
+        
+        console.log('📄 提取的 JSON 資料 (前200字元):', jsonData.substring(0, 200));
+        
+        // 清理 JSON 資料中的無效字元
+        const cleanedJsonData = jsonData
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // 移除控制字元
+          .replace(/[\uFFFD\uFEFF]/g, ''); // 移除替換字元
+          
+        const syncedTasks = JSON.parse(cleanedJsonData);
+        
+        // 清理任務資料中的文字
+        const cleanedTasks = syncedTasks.map(task => ({
+          ...task,
+          text: task.text ? task.text
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+            .replace(/[\uFFFD\uFEFF]/g, '')
+            .trim() : '',
+          notes: task.notes ? task.notes
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+            .replace(/[\uFFFD\uFEFF]/g, '')
+            .trim() : ''
+        })).filter(task => task.text); // 過濾掉沒有文字的任務
+        
+        console.log('📥 收到同步任務資料:', cleanedTasks.length, '個任務');
+        console.log('🧹 清理後任務預覽:', cleanedTasks.map(task => task.text).slice(0, 3));
+        
+        // 更新伺服器端的任務堆疊
+        userTaskStacks.set(userId, cleanedTasks);
+        
+        // 重新生成任務堆疊 Flex Message
+        const taskStackFlexMessage = createTaskStackFlexMessage(cleanedTasks);
+        
+        console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
+        console.log('📝 更新後任務清單:', cleanedTasks.map((task, index) => `${index + 1}. ${task.text}`));
+        
+        if (client) {
+          try {
+            return client.replyMessage(event.replyToken, taskStackFlexMessage);
+          } catch (replyError) {
+            console.error('❌ Flex Message 發送失敗:', replyError);
+            // 發送簡單文字訊息作為備用
+            const fallbackMessage = {
+              type: 'text',
+              text: `✅ 任務已同步更新，共 ${cleanedTasks.length} 個任務`
+            };
+            return client.replyMessage(event.replyToken, fallbackMessage);
+          }
+        } else {
+          console.log('測試模式：回覆同步後的任務堆疊 Flex Message');
+          return Promise.resolve(null);
+        }
+      } catch (parseError) {
+        console.error('❌ 解析同步任務資料失敗:', parseError);
+        
+        // 解析失敗時回到原本邏輯
+        let userTasks = userTaskStacks.get(userId) || [];
+        
+        if (userTasks.length > 0) {
+          const taskStackFlexMessage = createTaskStackFlexMessage(userTasks);
+          
+          if (client) {
+            return client.replyMessage(event.replyToken, taskStackFlexMessage);
+          } else {
+            console.log('測試模式：回覆任務堆疊 Flex Message（解析失敗）');
+            return Promise.resolve(null);
+          }
+        } else {
+          // 沒有任務時的回覆
+          const noTaskMessage = {
+            type: 'text',
+            text: '目前沒有待辦任務 📝'
+          };
+          
+          if (client) {
+            return client.replyMessage(event.replyToken, noTaskMessage);
+          } else {
+            console.log('測試模式：沒有任務（解析失敗）');
+            return Promise.resolve(null);
+          }
+        }
+      }
+    } else {
+      // 沒有 SYNC_TASKS 資料時，使用原本邏輯
+      let userTasks = userTaskStacks.get(userId) || [];
+      
+      if (userTasks.length > 0) {
+        // 重新生成任務堆疊 Flex Message
+        const taskStackFlexMessage = createTaskStackFlexMessage(userTasks);
+        
+        console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
+        console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
+        
+        if (client) {
+          return client.replyMessage(event.replyToken, taskStackFlexMessage);
+        } else {
+          console.log('測試模式：回覆任務堆疊 Flex Message');
+          return Promise.resolve(null);
+        }
+      } else {
+        // 沒有任務時的回覆
+        const noTaskMessage = {
+          type: 'text',
+          text: '目前沒有待辦任務 📝'
+        };
+        
+        if (client) {
+          return client.replyMessage(event.replyToken, noTaskMessage);
+        } else {
+          console.log('測試模式：沒有任務');
+          return Promise.resolve(null);
+        }
+      }
+    }
+    
+    // 確保 SYNC_TASKS 處理完畢後就返回，不會繼續執行其他邏輯
+    return;
+  }
+  
   // 判斷是問句還是任務
   const isQuestionMessage = isQuestion(userMessage);
   
@@ -270,6 +417,34 @@ app.get('/liff', (req, res) => {
   } catch (error) {
     console.error('LIFF 檔案讀取錯誤:', error);
     res.status(500).send('LIFF APP 載入失敗');
+  }
+});
+
+// LIFF 儲存功能測試頁面
+app.get('/test', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    const html = fs.readFileSync(path.join(__dirname, 'test-liff-save.html'), 'utf8');
+    res.send(html);
+  } catch (error) {
+    console.error('讀取測試檔案錯誤:', error);
+    res.status(500).send('測試檔案載入失敗');
+  }
+});
+
+// 儲存功能問題診斷工具
+app.get('/debug', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    const html = fs.readFileSync(path.join(__dirname, 'debug-storage.html'), 'utf8');
+    res.send(html);
+  } catch (error) {
+    console.error('讀取診斷檔案錯誤:', error);
+    res.status(500).send('診斷檔案載入失敗');
   }
 });
 
