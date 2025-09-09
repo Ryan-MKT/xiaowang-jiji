@@ -122,6 +122,7 @@ function createTaskStackFlexMessage(tasks) {
     }
   });
 
+  // Linus 風格：資料結構簡單，直接附加 Quick Reply
   return {
     type: 'flex',
     altText: `總共 ${totalTasks} 件事要做`,
@@ -165,6 +166,19 @@ function createTaskStackFlexMessage(tasks) {
           }
         ])
       }
+    },
+    // 簡潔直接：每個任務堆疊都有 Quick Reply，無條件判斷
+    quickReply: {
+      items: [
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: 'AI',
+            text: 'AI'
+          }
+        }
+      ]
     }
   };
 }
