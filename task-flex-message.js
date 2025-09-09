@@ -182,7 +182,7 @@ function createTaskStackFlexMessage(tasks) {
             margin: 'md',
             action: {
               type: 'uri',
-              uri: 'https://liff.line.me/2008077335-rZlgE4bX/records'
+              uri: 'https://gigi.zeabur.app/liff/records'
             }
           }
         ])
