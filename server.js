@@ -256,7 +256,21 @@ app.use('/auth/line', lineLoginRoutes);
 
 // LIFF 應用程式路由
 app.get('/liff', (req, res) => {
-  res.sendFile(__dirname + '/liff-app.html');
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'liff-app.html'), 'utf8');
+    
+    // 根據環境變數替換 LIFF ID
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+    
+    res.send(html);
+  } catch (error) {
+    console.error('LIFF 檔案讀取錯誤:', error);
+    res.status(500).send('LIFF APP 載入失敗');
+  }
 });
 
 // 路由設定

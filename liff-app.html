@@ -236,12 +236,8 @@
         // LIFF 初始化
         async function initializeLiff() {
             try {
-                // 清除可能的緩存問題
-                localStorage.clear();
-                sessionStorage.clear();
-                
                 await liff.init({
-                    liffId: '2008069913-JeaLk0G9',
+                    liffId: '2008077335-rZlgE4bX',
                     withLoginOnExternalBrowser: true
                 });
 
@@ -255,6 +251,9 @@
                     return;
                 }
 
+                // 成功登入，重置重試計數器
+                sessionStorage.removeItem('liff_retry_count');
+                
                 // 取得使用者資料
                 liffProfile = await liff.getProfile();
                 console.log('LIFF Profile:', liffProfile);
@@ -271,9 +270,17 @@
                 
                 // 如果是 code_verifier 錯誤，嘗試清除並重新登入
                 if (error.message.includes('code_verifier')) {
-                    console.log('Code verifier error, clearing cache and retrying...');
+                    // 檢查是否已經嘗試過修復，避免無限循環
+                    const retryCount = parseInt(sessionStorage.getItem('liff_retry_count') || '0');
+                    if (retryCount >= 2) {
+                        showError('登入驗證失敗，請重新從 LINE Bot 開啟');
+                        return;
+                    }
+                    
+                    console.log('Code verifier error, clearing cache and retrying...', 'retry:', retryCount + 1);
                     localStorage.clear();
                     sessionStorage.clear();
+                    sessionStorage.setItem('liff_retry_count', (retryCount + 1).toString());
                     
                     setTimeout(() => {
                         window.location.reload();
