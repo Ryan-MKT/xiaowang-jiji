@@ -254,6 +254,11 @@ async function handleEvent(event) {
 const lineLoginRoutes = require('./line-login-routes');
 app.use('/auth/line', lineLoginRoutes);
 
+// LIFF 應用程式路由
+app.get('/liff', (req, res) => {
+  res.sendFile(__dirname + '/liff-app.html');
+});
+
 // 路由設定
 app.get('/', (req, res) => {
   const loginUrl = '/auth/line/login';

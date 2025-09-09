@@ -98,7 +98,7 @@ function createTaskStackFlexMessage(tasks) {
           margin: 'sm',
           action: {
             type: 'uri',
-            uri: 'https://swap.work/member/settings'
+            uri: 'https://liff.line.me/2008077335-rZlgE4bX'
           }
         },
         {
