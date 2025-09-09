@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小汪記記 - 任務編輯器</title>
+    <title>標題編輯區</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         * {
@@ -13,250 +13,245 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #FFF8DC 0%, #F5DEB3 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 0;
         }
 
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
+        .notebook-container {
+            max-width: 100%;
+            min-height: 100vh;
+            background: #FFFACD;
+            position: relative;
+            box-shadow: inset 0 0 50px rgba(218, 165, 32, 0.1);
         }
 
-        .header {
-            background: #CD853F;
-            color: white;
-            padding: 20px;
-            text-align: center;
+        /* 筆記本線條 */
+        .notebook-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(to bottom, transparent 39px, #E6E6FA 40px, transparent 41px),
+                linear-gradient(to right, transparent 49px, #DDA0DD 50px, transparent 51px);
+            background-size: 100% 40px, 100% 100%;
+            pointer-events: none;
+            z-index: 1;
         }
 
-        .header h1 {
+        .content {
+            position: relative;
+            z-index: 2;
+            padding: 60px 70px 40px 70px;
+        }
+
+        .title-section {
+            margin-bottom: 40px;
+        }
+
+        .section-label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #8B4513;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .title-input {
+            width: 100%;
+            background: transparent;
+            border: none;
             font-size: 18px;
             font-weight: bold;
-        }
-
-        .user-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-bottom: 1px solid #e9ecef;
-            display: none;
-        }
-
-        .user-avatar {
-            width: 40px;
+            color: #2F4F4F;
+            padding: 10px 0;
+            line-height: 40px;
             height: 40px;
-            border-radius: 50%;
-            float: left;
-            margin-right: 10px;
+            outline: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', sans-serif;
+            border-bottom: 2px solid transparent;
+            transition: border-bottom-color 0.3s ease;
         }
 
-        .user-name {
-            font-weight: bold;
-            color: #333;
-            line-height: 20px;
+        .title-input:focus {
+            border-bottom-color: #DAA520;
         }
 
-        .user-id {
-            font-size: 12px;
-            color: #666;
-            font-family: monospace;
+        .title-input::placeholder {
+            color: #CD853F;
+            opacity: 0.7;
         }
 
-        .task-list {
-            padding: 20px;
-            background: #FFF8DC;
-            min-height: 300px;
+        .notes-section {
+            margin-bottom: 40px;
         }
 
-        .task-item {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .notes-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            font-size: 16px;
+            color: #2F4F4F;
+            line-height: 40px;
+            outline: none;
+            resize: none;
+            min-height: 320px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', sans-serif;
         }
 
-        .task-text {
-            font-size: 14px;
-            color: #333;
-            margin-bottom: 10px;
-            line-height: 1.4;
+        .notes-input::placeholder {
+            color: #CD853F;
+            opacity: 0.7;
         }
 
-        .task-actions {
+        .button-section {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            gap: 15px;
+            margin-top: 40px;
         }
 
-        .task-edit {
-            background: #007bff;
-            color: white;
+        .btn {
+            flex: 1;
+            padding: 15px 20px;
             border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-size: 12px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
-        .task-complete {
-            background: #28a745;
+        .btn-save {
+            background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
             color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-size: 12px;
-            cursor: pointer;
         }
 
-        .task-completed {
-            opacity: 0.6;
-            text-decoration: line-through;
+        .btn-save:hover {
+            background: linear-gradient(135deg, #B8860B 0%, #9A7D0A 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
         }
 
-        .add-task {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 56px;
-            height: 56px;
-            background: #00B900;
-            border: none;
-            border-radius: 50%;
+        .btn-cancel {
+            background: linear-gradient(135deg, #F5DEB3 0%, #DEB887 100%);
+            color: #8B4513;
+            border: 2px solid #DEB887;
+        }
+
+        .btn-cancel:hover {
+            background: linear-gradient(135deg, #DEB887 0%, #CD853F 100%);
             color: white;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,185,0,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #666;
+            padding: 60px 20px;
+            color: #8B4513;
+            font-size: 18px;
         }
 
         .error {
-            background: #f8d7da;
-            color: #721c24;
+            background: #FFE4E1;
+            color: #8B0000;
             padding: 15px;
-            margin: 10px;
-            border-radius: 5px;
-            border: 1px solid #f5c6cb;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #CD5C5C;
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
+        /* 筆記本打孔效果 */
+        .hole {
+            position: absolute;
+            left: 25px;
+            width: 8px;
+            height: 8px;
+            background: #F0F0F0;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
         }
 
-        .modal-content {
-            background-color: white;
-            margin: 15% auto;
-            padding: 20px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 400px;
-        }
+        .hole:nth-child(1) { top: 80px; }
+        .hole:nth-child(2) { top: 160px; }
+        .hole:nth-child(3) { top: 240px; }
+        .hole:nth-child(4) { top: 320px; }
+        .hole:nth-child(5) { top: 400px; }
 
-        .modal input, .modal textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .modal-buttons button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .btn-save {
-            background: #007bff;
-            color: white;
-        }
-
-        .btn-cancel {
-            background: #6c757d;
-            color: white;
+        @media (max-width: 480px) {
+            .content {
+                padding: 40px 50px 30px 50px;
+            }
+            
+            .notes-input {
+                min-height: 280px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🐕 小汪記記任務編輯器</h1>
-        </div>
+    <div class="notebook-container">
+        <!-- 筆記本打孔 -->
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
         
-        <div id="userInfo" class="user-info">
-            <img id="userAvatar" class="user-avatar" src="" alt="用戶頭像">
-            <div class="user-name" id="userName"></div>
-            <div class="user-id" id="userId"></div>
-            <div style="clear: both;"></div>
-        </div>
+        <!-- 筆記本線條背景 -->
+        <div class="notebook-lines"></div>
         
         <div id="loading" class="loading">
-            <div>🤖 載入中...</div>
+            🤖 載入中...
         </div>
         
         <div id="error" class="error" style="display: none;"></div>
         
-        <div id="taskList" class="task-list" style="display: none;">
-            <div id="tasks"></div>
-        </div>
-    </div>
-    
-    <button id="addTaskBtn" class="add-task" style="display: none;">+</button>
-    
-    <!-- 編輯任務 Modal -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <h3>編輯任務</h3>
-            <textarea id="editTaskText" placeholder="輸入任務內容..." rows="3"></textarea>
-            <div class="modal-buttons">
-                <button class="btn-save" onclick="saveTask()">儲存</button>
-                <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <div id="editForm" class="content" style="display: none;">
+            <div class="title-section">
+                <div class="section-label">標題編輯區</div>
+                <input type="text" id="titleInput" class="title-input" placeholder="輸入任務標題...">
+            </div>
+            
+            <div class="notes-section">
+                <div class="section-label">備註編輯區</div>
+                <textarea id="notesInput" class="notes-input" placeholder="記錄詳細內容、想法或備註..."></textarea>
+            </div>
+            
+            <div class="button-section">
+                <button class="btn btn-save" onclick="saveTask()">💾 儲存</button>
+                <button class="btn btn-cancel" onclick="closeApp()">❌ 取消</button>
             </div>
         </div>
     </div>
 
     <script>
         let liffProfile = null;
-        let userTasks = [];
-        let currentEditingTaskId = null;
+        let currentTask = null;
 
         // LIFF 初始化
         async function initializeLiff() {
             try {
+                // 清除可能的緩存問題
+                localStorage.clear();
+                sessionStorage.clear();
+                
                 await liff.init({
-                    liffId: '2008077335-rZlgE4bX'
+                    liffId: '2008069913-JeaLk0G9',
+                    withLoginOnExternalBrowser: true
                 });
 
+                console.log('LIFF init success. Login status:', liff.isLoggedIn());
+
                 if (!liff.isLoggedIn()) {
-                    liff.login();
+                    console.log('Not logged in, redirecting to login...');
+                    liff.login({
+                        redirectUri: window.location.href
+                    });
                     return;
                 }
 
@@ -264,169 +259,114 @@
                 liffProfile = await liff.getProfile();
                 console.log('LIFF Profile:', liffProfile);
 
-                // 顯示使用者資訊
-                displayUserInfo();
-
-                // 載入使用者任務
-                await loadUserTasks();
-
-                // 隱藏載入畫面，顯示任務列表
+                // 隱藏載入畫面，顯示編輯表單
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('taskList').style.display = 'block';
-                document.getElementById('addTaskBtn').style.display = 'block';
+                document.getElementById('editForm').style.display = 'block';
+
+                // 如果有任務 ID，載入現有任務
+                loadCurrentTask();
 
             } catch (error) {
                 console.error('LIFF 初始化失敗:', error);
+                
+                // 如果是 code_verifier 錯誤，嘗試清除並重新登入
+                if (error.message.includes('code_verifier')) {
+                    console.log('Code verifier error, clearing cache and retrying...');
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                    
+                    showError('登入狀態異常，正在重新整理頁面...');
+                    return;
+                }
+                
                 showError('LIFF 初始化失敗: ' + error.message);
             }
         }
 
-        // 顯示使用者資訊
-        function displayUserInfo() {
-            if (liffProfile) {
-                document.getElementById('userName').textContent = liffProfile.displayName;
-                document.getElementById('userId').textContent = liffProfile.userId;
-                document.getElementById('userAvatar').src = liffProfile.pictureUrl || '';
-                document.getElementById('userInfo').style.display = 'block';
-            }
-        }
-
-        // 載入使用者任務（從伺服器或本地儲存）
-        async function loadUserTasks() {
-            try {
-                // 這裡可以從伺服器 API 載入任務
-                // 暫時使用本地儲存
-                const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
-                if (savedTasks) {
-                    userTasks = JSON.parse(savedTasks);
-                } else {
-                    userTasks = [
-                        { id: Date.now(), text: '歡迎使用小汪記記！', completed: false, timestamp: new Date().toISOString() }
-                    ];
+        // 載入當前任務
+        function loadCurrentTask() {
+            // 這裡可以從 localStorage 或 API 載入任務
+            // 暫時使用預設值
+            const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
+            if (savedTasks) {
+                const tasks = JSON.parse(savedTasks);
+                if (tasks.length > 0) {
+                    // 載入最新的任務
+                    currentTask = tasks[tasks.length - 1];
+                    document.getElementById('titleInput').value = currentTask.text || '';
+                    document.getElementById('notesInput').value = currentTask.notes || '';
                 }
-                
-                displayTasks();
-            } catch (error) {
-                console.error('載入任務失敗:', error);
-                showError('載入任務失敗');
-            }
-        }
-
-        // 顯示任務列表
-        function displayTasks() {
-            const tasksContainer = document.getElementById('tasks');
-            tasksContainer.innerHTML = '';
-
-            if (userTasks.length === 0) {
-                tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">目前沒有任務</div>';
-                return;
-            }
-
-            userTasks.forEach((task, index) => {
-                const taskElement = document.createElement('div');
-                taskElement.className = 'task-item' + (task.completed ? ' task-completed' : '');
-                taskElement.innerHTML = `
-                    <div class="task-text">${index + 1}. ${task.text}</div>
-                    <div class="task-actions">
-                        <button class="task-edit" onclick="editTask(${task.id})">✎ 編輯</button>
-                        <button class="task-complete" onclick="toggleTask(${task.id})" ${task.completed ? 'disabled' : ''}>
-                            ${task.completed ? '✓ 已完成' : '□ 完成'}
-                        </button>
-                    </div>
-                `;
-                tasksContainer.appendChild(taskElement);
-            });
-        }
-
-        // 編輯任務
-        function editTask(taskId) {
-            const task = userTasks.find(t => t.id === taskId);
-            if (task) {
-                currentEditingTaskId = taskId;
-                document.getElementById('editTaskText').value = task.text;
-                document.getElementById('editModal').style.display = 'block';
             }
         }
 
         // 儲存任務
         function saveTask() {
-            const newText = document.getElementById('editTaskText').value.trim();
-            if (!newText) return;
+            const title = document.getElementById('titleInput').value.trim();
+            const notes = document.getElementById('notesInput').value.trim();
 
-            if (currentEditingTaskId) {
-                // 編輯現有任務
-                const taskIndex = userTasks.findIndex(t => t.id === currentEditingTaskId);
+            if (!title && !notes) {
+                alert('請至少填寫標題或備註');
+                return;
+            }
+
+            // 儲存到 localStorage
+            let userTasks = [];
+            const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
+            if (savedTasks) {
+                userTasks = JSON.parse(savedTasks);
+            }
+
+            if (currentTask) {
+                // 更新現有任務
+                const taskIndex = userTasks.findIndex(t => t.id === currentTask.id);
                 if (taskIndex !== -1) {
-                    userTasks[taskIndex].text = newText;
+                    userTasks[taskIndex].text = title;
+                    userTasks[taskIndex].notes = notes;
+                    userTasks[taskIndex].updated = new Date().toISOString();
                 }
             } else {
                 // 新增任務
                 userTasks.push({
                     id: Date.now(),
-                    text: newText,
+                    text: title,
+                    notes: notes,
                     completed: false,
                     timestamp: new Date().toISOString()
                 });
             }
 
-            // 儲存到本地
             localStorage.setItem('userTasks_' + liffProfile.userId, JSON.stringify(userTasks));
-            
-            // 重新顯示任務
-            displayTasks();
-            
-            // 關閉 modal
-            closeModal();
 
-            // 發送更新到 LINE Bot
-            sendTaskUpdate();
+            // 發送更新訊息到 LINE Bot
+            sendUpdateMessage(title, notes);
+
+            // 關閉 LIFF APP
+            setTimeout(() => {
+                liff.closeWindow();
+            }, 1000);
         }
 
-        // 切換任務完成狀態
-        function toggleTask(taskId) {
-            const taskIndex = userTasks.findIndex(t => t.id === taskId);
-            if (taskIndex !== -1) {
-                userTasks[taskIndex].completed = true;
-                
-                // 儲存到本地
-                localStorage.setItem('userTasks_' + liffProfile.userId, JSON.stringify(userTasks));
-                
-                // 重新顯示任務
-                displayTasks();
-
-                // 發送完成訊息到 LINE Bot
-                sendTaskCompletion(userTasks[taskIndex]);
-            }
-        }
-
-        // 關閉 modal
-        function closeModal() {
-            document.getElementById('editModal').style.display = 'none';
-            document.getElementById('editTaskText').value = '';
-            currentEditingTaskId = null;
-        }
-
-        // 發送任務更新到 LINE Bot
-        function sendTaskUpdate() {
+        // 發送更新訊息
+        function sendUpdateMessage(title, notes) {
             if (liff.isApiAvailable('sendMessages')) {
-                const completedCount = userTasks.filter(t => t.completed).length;
-                const totalCount = userTasks.length;
+                let message = '📝 任務已更新！\n';
+                if (title) message += `標題：${title}\n`;
+                if (notes) message += `備註：${notes}`;
                 
                 liff.sendMessages([{
                     type: 'text',
-                    text: `📝 任務已更新！\n總共 ${totalCount} 件事要做\n已完成 ${completedCount} 件，待完成 ${totalCount - completedCount} 件`
+                    text: message
                 }]);
             }
         }
 
-        // 發送任務完成訊息
-        function sendTaskCompletion(task) {
-            if (liff.isApiAvailable('sendMessages')) {
-                liff.sendMessages([{
-                    type: 'text',
-                    text: `🎉 恭喜！${task.text} 已完成！`
-                }]);
-            }
+        // 關閉應用程式
+        function closeApp() {
+            liff.closeWindow();
         }
 
         // 顯示錯誤訊息
@@ -436,22 +376,21 @@
             document.getElementById('loading').style.display = 'none';
         }
 
-        // 新增任務按鈕事件
-        document.getElementById('addTaskBtn').addEventListener('click', function() {
-            currentEditingTaskId = null;
-            document.getElementById('editTaskText').value = '';
-            document.getElementById('editModal').style.display = 'block';
-        });
-
-        // 點擊 modal 外部關閉
-        document.getElementById('editModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
-
         // 頁面載入時初始化 LIFF
         window.addEventListener('load', initializeLiff);
+        
+        // 監聽鍵盤事件
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+S 或 Cmd+S 儲存
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveTask();
+            }
+            // ESC 鍵關閉
+            if (e.key === 'Escape') {
+                closeApp();
+            }
+        });
     </script>
 </body>
 </html>
