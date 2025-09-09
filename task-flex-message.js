@@ -98,7 +98,7 @@ function createTaskStackFlexMessage(tasks) {
           margin: 'sm',
           action: {
             type: 'uri',
-            uri: `https://liff.line.me/${process.env.LIFF_APP_ID || '2008077335-rZlgE4bX'}?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
+            uri: `https://liff.line.me/${process.env.LIFF_APP_ID || '2008069913-JeaLk0G9'}?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
           }
         },
         {
