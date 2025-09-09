@@ -195,14 +195,6 @@ function createTaskStackFlexMessage(tasks) {
           type: 'action',
           action: {
             type: 'message',
-            label: 'AI',
-            text: 'AI'
-          }
-        },
-        {
-          type: 'action',
-          action: {
-            type: 'message',
             label: '工作',
             text: '工作'
           }
@@ -211,8 +203,16 @@ function createTaskStackFlexMessage(tasks) {
           type: 'action',
           action: {
             type: 'message',
-            label: '家事',
-            text: '家事'
+            label: '學習',
+            text: '學習'
+          }
+        },
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '運動',
+            text: '運動'
           }
         }
       ]

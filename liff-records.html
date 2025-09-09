@@ -220,6 +220,96 @@
             border-radius: 50%;
             box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
         }
+
+        /* 標籤任務區樣式 */
+        .tag-section {
+            background: white;
+            padding: 20px;
+            margin: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 4px solid #4169E1;
+        }
+
+        .tag-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .tag-title {
+            font-weight: bold;
+            color: #4169E1;
+            font-size: 16px;
+        }
+
+        .tag-count {
+            background: #4169E1;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .tag-item {
+            background: #F0F8FF;
+            color: #4169E1;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            border: 1px solid #4169E1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tag-item:hover {
+            background: #4169E1;
+            color: white;
+        }
+
+        .tag-item.selected {
+            background: #4169E1;
+            color: white;
+        }
+
+        .tagged-tasks-container {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .tagged-task-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #F8F9FF;
+            border-radius: 6px;
+            border-left: 3px solid #4169E1;
+            font-size: 13px;
+        }
+
+        .tagged-task-text {
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .tagged-task-meta {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .no-tagged-tasks {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -256,6 +346,23 @@
         </div>
     </div>
 
+    <!-- 標籤任務區 -->
+    <div id="tagSection" class="tag-section" style="display: none;">
+        <div class="tag-header">
+            <div class="tag-title">🏷️ 標籤任務區</div>
+            <div class="tag-count" id="tagCount">0</div>
+        </div>
+        
+        <div class="tag-list" id="tagList">
+            <!-- 標籤會動態插入這裡 -->
+            <div class="no-tagged-tasks">目前沒有任何標籤任務</div>
+        </div>
+        
+        <div class="tagged-tasks-container" id="taggedTasksContainer">
+            <!-- 選中標籤的任務會顯示在這裡 -->
+        </div>
+    </div>
+
     <div id="loading" class="loading">
         🤖 載入記錄中...
     </div>
@@ -272,6 +379,8 @@
         let liffProfile = null;
         let allTasks = [];
         let filteredTasks = [];
+        let taggedTasks = [];
+        let selectedTag = null;
 
         // LIFF 初始化
         async function initializeLiff() {
@@ -298,6 +407,9 @@
 
                 // 載入所有記錄
                 await loadAllRecords();
+
+                // 初始化標籤任務區
+                initializeTagSection();
 
                 // 隱藏載入畫面
                 document.getElementById('loading').style.display = 'none';
@@ -449,6 +561,86 @@
         // 關閉應用程式
         function closeApp() {
             liff.closeWindow();
+        }
+
+        // 初始化標籤任務區
+        function initializeTagSection() {
+            // 與QUICK REPLY按鈕同步的標籤資料
+            const sampleTags = ['工作', '學習', '運動'];
+            const sampleTaggedTasks = [
+                { id: 1, text: '完成專案報告', tag: '工作', timestamp: new Date(), completed: false },
+                { id: 2, text: '背英文單字', tag: '學習', timestamp: new Date(), completed: true },
+                { id: 3, text: '去健身房', tag: '運動', timestamp: new Date(), completed: false }
+            ];
+
+            taggedTasks = sampleTaggedTasks;
+            displayTags(sampleTags);
+            updateTagCount();
+            
+            // 如果有標籤任務，顯示標籤區域
+            if (taggedTasks.length > 0) {
+                document.getElementById('tagSection').style.display = 'block';
+            }
+        }
+
+        // 顯示標籤列表
+        function displayTags(tags) {
+            const tagList = document.getElementById('tagList');
+            
+            if (tags.length === 0) {
+                tagList.innerHTML = '<div class="no-tagged-tasks">目前沒有任何標籤任務</div>';
+                return;
+            }
+
+            tagList.innerHTML = tags.map(tag => {
+                const count = taggedTasks.filter(task => task.tag === tag).length;
+                return `<div class="tag-item" onclick="selectTag('${tag}')">${tag} (${count})</div>`;
+            }).join('');
+        }
+
+        // 選擇標籤
+        function selectTag(tag) {
+            selectedTag = tag;
+            
+            // 更新標籤外觀
+            document.querySelectorAll('.tag-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+
+            // 顯示該標籤的任務
+            displayTaggedTasks(tag);
+        }
+
+        // 顯示特定標籤的任務
+        function displayTaggedTasks(tag) {
+            const container = document.getElementById('taggedTasksContainer');
+            const tasksWithTag = taggedTasks.filter(task => task.tag === tag);
+
+            if (tasksWithTag.length === 0) {
+                container.innerHTML = '<div class="no-tagged-tasks">這個標籤還沒有任務</div>';
+                container.style.display = 'block';
+                return;
+            }
+
+            container.innerHTML = tasksWithTag.map((task, index) => `
+                <div class="tagged-task-item">
+                    <div class="tagged-task-text">
+                        ${index + 1}. ${task.text} ${task.completed ? '✓' : ''}
+                    </div>
+                    <div class="tagged-task-meta">
+                        標籤: ${task.tag} | ${new Date(task.timestamp).toLocaleString('zh-TW')}
+                    </div>
+                </div>
+            `).join('');
+            
+            container.style.display = 'block';
+        }
+
+        // 更新標籤計數
+        function updateTagCount() {
+            const tagCount = document.getElementById('tagCount');
+            tagCount.textContent = taggedTasks.length;
         }
 
         // 頁面載入時初始化 LIFF
