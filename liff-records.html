@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全部記錄 - 小汪記記</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #FFF8DC 0%, #F5DEB3 100%);
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        .header {
+            background: #CD853F;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .date-selector {
+            background: white;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .date-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #CD853F;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .container {
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .day-section {
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .day-header {
+            background: #8B4513;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-date {
+            font-size: 16px;
+        }
+
+        .task-count {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .task-list {
+            padding: 15px;
+        }
+
+        .task-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #FFF8DC;
+            border-radius: 8px;
+            border-left: 4px solid #CD853F;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            word-wrap: break-word;
+        }
+
+        .task-time {
+            font-size: 12px;
+            color: #999;
+            margin-left: 10px;
+        }
+
+        .task-completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .task-completed .task-text {
+            color: #999;
+        }
+
+        .stats-section {
+            background: white;
+            padding: 20px;
+            margin: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: #FFF8DC;
+            border-radius: 8px;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #CD853F;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8B4513;
+        }
+
+        .error {
+            background: #FFE4E1;
+            color: #8B0000;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #CD5C5C;
+        }
+
+        .no-tasks {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #CD853F;
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .floating-button:active {
+            transform: scale(0.95);
+        }
+
+        /* 筆記本風格裝飾 */
+        .notebook-holes {
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            pointer-events: none;
+        }
+
+        .hole {
+            width: 8px;
+            height: 8px;
+            background: #F0F0F0;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📚 全部記錄</h1>
+        <div id="userName" style="font-size: 14px; opacity: 0.9; margin-top: 5px;"></div>
+    </div>
+
+    <div class="date-selector">
+        <input type="date" id="dateInput" class="date-input" onchange="filterByDate()">
+    </div>
+
+    <div class="stats-section">
+        <div style="text-align: center; font-weight: bold; color: #8B4513; margin-bottom: 10px;">
+            📊 統計資訊
+        </div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number" id="totalTasks">0</div>
+                <div class="stat-label">總任務數</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="completedTasks">0</div>
+                <div class="stat-label">已完成</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="pendingTasks">0</div>
+                <div class="stat-label">待完成</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalDays">0</div>
+                <div class="stat-label">記錄天數</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading" class="loading">
+        🤖 載入記錄中...
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="recordsContainer" class="container" style="display: none;">
+        <!-- 記錄會動態插入這裡 -->
+    </div>
+
+    <button class="floating-button" onclick="closeApp()">✕</button>
+
+    <script>
+        let liffProfile = null;
+        let allTasks = [];
+        let filteredTasks = [];
+
+        // LIFF 初始化
+        async function initializeLiff() {
+            try {
+                await liff.init({
+                    liffId: '2008077335-rZlgE4bX'
+                });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                // 取得使用者資料
+                liffProfile = await liff.getProfile();
+                console.log('LIFF Profile:', liffProfile);
+                
+                // 顯示使用者名稱
+                document.getElementById('userName').textContent = liffProfile.displayName;
+
+                // 設定今天日期為預設值
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('dateInput').value = today;
+
+                // 載入所有記錄
+                await loadAllRecords();
+
+                // 隱藏載入畫面
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('recordsContainer').style.display = 'block';
+
+            } catch (error) {
+                console.error('LIFF 初始化失敗:', error);
+                showError('LIFF 初始化失敗: ' + error.message);
+            }
+        }
+
+        // 載入所有記錄
+        async function loadAllRecords() {
+            try {
+                // 從 localStorage 載入任務
+                const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
+                
+                if (savedTasks) {
+                    allTasks = JSON.parse(savedTasks);
+                    console.log('載入任務數量:', allTasks.length);
+                } else {
+                    allTasks = [];
+                }
+
+                // 按日期分組並顯示
+                displayTasksByDate(allTasks);
+                updateStatistics(allTasks);
+
+            } catch (error) {
+                console.error('載入記錄失敗:', error);
+                showError('載入記錄失敗');
+            }
+        }
+
+        // 按日期分組顯示任務
+        function displayTasksByDate(tasks) {
+            const container = document.getElementById('recordsContainer');
+            container.innerHTML = '';
+
+            if (tasks.length === 0) {
+                container.innerHTML = '<div class="no-tasks">📝 目前沒有任何記錄</div>';
+                return;
+            }
+
+            // 按日期分組
+            const tasksByDate = {};
+            tasks.forEach(task => {
+                const date = new Date(task.timestamp || Date.now()).toLocaleDateString('zh-TW');
+                if (!tasksByDate[date]) {
+                    tasksByDate[date] = [];
+                }
+                tasksByDate[date].push(task);
+            });
+
+            // 按日期降序排列
+            const sortedDates = Object.keys(tasksByDate).sort((a, b) => {
+                return new Date(b) - new Date(a);
+            });
+
+            // 顯示每一天的任務
+            sortedDates.forEach(date => {
+                const dayTasks = tasksByDate[date];
+                const completedCount = dayTasks.filter(t => t.completed).length;
+                
+                const daySection = document.createElement('div');
+                daySection.className = 'day-section';
+                
+                // 添加筆記本裝飾
+                const holes = document.createElement('div');
+                holes.className = 'notebook-holes';
+                for (let i = 0; i < 3; i++) {
+                    const hole = document.createElement('div');
+                    hole.className = 'hole';
+                    holes.appendChild(hole);
+                }
+                daySection.appendChild(holes);
+                
+                daySection.innerHTML += `
+                    <div class="day-header">
+                        <span class="day-date">📅 ${date}</span>
+                        <span class="task-count">${completedCount}/${dayTasks.length} 完成</span>
+                    </div>
+                    <div class="task-list">
+                        ${dayTasks.map((task, index) => `
+                            <div class="task-item ${task.completed ? 'task-completed' : ''}">
+                                <span class="task-text">${index + 1}. ${task.text || '未命名任務'}</span>
+                                <span class="task-time">
+                                    ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(daySection);
+            });
+        }
+
+        // 更新統計資訊
+        function updateStatistics(tasks) {
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(t => t.completed).length;
+            const pendingTasks = totalTasks - completedTasks;
+            
+            // 計算記錄天數
+            const uniqueDates = new Set(
+                tasks.map(t => new Date(t.timestamp || Date.now()).toDateString())
+            );
+            const totalDays = uniqueDates.size;
+
+            document.getElementById('totalTasks').textContent = totalTasks;
+            document.getElementById('completedTasks').textContent = completedTasks;
+            document.getElementById('pendingTasks').textContent = pendingTasks;
+            document.getElementById('totalDays').textContent = totalDays;
+        }
+
+        // 按日期篩選
+        function filterByDate() {
+            const selectedDate = document.getElementById('dateInput').value;
+            
+            if (!selectedDate) {
+                displayTasksByDate(allTasks);
+                updateStatistics(allTasks);
+                return;
+            }
+
+            const selectedDateStr = new Date(selectedDate).toLocaleDateString('zh-TW');
+            
+            const filteredTasks = allTasks.filter(task => {
+                const taskDate = new Date(task.timestamp || Date.now()).toLocaleDateString('zh-TW');
+                return taskDate === selectedDateStr;
+            });
+
+            displayTasksByDate(filteredTasks);
+            updateStatistics(filteredTasks);
+        }
+
+        // 顯示錯誤訊息
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 關閉應用程式
+        function closeApp() {
+            liff.closeWindow();
+        }
+
+        // 頁面載入時初始化 LIFF
+        window.addEventListener('load', initializeLiff);
+    </script>
+</body>
+</html>

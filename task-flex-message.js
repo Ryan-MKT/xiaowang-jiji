@@ -167,6 +167,23 @@ function createTaskStackFlexMessage(tasks) {
             color: '#999999',
             align: 'center',
             margin: 'md'
+          },
+          {
+            type: 'separator',
+            margin: 'md',
+            color: '#E0E0E0'
+          },
+          {
+            type: 'text',
+            text: '📚 全部記錄',
+            size: 'sm',
+            color: '#4169E1',
+            align: 'center',
+            margin: 'md',
+            action: {
+              type: 'uri',
+              uri: 'https://liff.line.me/2008077335-rZlgE4bX/records'
+            }
           }
         ])
       }
