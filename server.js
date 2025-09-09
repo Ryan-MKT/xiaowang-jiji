@@ -448,6 +448,20 @@ app.get('/debug', (req, res) => {
   }
 });
 
+// LIFF 全部記錄頁面路由
+app.get('/liff/records', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    const html = fs.readFileSync(path.join(__dirname, 'liff-records.html'), 'utf8');
+    res.send(html);
+  } catch (error) {
+    console.error('讀取記錄頁面錯誤:', error);
+    res.status(500).send('記錄頁面載入失敗');
+  }
+});
+
 // 路由設定
 app.get('/', (req, res) => {
   const loginUrl = '/auth/line/login';
