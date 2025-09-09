@@ -95,7 +95,11 @@ function createTaskStackFlexMessage(tasks) {
           size: 'md',
           color: '#000000',
           flex: 0,
-          margin: 'sm'
+          margin: 'sm',
+          action: {
+            type: 'uri',
+            uri: 'https://swap.work/member/settings'
+          }
         },
         {
           type: 'text',
@@ -176,6 +180,22 @@ function createTaskStackFlexMessage(tasks) {
             type: 'message',
             label: 'AI',
             text: 'AI'
+          }
+        },
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '工作',
+            text: '工作'
+          }
+        },
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '家事',
+            text: '家事'
           }
         }
       ]

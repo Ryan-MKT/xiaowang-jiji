@@ -8,7 +8,7 @@ class LineLogin {
   constructor() {
     this.channelId = process.env.LINE_LOGIN_CHANNEL_ID;
     this.channelSecret = process.env.LINE_LOGIN_CHANNEL_SECRET;
-    this.redirectUri = process.env.LINE_LOGIN_REDIRECT_URI || 'http://localhost:3000/auth/line/callback';
+    this.redirectUri = process.env.LINE_LOGIN_CALLBACK_URL || 'http://localhost:3001/auth/line/callback';
   }
 
   // 生成登入 URL
