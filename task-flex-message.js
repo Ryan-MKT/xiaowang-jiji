@@ -95,7 +95,11 @@ function createTaskStackFlexMessage(tasks) {
           size: 'md',
           color: '#000000',
           flex: 0,
-          margin: 'sm'
+          margin: 'sm',
+          action: {
+            type: 'uri',
+            uri: 'https://liff.line.me/2008077335-rZlgE4bX'
+          }
         },
         {
           type: 'text',
@@ -122,6 +126,7 @@ function createTaskStackFlexMessage(tasks) {
     }
   });
 
+  // Linus 風格：資料結構簡單，直接附加 Quick Reply
   return {
     type: 'flex',
     altText: `今天 ${totalTasks} 件事要做`,
@@ -165,6 +170,35 @@ function createTaskStackFlexMessage(tasks) {
           }
         ])
       }
+    },
+    // 簡潔直接：每個任務堆疊都有 Quick Reply，無條件判斷
+    quickReply: {
+      items: [
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: 'AI',
+            text: 'AI'
+          }
+        },
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '工作',
+            text: '工作'
+          }
+        },
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '家事',
+            text: '家事'
+          }
+        }
+      ]
     }
   };
 }

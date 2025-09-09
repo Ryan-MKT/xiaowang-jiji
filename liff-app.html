@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小汪記記 - 任務編輯器</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #CD853F;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            display: none;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            float: left;
+            margin-right: 10px;
+        }
+
+        .user-name {
+            font-weight: bold;
+            color: #333;
+            line-height: 20px;
+        }
+
+        .user-id {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+        }
+
+        .task-list {
+            padding: 20px;
+            background: #FFF8DC;
+            min-height: 300px;
+        }
+
+        .task-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .task-text {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .task-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-edit {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .task-complete {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .task-completed {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .add-task {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #00B900;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,185,0,0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 5px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal input, .modal textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .btn-save {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐕 小汪記記任務編輯器</h1>
+        </div>
+        
+        <div id="userInfo" class="user-info">
+            <img id="userAvatar" class="user-avatar" src="" alt="用戶頭像">
+            <div class="user-name" id="userName"></div>
+            <div class="user-id" id="userId"></div>
+            <div style="clear: both;"></div>
+        </div>
+        
+        <div id="loading" class="loading">
+            <div>🤖 載入中...</div>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="taskList" class="task-list" style="display: none;">
+            <div id="tasks"></div>
+        </div>
+    </div>
+    
+    <button id="addTaskBtn" class="add-task" style="display: none;">+</button>
+    
+    <!-- 編輯任務 Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3>編輯任務</h3>
+            <textarea id="editTaskText" placeholder="輸入任務內容..." rows="3"></textarea>
+            <div class="modal-buttons">
+                <button class="btn-save" onclick="saveTask()">儲存</button>
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let liffProfile = null;
+        let userTasks = [];
+        let currentEditingTaskId = null;
+
+        // LIFF 初始化
+        async function initializeLiff() {
+            try {
+                await liff.init({
+                    liffId: '2008077335-rZlgE4bX'
+                });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                // 取得使用者資料
+                liffProfile = await liff.getProfile();
+                console.log('LIFF Profile:', liffProfile);
+
+                // 顯示使用者資訊
+                displayUserInfo();
+
+                // 載入使用者任務
+                await loadUserTasks();
+
+                // 隱藏載入畫面，顯示任務列表
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('taskList').style.display = 'block';
+                document.getElementById('addTaskBtn').style.display = 'block';
+
+            } catch (error) {
+                console.error('LIFF 初始化失敗:', error);
+                showError('LIFF 初始化失敗: ' + error.message);
+            }
+        }
+
+        // 顯示使用者資訊
+        function displayUserInfo() {
+            if (liffProfile) {
+                document.getElementById('userName').textContent = liffProfile.displayName;
+                document.getElementById('userId').textContent = liffProfile.userId;
+                document.getElementById('userAvatar').src = liffProfile.pictureUrl || '';
+                document.getElementById('userInfo').style.display = 'block';
+            }
+        }
+
+        // 載入使用者任務（從伺服器或本地儲存）
+        async function loadUserTasks() {
+            try {
+                // 這裡可以從伺服器 API 載入任務
+                // 暫時使用本地儲存
+                const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
+                if (savedTasks) {
+                    userTasks = JSON.parse(savedTasks);
+                } else {
+                    userTasks = [
+                        { id: Date.now(), text: '歡迎使用小汪記記！', completed: false, timestamp: new Date().toISOString() }
+                    ];
+                }
+                
+                displayTasks();
+            } catch (error) {
+                console.error('載入任務失敗:', error);
+                showError('載入任務失敗');
+            }
+        }
+
+        // 顯示任務列表
+        function displayTasks() {
+            const tasksContainer = document.getElementById('tasks');
+            tasksContainer.innerHTML = '';
+
+            if (userTasks.length === 0) {
+                tasksContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 40px;">目前沒有任務</div>';
+                return;
+            }
+
+            userTasks.forEach((task, index) => {
+                const taskElement = document.createElement('div');
+                taskElement.className = 'task-item' + (task.completed ? ' task-completed' : '');
+                taskElement.innerHTML = `
+                    <div class="task-text">${index + 1}. ${task.text}</div>
+                    <div class="task-actions">
+                        <button class="task-edit" onclick="editTask(${task.id})">✎ 編輯</button>
+                        <button class="task-complete" onclick="toggleTask(${task.id})" ${task.completed ? 'disabled' : ''}>
+                            ${task.completed ? '✓ 已完成' : '□ 完成'}
+                        </button>
+                    </div>
+                `;
+                tasksContainer.appendChild(taskElement);
+            });
+        }
+
+        // 編輯任務
+        function editTask(taskId) {
+            const task = userTasks.find(t => t.id === taskId);
+            if (task) {
+                currentEditingTaskId = taskId;
+                document.getElementById('editTaskText').value = task.text;
+                document.getElementById('editModal').style.display = 'block';
+            }
+        }
+
+        // 儲存任務
+        function saveTask() {
+            const newText = document.getElementById('editTaskText').value.trim();
+            if (!newText) return;
+
+            if (currentEditingTaskId) {
+                // 編輯現有任務
+                const taskIndex = userTasks.findIndex(t => t.id === currentEditingTaskId);
+                if (taskIndex !== -1) {
+                    userTasks[taskIndex].text = newText;
+                }
+            } else {
+                // 新增任務
+                userTasks.push({
+                    id: Date.now(),
+                    text: newText,
+                    completed: false,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            // 儲存到本地
+            localStorage.setItem('userTasks_' + liffProfile.userId, JSON.stringify(userTasks));
+            
+            // 重新顯示任務
+            displayTasks();
+            
+            // 關閉 modal
+            closeModal();
+
+            // 發送更新到 LINE Bot
+            sendTaskUpdate();
+        }
+
+        // 切換任務完成狀態
+        function toggleTask(taskId) {
+            const taskIndex = userTasks.findIndex(t => t.id === taskId);
+            if (taskIndex !== -1) {
+                userTasks[taskIndex].completed = true;
+                
+                // 儲存到本地
+                localStorage.setItem('userTasks_' + liffProfile.userId, JSON.stringify(userTasks));
+                
+                // 重新顯示任務
+                displayTasks();
+
+                // 發送完成訊息到 LINE Bot
+                sendTaskCompletion(userTasks[taskIndex]);
+            }
+        }
+
+        // 關閉 modal
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+            document.getElementById('editTaskText').value = '';
+            currentEditingTaskId = null;
+        }
+
+        // 發送任務更新到 LINE Bot
+        function sendTaskUpdate() {
+            if (liff.isApiAvailable('sendMessages')) {
+                const completedCount = userTasks.filter(t => t.completed).length;
+                const totalCount = userTasks.length;
+                
+                liff.sendMessages([{
+                    type: 'text',
+                    text: `📝 任務已更新！\n總共 ${totalCount} 件事要做\n已完成 ${completedCount} 件，待完成 ${totalCount - completedCount} 件`
+                }]);
+            }
+        }
+
+        // 發送任務完成訊息
+        function sendTaskCompletion(task) {
+            if (liff.isApiAvailable('sendMessages')) {
+                liff.sendMessages([{
+                    type: 'text',
+                    text: `🎉 恭喜！${task.text} 已完成！`
+                }]);
+            }
+        }
+
+        // 顯示錯誤訊息
+        function showError(message) {
+            document.getElementById('error').textContent = message;
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 新增任務按鈕事件
+        document.getElementById('addTaskBtn').addEventListener('click', function() {
+            currentEditingTaskId = null;
+            document.getElementById('editTaskText').value = '';
+            document.getElementById('editModal').style.display = 'block';
+        });
+
+        // 點擊 modal 外部關閉
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // 頁面載入時初始化 LIFF
+        window.addEventListener('load', initializeLiff);
+    </script>
+</body>
+</html>
