@@ -174,17 +174,6 @@ async function handlePostback(event) {
       
       console.log(`✅ 任務已收藏: ${favoriteTask.text}`);
       
-      // 發送收錄確認訊息
-      const favoriteMessage = {
-        type: 'text',
-        text: `收錄：${favoriteTask.text}`
-      };
-      
-      // 發送更新後的任務清單（星星變黑色）
-      const userTags = await getUserTags(userId);
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
-      
       if (client) {
         // 設置標籤選擇狀態
         userTagSelectionStates.set(userId, {
@@ -195,6 +184,7 @@ async function handlePostback(event) {
         console.log(`🏷️ [標籤選擇] 用戶 ${userId} 進入標籤選擇狀態，目標任務 ID: ${taskId}`);
         
         // 準備標籤詢問訊息（包含 Quick Reply 按鈕）
+        const userTags = await getUserTags(userId);
         const { generateQuickReply } = getTaskFlexModule();
         const tagQuestionMessage = {
           type: 'text',
@@ -202,11 +192,9 @@ async function handlePostback(event) {
           quickReply: generateQuickReply(userTags)
         };
         
-        // 先發送更新的任務清單（FLEX MESSAGE），再發送詢問標籤的訊息
-        await client.replyMessage(event.replyToken, updatedFlexMessage);
-        return client.pushMessage(userId, tagQuestionMessage);
+        // 只發送詢問標籤的訊息，不更新 FLEX MESSAGE
+        return client.replyMessage(event.replyToken, tagQuestionMessage);
       } else {
-        console.log('測試模式：更新任務清單', JSON.stringify(updatedFlexMessage, null, 2));
         console.log('測試模式：標籤詢問訊息（含 Quick Reply）', '希望收藏到哪個標籤?');
         return Promise.resolve(null);
       }
