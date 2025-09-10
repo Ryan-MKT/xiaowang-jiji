@@ -663,16 +663,30 @@
 
         // 🔄 檢查 URL 參數中的同步資料
         function checkForSyncData() {
+            console.log('🔍 [URL 診斷] 開始檢查同步資料...');
+            console.log('🔍 [URL 診斷] 完整 URL:', window.location.href);
+            console.log('🔍 [URL 診斷] URL 參數部分:', window.location.search);
+            
             const urlParams = new URLSearchParams(window.location.search);
             const syncTasks = urlParams.get('syncTasks');
             
+            console.log('🔍 [URL 診斷] syncTasks 參數存在:', !!syncTasks);
+            
             if (syncTasks) {
+                console.log('🔍 [URL 診斷] syncTasks 參數長度:', syncTasks.length);
+                console.log('🔍 [URL 診斷] syncTasks 前100字元:', syncTasks.substring(0, 100) + '...');
+                
                 try {
                     window.flexMessageTasks = JSON.parse(decodeURIComponent(syncTasks));
-                    console.log('📱 [同步檢查] 從 URL 參數獲取同步任務:', window.flexMessageTasks.length, '個');
+                    console.log('✅ [同步檢查] 從 URL 參數成功解析任務:', window.flexMessageTasks.length, '個');
+                    console.log('📝 [同步檢查] 任務預覽:', window.flexMessageTasks.slice(0, 3).map(task => task.text));
                 } catch (error) {
                     console.error('❌ [同步檢查] 解析 URL 同步資料失敗:', error);
+                    console.error('❌ [同步檢查] 原始資料:', syncTasks.substring(0, 200));
                 }
+            } else {
+                console.log('⚠️ [同步檢查] URL 中沒有 syncTasks 參數');
+                console.log('🔍 [URL 診斷] 所有可用參數:', Array.from(urlParams.keys()));
             }
         }
 

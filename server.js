@@ -517,7 +517,15 @@ app.get('/liff/records', (req, res) => {
   const path = require('path');
   
   try {
-    const html = fs.readFileSync(path.join(__dirname, 'liff-records.html'), 'utf8');
+    let html = fs.readFileSync(path.join(__dirname, 'liff-records.html'), 'utf8');
+    
+    // 🔧 修復：進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+    
+    console.log(`📱 [記錄頁面] 使用 LIFF ID: ${liffId}`);
+    console.log(`🔗 [記錄頁面] URL 參數:`, req.url);
+    
     res.send(html);
   } catch (error) {
     console.error('讀取記錄頁面錯誤:', error);
