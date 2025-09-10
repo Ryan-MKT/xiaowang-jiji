@@ -195,17 +195,21 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
 
 // 生成動態 Quick Reply
 function generateQuickReply(userTags) {
+  console.log(`🔍 [Quick Reply] 輸入標籤數據:`, userTags);
   let quickReplyItems = [];
   
   if (userTags && Array.isArray(userTags) && userTags.length > 0) {
     // 使用用戶自定義標籤
-    console.log('🏷️ 使用用戶標籤生成 Quick Reply，數量:', userTags.length);
+    console.log(`✅ [Quick Reply] 使用用戶標籤生成，原始數量: ${userTags.length}`);
     
-    // 按 order_index 排序，最多取 13 個標籤（LINE Quick Reply 限制）
+    // 按 sort_order 排序，最多取 13 個標籤（LINE Quick Reply 限制）
     const sortedTags = userTags
       .filter(tag => tag.is_active !== false) // 過濾掉已刪除的標籤
-      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
       .slice(0, 13);
+    
+    console.log(`📋 [Quick Reply] 過濾排序後標籤數量: ${sortedTags.length}`);
+    console.log(`📝 [Quick Reply] 最終標籤列表:`, sortedTags.map(tag => `${tag.name}(${tag.sort_order})`));
     
     quickReplyItems = sortedTags.map(tag => ({
       type: 'action',
@@ -215,35 +219,29 @@ function generateQuickReply(userTags) {
         text: tag.name
       }
     }));
+    
+    console.log(`🎯 [Quick Reply] 生成 ${quickReplyItems.length} 個按鈕`);
   } else {
-    // 使用預設標籤
-    console.log('🏷️ 使用預設標籤生成 Quick Reply');
-    quickReplyItems = [
-      {
-        type: 'action',
-        action: {
-          type: 'message',
-          label: '💼 工作',
-          text: '工作'
-        }
-      },
-      {
-        type: 'action',
-        action: {
-          type: 'message',
-          label: '📚 學習',
-          text: '學習'
-        }
-      },
-      {
-        type: 'action',
-        action: {
-          type: 'message',
-          label: '🏃‍♂️ 運動',
-          text: '運動'
-        }
-      }
+    // 使用完整預設標籤（與 server.js 的 getDefaultUserTags() 同步）
+    console.log('⚠️ [Quick Reply] 無用戶標籤，使用預設標籤生成');
+    const defaultTags = [
+      { id: 5, name: '工作', color: '#FF6B6B', icon: '💼', sort_order: 1, is_active: true },
+      { id: 6, name: '學習', color: '#4ECDC4', icon: '📚', sort_order: 2, is_active: true },
+      { id: 8, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', sort_order: 3, is_active: true },
+      { id: 7, name: 'AI', color: '#9B59B6', icon: '🤖', sort_order: 4, is_active: true },
+      { id: 9, name: '日本', color: '#E74C3C', icon: '🗾', sort_order: 5, is_active: true }
     ];
+    
+    quickReplyItems = defaultTags.map(tag => ({
+      type: 'action',
+      action: {
+        type: 'message',
+        label: `${tag.icon} ${tag.name}`,
+        text: tag.name
+      }
+    }));
+    
+    console.log(`🎯 [Quick Reply] 使用完整預設標籤，生成 ${quickReplyItems.length} 個按鈕`);
   }
   
   return {

@@ -127,40 +127,50 @@ async function handlePostback(event) {
 async function getUserTags(userId) {
   try {
     if (supabase) {
-      const tablePrefix = process.env.TABLE_PREFIX || '';
+      const tablePrefix = process.env.TABLE_PREFIX || 'dev_';
       const tableName = tablePrefix + 'tags';
+      
+      console.log(`🔍 [標籤同步] 查詢表格: ${tableName}, 用戶: ${userId}`);
       
       const { data, error } = await supabase
         .from(tableName)
         .select('*')
         .eq('user_id', userId)
         .eq('is_active', true)
-        .order('order_index', { ascending: true });
+        .order('sort_order', { ascending: true });
       
       if (error) {
-        console.error('載入用戶標籤錯誤:', error);
+        console.error('❌ [標籤同步] 載入用戶標籤錯誤:', error);
+        console.log('🔄 [標籤同步] 回退到預設標籤');
         return getDefaultUserTags();
       }
       
-      console.log(`🏷️ 載入用戶 ${userId} 的標籤，數量: ${data?.length || 0}`);
-      return data || getDefaultUserTags();
+      if (data && data.length > 0) {
+        console.log(`✅ [標籤同步] 成功載入用戶 ${userId} 的標籤，數量: ${data.length}`);
+        console.log(`📋 [標籤同步] 標籤詳細:`, data.map(tag => `${tag.name}(${tag.sort_order})`));
+        return data;
+      } else {
+        console.log(`⚠️ [標籤同步] 用戶 ${userId} 無自定義標籤，使用預設標籤`);
+        return getDefaultUserTags();
+      }
     } else {
-      // 沒有資料庫連線時返回預設標籤
+      console.log('🔌 [標籤同步] 無資料庫連線，使用預設標籤');
       return getDefaultUserTags();
     }
   } catch (error) {
-    console.error('載入用戶標籤失敗:', error);
+    console.error('💥 [標籤同步] 載入用戶標籤失敗:', error);
     return getDefaultUserTags();
   }
 }
 
-// 獲取預設用戶標籤
+// 獲取預設用戶標籤 - 使用實際 Supabase 中的標籤資料
 function getDefaultUserTags() {
   return [
-    { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', order_index: 1, is_active: true },
-    { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', order_index: 2, is_active: true },
-    { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', order_index: 3, is_active: true },
-    { id: 4, name: 'AI', color: '#9B59B6', icon: '🤖', order_index: 4, is_active: true }
+    { id: 5, name: '工作', color: '#FF6B6B', icon: '💼', sort_order: 1, is_active: true },
+    { id: 6, name: '學習', color: '#4ECDC4', icon: '📚', sort_order: 2, is_active: true },
+    { id: 8, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', sort_order: 3, is_active: true },
+    { id: 7, name: 'AI', color: '#9B59B6', icon: '🤖', sort_order: 4, is_active: true },
+    { id: 9, name: '日本', color: '#E74C3C', icon: '🗾', sort_order: 5, is_active: true }
   ];
 }
 
@@ -636,32 +646,41 @@ app.get('/api/tags', async (req, res) => {
       return res.status(400).json({ error: 'Missing user ID' });
     }
     
-    console.log(`📋 取得使用者 ${userId} 的標籤列表`);
+    console.log(`🔍 [API診斷] 取得使用者 ${userId} 的標籤列表`);
     
     if (supabase) {
       const tablePrefix = process.env.TABLE_PREFIX || '';
       const tableName = tablePrefix + 'tags';
+      
+      console.log(`🔍 [API診斷] 查詢表格: ${tableName}`);
       
       const { data, error } = await supabase
         .from(tableName)
         .select('*')
         .eq('user_id', userId)
         .eq('is_active', true)
-        .order('order_index', { ascending: true });
+        .order('sort_order', { ascending: true });
       
       if (error) {
-        console.error('Supabase 查詢錯誤:', error);
-        return res.status(500).json({ error: 'Database query failed' });
+        console.error('❌ [API診斷] Supabase 查詢錯誤:', error);
+        return res.status(500).json({ error: 'Database query failed', details: error });
       }
       
-      console.log(`✅ 查詢到 ${data.length} 個標籤`);
-      res.json(data || []);
+      if (data && data.length > 0) {
+        console.log(`✅ [API診斷] 查詢到 ${data.length} 個標籤:`);
+        console.log(data.map(tag => `- ${tag.name}(${tag.sort_order})`));
+        res.json(data);
+      } else {
+        console.log(`⚠️ [API診斷] 未找到標籤，返回空陣列`);
+        res.json([]);
+      }
     } else {
+      console.log(`🔌 [API診斷] 無資料庫連線，返回預設標籤`);
       // 如果沒有資料庫連線，返回預設標籤
       const defaultTags = [
-        { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', order_index: 1 },
-        { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', order_index: 2 },
-        { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', order_index: 3 }
+        { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', sort_order: 1 },
+        { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', sort_order: 2 },
+        { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', sort_order: 3 }
       ];
       res.json(defaultTags);
     }
@@ -688,8 +707,10 @@ app.post('/api/tags', async (req, res) => {
     console.log(`➕ 使用者 ${userId} 新增標籤: ${name}`);
     
     if (supabase) {
-      const tablePrefix = process.env.TABLE_PREFIX || '';
+      const tablePrefix = process.env.TABLE_PREFIX || 'dev_';
       const tableName = tablePrefix + 'tags';
+      
+      console.log(`🔍 [新增標籤] 查詢表格: ${tableName}, 用戶: ${userId}`);
       
       // 檢查標籤數量限制
       const { count } = await supabase
@@ -715,6 +736,20 @@ app.post('/api/tags', async (req, res) => {
         return res.status(400).json({ error: 'Tag name already exists' });
       }
       
+      // 獲取下一個 sort_order
+      const { data: maxOrderData } = await supabase
+        .from(tableName)
+        .select('sort_order')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: false })
+        .limit(1);
+
+      const nextOrder = maxOrderData && maxOrderData.length > 0 
+        ? maxOrderData[0].sort_order + 1 
+        : 1;
+
+      console.log(`📋 [新增標籤] 下一個排序: ${nextOrder}`);
+
       // 新增標籤
       const { data, error } = await supabase
         .from(tableName)
@@ -723,19 +758,31 @@ app.post('/api/tags', async (req, res) => {
           name,
           color: color || '#4169E1',
           icon: icon || '🏷️',
-          order_index: orderIndex || 0,
+          sort_order: nextOrder,
           is_active: true
         }])
         .select()
         .single();
       
       if (error) {
-        console.error('Supabase 插入錯誤:', error);
+        console.error('❌ [新增標籤] Supabase 插入錯誤:', error);
         return res.status(500).json({ error: 'Database insert failed' });
       }
       
-      console.log('✅ 標籤新增成功:', data);
-      res.status(201).json(data);
+      console.log(`✅ [新增標籤] 標籤新增成功: ${data.name} (ID: ${data.id}, sort_order: ${data.sort_order})`);
+      
+      // 重新載入所有用戶標籤並記錄
+      const updatedTags = await getUserTags(userId);
+      console.log(`🔄 [新增標籤] 用戶現有標籤數量: ${updatedTags ? updatedTags.length : 0}`);
+      if (updatedTags) {
+        console.log(`📝 [新增標籤] 標籤列表:`, updatedTags.map(tag => `${tag.name}(${tag.sort_order})`));
+      }
+      
+      res.status(201).json({ 
+        newTag: data, 
+        totalTags: updatedTags ? updatedTags.length : 0,
+        allTags: updatedTags 
+      });
     } else {
       // 沒有資料庫連線時返回模擬結果
       const newTag = {
@@ -744,7 +791,7 @@ app.post('/api/tags', async (req, res) => {
         name,
         color: color || '#4169E1',
         icon: icon || '🏷️',
-        order_index: orderIndex || 0,
+        sort_order: orderIndex || 0,
         is_active: true
       };
       res.status(201).json(newTag);
@@ -798,6 +845,83 @@ app.delete('/api/tags/:tagId', async (req, res) => {
   } catch (err) {
     console.error('刪除標籤錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== 管理員 API ====================
+
+app.post('/admin/create-tags-table', async (req, res) => {
+  try {
+    console.log('🔧 [管理員] 開始建立 dev_tags 表格...');
+    
+    if (!supabase) {
+      return res.status(500).json({ error: 'Supabase 客戶端未初始化' });
+    }
+
+    // 使用 SQL 建立表格
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS dev_tags (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT DEFAULT '#4ECDC4',
+        icon TEXT DEFAULT '🏷️',
+        sort_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+
+    // 執行 SQL（透過 Supabase RPC）
+    const { data, error } = await supabase.rpc('exec_sql', { sql_query: createTableSQL });
+    
+    if (error) {
+      console.log('❌ [管理員] 建立表格失敗:', error);
+      
+      // 直接添加 5 個測試標籤到不存在的表格（強制建立）
+      console.log('🔄 [管理員] 嘗試直接插入資料來建立表格...');
+      
+      const testTags = [
+        { user_id: 'U2a9005032be2240a6816d29ae28d9294', name: '工作', color: '#FF6B6B', icon: '💼', sort_order: 1, is_active: true },
+        { user_id: 'U2a9005032be2240a6816d29ae28d9294', name: '學習', color: '#4ECDC4', icon: '📚', sort_order: 2, is_active: true },
+        { user_id: 'U2a9005032be2240a6816d29ae28d9294', name: '運動', color: '#45B7D1', icon: '🏃‍♂️', sort_order: 3, is_active: true },
+        { user_id: 'U2a9005032be2240a6816d29ae28d9294', name: 'AI', color: '#9B59B6', icon: '🤖', sort_order: 4, is_active: true },
+        { user_id: 'U2a9005032be2240a6816d29ae28d9294', name: '日本', color: '#E74C3C', icon: '🗾', sort_order: 5, is_active: true }
+      ];
+
+      for (const tag of testTags) {
+        try {
+          const { data: insertData, error: insertError } = await supabase
+            .from('dev_tags')
+            .insert(tag);
+          
+          if (insertError) {
+            console.log(`❌ [管理員] 插入標籤失敗 ${tag.name}:`, insertError);
+          } else {
+            console.log(`✅ [管理員] 成功插入標籤: ${tag.name}`);
+          }
+        } catch (insertErr) {
+          console.log(`💥 [管理員] 插入標籤異常 ${tag.name}:`, insertErr);
+        }
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: '透過插入資料嘗試建立表格',
+        sql_error: error 
+      });
+    } else {
+      console.log('✅ [管理員] 表格建立成功');
+      return res.json({ 
+        success: true, 
+        message: 'dev_tags 表格建立成功',
+        data 
+      });
+    }
+  } catch (err) {
+    console.log('💥 [管理員] 建立表格異常:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
