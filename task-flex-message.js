@@ -215,9 +215,8 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           }
         ])
       }
-    },
-    // 動態標籤 Quick Reply：根據用戶設定的標籤生成
-    quickReply: generateQuickReply(userTags)
+    }
+    // 注意：Quick Reply 現在只在收藏任務詢問標籤時顯示
   };
 }
 
@@ -279,5 +278,6 @@ function generateQuickReply(userTags) {
 
 module.exports = {
   createTaskFlexMessage,
-  createTaskStackFlexMessage
+  createTaskStackFlexMessage,
+  generateQuickReply
 };
