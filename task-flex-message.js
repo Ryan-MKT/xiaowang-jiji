@@ -98,7 +98,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           margin: 'sm',
           action: {
             type: 'uri',
-            uri: `https://liff.line.me/${process.env.LIFF_APP_ID || '2008077335-rZlgE4bX'}?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
+            uri: `https://e15a3f219d53.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
           }
         },
         {
@@ -182,7 +182,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             margin: 'md',
             action: {
               type: 'uri',
-              uri: `https://liff.line.me/${process.env.LIFF_APP_ID || '2008077335-rZlgE4bX'}`
+              uri: `https://e15a3f219d53.ngrok-free.app/liff`
             }
           }
         ])
