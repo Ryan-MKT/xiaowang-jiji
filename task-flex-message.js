@@ -178,16 +178,36 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             color: '#E0E0E0'
           },
           {
-            type: 'text',
-            text: '📚 全部記錄',
-            size: 'sm',
-            color: '#4169E1',
-            align: 'center',
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'md',
             margin: 'md',
-            action: {
-              type: 'uri',
-              uri: 'https://e15a3f219d53.ngrok-free.app/liff/records'
-            }
+            contents: [
+              {
+                type: 'text',
+                text: '📚 全部記錄',
+                size: 'sm',
+                color: '#4169E1',
+                align: 'center',
+                flex: 1,
+                action: {
+                  type: 'uri',
+                  uri: 'https://e15a3f219d53.ngrok-free.app/liff/records'
+                }
+              },
+              {
+                type: 'text',
+                text: '⭐ 任務收藏',
+                size: 'sm',
+                color: '#FF6B6B',
+                align: 'center',
+                flex: 1,
+                action: {
+                  type: 'uri',
+                  uri: 'https://e15a3f219d53.ngrok-free.app/liff/favorites'
+                }
+              }
+            ]
           }
         ])
       }

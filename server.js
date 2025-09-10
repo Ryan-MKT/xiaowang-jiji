@@ -13,6 +13,10 @@ const { createTaskFlexMessage, createTaskStackFlexMessage } = require('./task-fl
 // 資料結構: Map<userId, Array<{text: string, id: number, timestamp: string}>>
 const userTaskStacks = new Map();
 
+// 用戶收藏任務儲存（記憶體版本）
+// 資料結構: Map<userId, Array<{id: string, name: string, description: string, category: string, used_count: number, created_at: string}>>
+const userFavoriteTasks = new Map();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 console.log('🚀 小汪記記 with LINE Login starting...');
@@ -451,8 +455,38 @@ async function handleEvent(event) {
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
     console.log('📱 [任務同步] 準備發送 FLEX MESSAGE 和同步資料');
     
+    // 🔍 詳細記錄 FLEX MESSAGE 結構用於診斷
+    console.log('🔍 [FLEX DEBUG] FLEX MESSAGE 結構預覽:');
+    console.log(`  - altText: ${flexMessage.altText}`);
+    console.log(`  - type: ${flexMessage.type}`);
+    console.log(`  - quickReply items: ${flexMessage.quickReply?.items?.length || 0}`);
+    console.log('🔍 [FLEX DEBUG] 底部按鈕檢查:');
+    const bodyContents = flexMessage.contents?.body?.contents || [];
+    const buttonBox = bodyContents.find(item => item.type === 'box' && item.layout === 'horizontal');
+    if (buttonBox) {
+      console.log(`  ✅ 找到水平按鈕區域，包含 ${buttonBox.contents?.length || 0} 個按鈕`);
+      buttonBox.contents?.forEach((btn, idx) => {
+        console.log(`  📋 按鈕 ${idx + 1}: ${btn.text} -> ${btn.action?.uri}`);
+      });
+    } else {
+      console.log('  ❌ 未找到水平按鈕區域');
+    }
+    
     if (client) {
-      return client.replyMessage(event.replyToken, flexMessage);
+      console.log('🚀 [FLEX SEND] 開始發送 FLEX MESSAGE 到 LINE...');
+      return client.replyMessage(event.replyToken, flexMessage)
+        .then(result => {
+          console.log('✅ [FLEX SEND] FLEX MESSAGE 發送成功!', {
+            requestId: result['x-line-request-id'],
+            sentMessages: result.sentMessages?.length || 0
+          });
+          return result;
+        })
+        .catch(error => {
+          console.error('❌ [FLEX SEND] FLEX MESSAGE 發送失敗:', error);
+          console.error('❌ [FLEX ERROR] 錯誤詳情:', error.message);
+          throw error;
+        });
     } else {
       console.log('測試模式：任務堆疊 Flex Message', JSON.stringify(flexMessage, null, 2));
       return Promise.resolve(null);
@@ -530,6 +564,28 @@ app.get('/liff/records', (req, res) => {
   } catch (error) {
     console.error('讀取記錄頁面錯誤:', error);
     res.status(500).send('記錄頁面載入失敗');
+  }
+});
+
+// 任務收藏頁面路由
+app.get('/liff/favorites', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'liff-favorites.html'), 'utf8');
+    
+    // 進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+    
+    console.log(`⭐ [收藏頁面] 使用 LIFF ID: ${liffId}`);
+    console.log(`🔗 [收藏頁面] URL 參數:`, req.url);
+    
+    res.send(html);
+  } catch (error) {
+    console.error('讀取收藏頁面錯誤:', error);
+    res.status(500).send('收藏頁面載入失敗');
   }
 });
 
@@ -883,6 +939,157 @@ app.get('/api/tasks', async (req, res) => {
     res.json(userTasks);
   } catch (err) {
     console.error('❌ [任務API] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== 收藏任務 API ====================
+
+// 取得使用者收藏任務列表
+app.get('/api/favorites', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    console.log(`⭐ [收藏API] 取得使用者 ${userId} 的收藏任務`);
+    
+    // 從記憶體獲取用戶收藏任務
+    const userFavorites = userFavoriteTasks.get(userId) || [];
+    
+    console.log(`✅ [收藏API] 成功回傳 ${userFavorites.length} 個收藏任務`);
+    
+    res.json(userFavorites);
+  } catch (err) {
+    console.error('❌ [收藏API] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 新增收藏任務
+app.post('/api/favorites', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const { name, description, category } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Missing task name' });
+    }
+    
+    console.log(`⭐ [新增收藏] 用戶 ${userId} 新增收藏任務: ${name}`);
+    
+    // 創建新的收藏任務
+    const newFavorite = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      description: description ? description.trim() : '',
+      category: category || '',
+      used_count: 0,
+      created_at: new Date().toISOString()
+    };
+    
+    // 獲取用戶現有收藏任務
+    let userFavorites = userFavoriteTasks.get(userId) || [];
+    
+    // 添加新收藏任務
+    userFavorites.push(newFavorite);
+    
+    // 更新記憶體存儲
+    userFavoriteTasks.set(userId, userFavorites);
+    
+    console.log(`✅ [新增收藏] 收藏任務新增成功，ID: ${newFavorite.id}`);
+    
+    res.json({ success: true, favorite: newFavorite });
+  } catch (err) {
+    console.error('❌ [新增收藏] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 使用收藏任務（將收藏任務加到任務列表）
+app.post('/api/favorites/:id/use', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const favoriteId = req.params.id;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    console.log(`🔄 [使用收藏] 用戶 ${userId} 使用收藏任務 ID: ${favoriteId}`);
+    
+    // 獲取用戶收藏任務
+    let userFavorites = userFavoriteTasks.get(userId) || [];
+    
+    // 找到指定的收藏任務
+    const favoriteTask = userFavorites.find(fav => fav.id === favoriteId);
+    
+    if (!favoriteTask) {
+      return res.status(404).json({ error: 'Favorite task not found' });
+    }
+    
+    // 將收藏任務添加到任務列表
+    const currentTasks = userTaskStacks.get(userId) || [];
+    const newTask = {
+      id: Date.now(),
+      text: favoriteTask.name,
+      timestamp: new Date().toISOString(),
+      completed: false,
+      fromFavorite: true
+    };
+    
+    currentTasks.push(newTask);
+    userTaskStacks.set(userId, currentTasks);
+    
+    // 更新收藏任務的使用次數
+    favoriteTask.used_count = (favoriteTask.used_count || 0) + 1;
+    userFavoriteTasks.set(userId, userFavorites);
+    
+    console.log(`✅ [使用收藏] 收藏任務已添加到任務列表: ${favoriteTask.name}`);
+    
+    res.json({ success: true, task: newTask });
+  } catch (err) {
+    console.error('❌ [使用收藏] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 刪除收藏任務
+app.delete('/api/favorites/:id', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const favoriteId = req.params.id;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    console.log(`🗑️ [刪除收藏] 用戶 ${userId} 刪除收藏任務 ID: ${favoriteId}`);
+    
+    // 獲取用戶收藏任務
+    let userFavorites = userFavoriteTasks.get(userId) || [];
+    
+    // 過濾掉要刪除的收藏任務
+    const updatedFavorites = userFavorites.filter(fav => fav.id !== favoriteId);
+    
+    if (updatedFavorites.length === userFavorites.length) {
+      return res.status(404).json({ error: 'Favorite task not found' });
+    }
+    
+    // 更新記憶體存儲
+    userFavoriteTasks.set(userId, updatedFavorites);
+    
+    console.log(`✅ [刪除收藏] 收藏任務刪除成功`);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ [刪除收藏] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
