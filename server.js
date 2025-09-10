@@ -22,6 +22,10 @@ const userTaskStacks = new Map();
 // 資料結構: Map<userId, Array<{id: string, name: string, description: string, category: string, used_count: number, created_at: string}>>
 const userFavoriteTasks = new Map();
 
+// 用戶標籤選擇狀態追蹤（記憶體版本）
+// 資料結構: Map<userId, {waitingForTag: boolean, targetTaskId: number, timestamp: number}>
+const userTagSelectionStates = new Map();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 console.log('🚀 小汪記記 with LINE Login starting...');
@@ -182,12 +186,28 @@ async function handlePostback(event) {
       const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
       
       if (client) {
-        // 先發送收錄訊息，再發送更新的任務清單
-        await client.replyMessage(event.replyToken, favoriteMessage);
-        return client.pushMessage(userId, updatedFlexMessage);
+        // 設置標籤選擇狀態
+        userTagSelectionStates.set(userId, {
+          waitingForTag: true,
+          targetTaskId: taskId,
+          timestamp: Date.now()
+        });
+        console.log(`🏷️ [標籤選擇] 用戶 ${userId} 進入標籤選擇狀態，目標任務 ID: ${taskId}`);
+        
+        // 準備標籤詢問訊息（包含 Quick Reply 按鈕）
+        const { generateQuickReply } = getTaskFlexModule();
+        const tagQuestionMessage = {
+          type: 'text',
+          text: '希望收藏到哪個標籤?',
+          quickReply: generateQuickReply(userTags)
+        };
+        
+        // 先發送更新的任務清單（FLEX MESSAGE），再發送詢問標籤的訊息
+        await client.replyMessage(event.replyToken, updatedFlexMessage);
+        return client.pushMessage(userId, tagQuestionMessage);
       } else {
-        console.log('測試模式：收錄訊息', favoriteMessage.text);
         console.log('測試模式：更新任務清單', JSON.stringify(updatedFlexMessage, null, 2));
+        console.log('測試模式：標籤詢問訊息（含 Quick Reply）', '希望收藏到哪個標籤?');
         return Promise.resolve(null);
       }
     }
@@ -445,6 +465,58 @@ async function handleEvent(event) {
     
     // 確保 SYNC_TASKS 處理完畢後就返回，不會繼續執行其他邏輯
     return;
+  }
+  
+  // 檢查用戶是否正在等待標籤選擇
+  const tagSelectionState = userTagSelectionStates.get(userId);
+  if (tagSelectionState && tagSelectionState.waitingForTag) {
+    console.log(`🏷️ [標籤處理] 用戶 ${userId} 選擇標籤: ${userMessage}`);
+    
+    // 清除標籤選擇狀態
+    userTagSelectionStates.delete(userId);
+    
+    // 取得用戶任務堆疊
+    let userTasks = userTaskStacks.get(userId) || [];
+    
+    // 找到目標任務
+    const taskIndex = userTasks.findIndex(task => task.id === tagSelectionState.targetTaskId);
+    if (taskIndex !== -1) {
+      const originalTask = userTasks[taskIndex];
+      
+      // 更新任務文字格式為 (標籤)原文字
+      const taggedText = `(${userMessage})${originalTask.text}`;
+      userTasks[taskIndex].text = taggedText;
+      userTaskStacks.set(userId, userTasks);
+      
+      console.log(`✅ 任務已標記: ${originalTask.text} -> ${taggedText}`);
+      
+      // 重新生成任務堆疊 Flex Message
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+      
+      if (client) {
+        return client.replyMessage(event.replyToken, updatedFlexMessage);
+      } else {
+        console.log('測試模式：發送標記後的任務堆疊');
+        return Promise.resolve(null);
+      }
+    } else {
+      console.log(`⚠️ 找不到目標任務 ID: ${tagSelectionState.targetTaskId}`);
+      
+      // 發送錯誤訊息
+      const errorMessage = {
+        type: 'text',
+        text: '找不到要標記的任務，請重新操作'
+      };
+      
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：任務不存在錯誤');
+        return Promise.resolve(null);
+      }
+    }
   }
   
   // 判斷是問句還是任務
