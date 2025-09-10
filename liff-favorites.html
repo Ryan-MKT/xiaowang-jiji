@@ -35,15 +35,6 @@
             margin-bottom: 20px;
         }
         
-        .task-form-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            border: none;
-            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.2);
-            margin-bottom: 20px;
-        }
-        
         .favorites-list-card {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
@@ -157,39 +148,6 @@
             </div>
         </div>
 
-        <!-- 新增收藏任務表單 -->
-        <div class="card task-form-card">
-            <div class="card-body">
-                <h5 class="card-title mb-3">
-                    <i class="bi bi-plus-circle-fill text-primary"></i>
-                    新增收藏任務
-                </h5>
-                <form id="addFavoriteForm">
-                    <div class="mb-3">
-                        <label for="taskName" class="form-label">任務名稱</label>
-                        <input type="text" class="form-control" id="taskName" placeholder="輸入任務名稱..." required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="taskDescription" class="form-label">任務描述</label>
-                        <textarea class="form-control" id="taskDescription" rows="2" placeholder="選填：任務的詳細說明..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="taskCategory" class="form-label">分類標籤</label>
-                        <select class="form-select" id="taskCategory">
-                            <option value="">選擇分類（可選）</option>
-                            <option value="工作">💼 工作</option>
-                            <option value="學習">📚 學習</option>
-                            <option value="運動">🏃‍♂️ 運動</option>
-                            <option value="生活">🏠 生活</option>
-                            <option value="娛樂">🎮 娛樂</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-gradient-primary w-100">
-                        <i class="bi bi-star-fill me-2"></i>儲存收藏任務
-                    </button>
-                </form>
-            </div>
-        </div>
 
         <!-- 收藏任務列表 -->
         <div class="card favorites-list-card">
@@ -209,7 +167,7 @@
                 <div id="emptyState" class="empty-state" style="display: none;">
                     <i class="bi bi-star display-1 text-muted mb-3"></i>
                     <h5>還沒有收藏任務</h5>
-                    <p class="text-muted">新增您的第一個收藏任務，讓任務管理更輕鬆！</p>
+                    <p class="text-muted">在任務列表中點擊星星按鈕收藏任務，它們會出現在這裡！</p>
                 </div>
                 
                 <div id="favoritesList">
@@ -329,56 +287,6 @@
             document.getElementById('usedThisWeek').textContent = thisWeekUsed;
         }
 
-        // 新增收藏任務
-        document.getElementById('addFavoriteForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const taskName = document.getElementById('taskName').value.trim();
-            const taskDescription = document.getElementById('taskDescription').value.trim();
-            const taskCategory = document.getElementById('taskCategory').value;
-            
-            if (!taskName) {
-                alert('請輸入任務名稱');
-                return;
-            }
-            
-            try {
-                console.log('🔄 [新增收藏] 新增收藏任務:', taskName);
-                
-                const response = await fetch('/api/favorites', {
-                    method: 'POST',
-                    headers: {
-                        'x-user-id': liffProfile.userId,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        name: taskName,
-                        description: taskDescription,
-                        category: taskCategory
-                    })
-                });
-                
-                if (response.ok) {
-                    console.log('✅ [新增收藏] 新增成功');
-                    
-                    // 清空表單
-                    document.getElementById('addFavoriteForm').reset();
-                    
-                    // 重新載入收藏任務
-                    await loadFavoriteTasks();
-                    
-                    // 顯示成功訊息
-                    showToast('收藏任務新增成功！', 'success');
-                } else {
-                    console.error('❌ [新增收藏] API 請求失敗:', response.status);
-                    showToast('新增收藏任務失敗', 'error');
-                }
-                
-            } catch (error) {
-                console.error('❌ [新增收藏] 新增失敗:', error);
-                showToast('新增收藏任務失敗', 'error');
-            }
-        });
 
         // 使用收藏任務
         async function useFavoriteTask(taskId) {
