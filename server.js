@@ -159,7 +159,8 @@ function getDefaultUserTags() {
   return [
     { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', order_index: 1, is_active: true },
     { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', order_index: 2, is_active: true },
-    { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', order_index: 3, is_active: true }
+    { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', order_index: 3, is_active: true },
+    { id: 4, name: 'AI', color: '#9B59B6', icon: '🤖', order_index: 4, is_active: true }
   ];
 }
 
