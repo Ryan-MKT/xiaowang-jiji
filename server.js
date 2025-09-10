@@ -478,6 +478,17 @@ async function handleEvent(event) {
       
       console.log(`✅ 任務已標記: ${originalTask.text} -> ${taggedText}`);
       
+      // 同步更新收藏任務中的名稱（如果該任務已被收藏）
+      if (originalTask.favorited) {
+        let userFavorites = userFavoriteTasks.get(userId) || [];
+        const favoriteIndex = userFavorites.findIndex(fav => fav.source_task_id === originalTask.id);
+        if (favoriteIndex !== -1) {
+          userFavorites[favoriteIndex].name = taggedText;
+          userFavoriteTasks.set(userId, userFavorites);
+          console.log(`🔄 收藏任務同步更新: ${taggedText}`);
+        }
+      }
+      
       // 重新生成任務堆疊 Flex Message
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();

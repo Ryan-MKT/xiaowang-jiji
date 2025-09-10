@@ -86,6 +86,19 @@
             color: white;
         }
         
+        .btn-gradient-success {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-weight: 500;
+        }
+        
+        .btn-gradient-success:hover {
+            background: linear-gradient(45deg, #20c997, #28a745);
+            color: white;
+        }
+        
         .form-control {
             border-radius: 15px;
             border: 2px solid rgba(102, 126, 234, 0.2);
@@ -240,6 +253,40 @@
             document.getElementById('loadingState').style.display = 'none';
         }
 
+        // 從任務名稱中提取標籤信息
+        function extractTagInfo(taskName) {
+            // 檢查任務名稱是否符合 (標籤)內容 的格式
+            const tagMatch = taskName.match(/^\(([^)]+)\)(.+)$/);
+            if (tagMatch) {
+                return {
+                    hasTag: true,
+                    tag: tagMatch[1],
+                    content: tagMatch[2],
+                    displayName: taskName
+                };
+            }
+            return {
+                hasTag: false,
+                tag: null,
+                content: taskName,
+                displayName: taskName
+            };
+        }
+
+        // 獲取標籤對應的圖示
+        function getTagIcon(tagName) {
+            const tagIcons = {
+                '工作': '💼',
+                '學習': '📚', 
+                '運動': '🏃‍♂️',
+                'AI': '🤖',
+                '你好': '🏷️',
+                '生活': '🏠',
+                '娛樂': '🎮'
+            };
+            return tagIcons[tagName] || '🏷️';
+        }
+
         // 顯示收藏任務
         function displayFavoriteTasks() {
             const favoritesList = document.getElementById('favoritesList');
@@ -253,29 +300,38 @@
             
             emptyState.style.display = 'none';
             
-            favoritesList.innerHTML = favoritesTasks.map(task => `
-                <div class="favorite-item p-3">
-                    <div class="row align-items-center">
-                        <div class="col-8">
-                            <h6 class="mb-1">${task.name}</h6>
-                            ${task.description ? `<p class="text-muted small mb-1">${task.description}</p>` : ''}
-                            ${task.category ? `<span class="badge bg-primary">${task.category}</span>` : ''}
-                            <div class="small text-muted mt-1">
-                                <i class="bi bi-calendar-event"></i> 創建於 ${new Date(task.created_at).toLocaleDateString('zh-TW')}
-                                ${task.used_count > 0 ? `<span class="ms-2"><i class="bi bi-arrow-repeat"></i> 已使用 ${task.used_count} 次</span>` : ''}
+            favoritesList.innerHTML = favoritesTasks.map(task => {
+                const tagInfo = extractTagInfo(task.name);
+                
+                return `
+                    <div class="favorite-item p-3">
+                        <div class="row align-items-center">
+                            <div class="col-8">
+                                <h6 class="mb-1">${tagInfo.displayName}</h6>
+                                ${task.description ? `<p class="text-muted small mb-1">${task.description}</p>` : ''}
+                                ${task.category ? `<span class="badge bg-primary">${task.category}</span>` : ''}
+                                <div class="small text-muted mt-1">
+                                    <i class="bi bi-calendar-event"></i> 創建於 ${new Date(task.created_at).toLocaleDateString('zh-TW')}
+                                    ${task.used_count > 0 ? `<span class="ms-2"><i class="bi bi-arrow-repeat"></i> 已使用 ${task.used_count} 次</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="col-4 text-end">
+                                ${tagInfo.hasTag ? 
+                                    `<button class="btn btn-sm btn-gradient-success mb-1" onclick="useFavoriteTask('${task.id}')">
+                                        ${getTagIcon(tagInfo.tag)} ${tagInfo.tag}
+                                    </button>` :
+                                    `<button class="btn btn-sm btn-gradient-primary mb-1" onclick="useFavoriteTask('${task.id}')">
+                                        <i class="bi bi-plus-circle"></i> 使用
+                                    </button>`
+                                }
+                                <button class="btn btn-sm btn-gradient-danger" onclick="deleteFavoriteTask('${task.id}')">
+                                    <i class="bi bi-trash"></i> 刪除
+                                </button>
                             </div>
                         </div>
-                        <div class="col-4 text-end">
-                            <button class="btn btn-sm btn-gradient-primary mb-1" onclick="useFavoriteTask('${task.id}')">
-                                <i class="bi bi-plus-circle"></i> 使用
-                            </button>
-                            <button class="btn btn-sm btn-gradient-danger" onclick="deleteFavoriteTask('${task.id}')">
-                                <i class="bi bi-trash"></i> 刪除
-                            </button>
-                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // 更新統計資訊
