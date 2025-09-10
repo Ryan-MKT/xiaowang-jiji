@@ -59,8 +59,8 @@ function createTaskFlexMessage(taskText) {
   };
 }
 
-// 任務堆疊 Flex Message - 100% 模仿原始設計
-function createTaskStackFlexMessage(tasks) {
+// 任務堆疊 Flex Message - 支援動態標籤 Quick Reply
+function createTaskStackFlexMessage(tasks, userTags = null) {
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(task => task.completed).length;
   const pendingTasks = totalTasks - completedTasks;
@@ -182,41 +182,72 @@ function createTaskStackFlexMessage(tasks) {
             margin: 'md',
             action: {
               type: 'uri',
-              uri: 'https://gigi.zeabur.app/liff/records'
+              uri: `https://liff.line.me/${process.env.LIFF_APP_ID || '2008077335-rZlgE4bX'}`
             }
           }
         ])
       }
     },
-    // 簡潔直接：每個任務堆疊都有 Quick Reply，無條件判斷
-    quickReply: {
-      items: [
-        {
-          type: 'action',
-          action: {
-            type: 'message',
-            label: '工作',
-            text: '工作'
-          }
-        },
-        {
-          type: 'action',
-          action: {
-            type: 'message',
-            label: '學習',
-            text: '學習'
-          }
-        },
-        {
-          type: 'action',
-          action: {
-            type: 'message',
-            label: '運動',
-            text: '運動'
-          }
+    // 動態標籤 Quick Reply：根據用戶設定的標籤生成
+    quickReply: generateQuickReply(userTags)
+  };
+}
+
+// 生成動態 Quick Reply
+function generateQuickReply(userTags) {
+  let quickReplyItems = [];
+  
+  if (userTags && Array.isArray(userTags) && userTags.length > 0) {
+    // 使用用戶自定義標籤
+    console.log('🏷️ 使用用戶標籤生成 Quick Reply，數量:', userTags.length);
+    
+    // 按 order_index 排序，最多取 13 個標籤（LINE Quick Reply 限制）
+    const sortedTags = userTags
+      .filter(tag => tag.is_active !== false) // 過濾掉已刪除的標籤
+      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+      .slice(0, 13);
+    
+    quickReplyItems = sortedTags.map(tag => ({
+      type: 'action',
+      action: {
+        type: 'message',
+        label: `${tag.icon || '🏷️'} ${tag.name}`,
+        text: tag.name
+      }
+    }));
+  } else {
+    // 使用預設標籤
+    console.log('🏷️ 使用預設標籤生成 Quick Reply');
+    quickReplyItems = [
+      {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: '💼 工作',
+          text: '工作'
         }
-      ]
-    }
+      },
+      {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: '📚 學習',
+          text: '學習'
+        }
+      },
+      {
+        type: 'action',
+        action: {
+          type: 'message',
+          label: '🏃‍♂️ 運動',
+          text: '運動'
+        }
+      }
+    ];
+  }
+  
+  return {
+    items: quickReplyItems
   };
 }
 

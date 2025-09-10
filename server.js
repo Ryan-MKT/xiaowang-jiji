@@ -105,7 +105,8 @@ async function handlePostback(event) {
       };
       
       // 發送更新後的任務清單
-      const updatedFlexMessage = createTaskStackFlexMessage(userTasks);
+      const userTags = await getUserTags(userId);
+      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
       
       if (client) {
         // 先發送恭喜訊息，再發送更新的任務清單
@@ -120,6 +121,46 @@ async function handlePostback(event) {
   }
   
   return Promise.resolve(null);
+}
+
+// 載入用戶標籤
+async function getUserTags(userId) {
+  try {
+    if (supabase) {
+      const tablePrefix = process.env.TABLE_PREFIX || '';
+      const tableName = tablePrefix + 'tags';
+      
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('order_index', { ascending: true });
+      
+      if (error) {
+        console.error('載入用戶標籤錯誤:', error);
+        return getDefaultUserTags();
+      }
+      
+      console.log(`🏷️ 載入用戶 ${userId} 的標籤，數量: ${data?.length || 0}`);
+      return data || getDefaultUserTags();
+    } else {
+      // 沒有資料庫連線時返回預設標籤
+      return getDefaultUserTags();
+    }
+  } catch (error) {
+    console.error('載入用戶標籤失敗:', error);
+    return getDefaultUserTags();
+  }
+}
+
+// 獲取預設用戶標籤
+function getDefaultUserTags() {
+  return [
+    { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', order_index: 1, is_active: true },
+    { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', order_index: 2, is_active: true },
+    { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', order_index: 3, is_active: true }
+  ];
 }
 
 // 處理 LINE 事件
@@ -228,7 +269,8 @@ async function handleEvent(event) {
         userTaskStacks.set(userId, cleanedTasks);
         
         // 重新生成任務堆疊 Flex Message
-        const taskStackFlexMessage = createTaskStackFlexMessage(cleanedTasks);
+        const userTags = await getUserTags(userId);
+        const taskStackFlexMessage = createTaskStackFlexMessage(cleanedTasks, userTags);
         
         console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
         console.log('📝 更新後任務清單:', cleanedTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -256,7 +298,8 @@ async function handleEvent(event) {
         let userTasks = userTaskStacks.get(userId) || [];
         
         if (userTasks.length > 0) {
-          const taskStackFlexMessage = createTaskStackFlexMessage(userTasks);
+          const userTags = await getUserTags(userId);
+          const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
           
           if (client) {
             return client.replyMessage(event.replyToken, taskStackFlexMessage);
@@ -285,7 +328,8 @@ async function handleEvent(event) {
       
       if (userTasks.length > 0) {
         // 重新生成任務堆疊 Flex Message
-        const taskStackFlexMessage = createTaskStackFlexMessage(userTasks);
+        const userTags = await getUserTags(userId);
+        const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
         
         console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
         console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -386,7 +430,8 @@ async function handleEvent(event) {
     console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
     
     // 創建包含所有任務的 Flex Message
-    const flexMessage = createTaskStackFlexMessage(userTasks);
+    const userTags = await getUserTags(userId);
+    const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
     
     if (client) {
       return client.replyMessage(event.replyToken, flexMessage);
@@ -579,22 +624,220 @@ app.get('/db-status', async (req, res) => {
   }
 });
 
+// ==================== 標籤 API 端點 ====================
+
+// 取得使用者標籤列表
+app.get('/api/tags', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    console.log(`📋 取得使用者 ${userId} 的標籤列表`);
+    
+    if (supabase) {
+      const tablePrefix = process.env.TABLE_PREFIX || '';
+      const tableName = tablePrefix + 'tags';
+      
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('order_index', { ascending: true });
+      
+      if (error) {
+        console.error('Supabase 查詢錯誤:', error);
+        return res.status(500).json({ error: 'Database query failed' });
+      }
+      
+      console.log(`✅ 查詢到 ${data.length} 個標籤`);
+      res.json(data || []);
+    } else {
+      // 如果沒有資料庫連線，返回預設標籤
+      const defaultTags = [
+        { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', order_index: 1 },
+        { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', order_index: 2 },
+        { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', order_index: 3 }
+      ];
+      res.json(defaultTags);
+    }
+  } catch (err) {
+    console.error('標籤 API 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 新增標籤
+app.post('/api/tags', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const { name, color, icon, orderIndex } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    if (!name || name.length > 20) {
+      return res.status(400).json({ error: 'Invalid tag name' });
+    }
+    
+    console.log(`➕ 使用者 ${userId} 新增標籤: ${name}`);
+    
+    if (supabase) {
+      const tablePrefix = process.env.TABLE_PREFIX || '';
+      const tableName = tablePrefix + 'tags';
+      
+      // 檢查標籤數量限制
+      const { count } = await supabase
+        .from(tableName)
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_active', true);
+      
+      if (count >= 10) {
+        return res.status(400).json({ error: 'Tag limit exceeded' });
+      }
+      
+      // 檢查標籤名稱是否已存在
+      const { data: existingTag } = await supabase
+        .from(tableName)
+        .select('id')
+        .eq('user_id', userId)
+        .eq('name', name)
+        .eq('is_active', true)
+        .single();
+      
+      if (existingTag) {
+        return res.status(400).json({ error: 'Tag name already exists' });
+      }
+      
+      // 新增標籤
+      const { data, error } = await supabase
+        .from(tableName)
+        .insert([{
+          user_id: userId,
+          name,
+          color: color || '#4169E1',
+          icon: icon || '🏷️',
+          order_index: orderIndex || 0,
+          is_active: true
+        }])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Supabase 插入錯誤:', error);
+        return res.status(500).json({ error: 'Database insert failed' });
+      }
+      
+      console.log('✅ 標籤新增成功:', data);
+      res.status(201).json(data);
+    } else {
+      // 沒有資料庫連線時返回模擬結果
+      const newTag = {
+        id: Date.now(),
+        user_id: userId,
+        name,
+        color: color || '#4169E1',
+        icon: icon || '🏷️',
+        order_index: orderIndex || 0,
+        is_active: true
+      };
+      res.status(201).json(newTag);
+    }
+  } catch (err) {
+    console.error('新增標籤錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 刪除標籤
+app.delete('/api/tags/:tagId', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const tagId = req.params.tagId;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    console.log(`🗑️ 使用者 ${userId} 刪除標籤: ${tagId}`);
+    
+    if (supabase) {
+      const tablePrefix = process.env.TABLE_PREFIX || '';
+      const tableName = tablePrefix + 'tags';
+      
+      // 軟刪除（設為不活躍）
+      const { data, error } = await supabase
+        .from(tableName)
+        .update({ is_active: false })
+        .eq('id', tagId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Supabase 更新錯誤:', error);
+        return res.status(500).json({ error: 'Database update failed' });
+      }
+      
+      if (!data) {
+        return res.status(404).json({ error: 'Tag not found' });
+      }
+      
+      console.log('✅ 標籤刪除成功');
+      res.json({ message: 'Tag deleted successfully' });
+    } else {
+      // 沒有資料庫連線時返回成功
+      res.json({ message: 'Tag deleted successfully' });
+    }
+  } catch (err) {
+    console.error('刪除標籤錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== WEBHOOK 路由 ====================
+
 app.post('/webhook', (req, res) => {
   // 簡化版本：跳過 LINE signature 驗證用於測試
-  console.log('Webhook called with body:', req.body);
+  const timestamp = new Date().toISOString();
+  console.log('\n=== WEBHOOK 接收到請求 ===');
+  console.log(`⏰ 時間: ${timestamp}`);
+  console.log('📥 完整請求 body:', JSON.stringify(req.body, null, 2));
+  console.log('📊 事件數量:', req.body.events ? req.body.events.length : 0);
   
   if (!req.body.events) {
+    console.log('⚠️ 沒有事件，直接返回');
     return res.status(200).json({ message: 'No events' });
   }
+  
+  // 詳細記錄每個事件
+  req.body.events.forEach((event, index) => {
+    console.log(`\n--- 事件 ${index + 1} ---`);
+    console.log('📋 事件類型:', event.type);
+    console.log('👤 來源:', event.source);
+    if (event.message) {
+      console.log('💬 訊息內容:', event.message);
+    }
+    if (event.postback) {
+      console.log('🔄 Postback:', event.postback);
+    }
+  });
   
   Promise
     .all(req.body.events.map(handleEvent))
     .then((result) => {
-      console.log('Events processed:', result);
+      console.log('\n✅ 所有事件處理完成:', result);
+      console.log('=== WEBHOOK 處理結束 ===\n');
       res.status(200).json(result);
     })
     .catch((err) => {
-      console.error('Error processing events:', err);
+      console.error('\n❌ 事件處理錯誤:', err);
+      console.log('=== WEBHOOK 處理結束 (錯誤) ===\n');
       res.status(200).json({ error: 'Processing failed' });
     });
 });
