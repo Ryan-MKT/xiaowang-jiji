@@ -7,7 +7,12 @@ const session = require('express-session');
 const { supabase } = require('./supabase-client');
 const { authenticateUser } = require('./auth');
 const OpenAI = require('openai');
-const { createTaskFlexMessage, createTaskStackFlexMessage } = require('./task-flex-message');
+// 動態載入模組以支援熱重載
+function getTaskFlexModule() {
+  const modulePath = require.resolve('./task-flex-message');
+  delete require.cache[modulePath];
+  return require('./task-flex-message');
+}
 
 // 用戶任務堆疊儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{text: string, id: number, timestamp: string}>>
@@ -83,7 +88,7 @@ async function handlePostback(event) {
   console.log('Postback event:', event);
   
   const userId = event.source.userId;
-  const postbackData = event.postback.data;
+  const postbackData = event.postback?.data || event.postbackData;
   
   // 檢查是否為任務完成事件
   if (postbackData.startsWith('complete_task_')) {
@@ -110,6 +115,7 @@ async function handlePostback(event) {
       
       // 發送更新後的任務清單
       const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
       const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
       
       if (client) {
@@ -118,6 +124,69 @@ async function handlePostback(event) {
         return client.pushMessage(userId, updatedFlexMessage);
       } else {
         console.log('測試模式：恭喜訊息', congratsMessage.text);
+        console.log('測試模式：更新任務清單', JSON.stringify(updatedFlexMessage, null, 2));
+        return Promise.resolve(null);
+      }
+    }
+  }
+  
+  // 檢查是否為任務收藏事件
+  if (postbackData.startsWith('favorite_task_')) {
+    const taskId = parseInt(postbackData.replace('favorite_task_', ''));
+    console.log(`⭐ 用戶 ${userId} 收藏任務 ID: ${taskId}`);
+    
+    // 取得用戶任務堆疊
+    let userTasks = userTaskStacks.get(userId) || [];
+    
+    // 找到對應的任務
+    const taskIndex = userTasks.findIndex(task => task.id === taskId);
+    if (taskIndex !== -1) {
+      const favoriteTask = userTasks[taskIndex];
+      
+      // 檢查是否已經收藏過
+      if (favoriteTask.favorited) {
+        console.log(`📝 任務已經收藏過: ${favoriteTask.text}`);
+        return Promise.resolve(null);
+      }
+      
+      // 標記為已收藏
+      userTasks[taskIndex].favorited = true;
+      userTaskStacks.set(userId, userTasks);
+      
+      // 添加到用戶收藏清單
+      let userFavorites = userFavoriteTasks.get(userId) || [];
+      const newFavorite = {
+        id: Date.now().toString(),
+        name: favoriteTask.text,
+        description: '',
+        category: '',
+        used_count: 0,
+        created_at: new Date().toISOString(),
+        source_task_id: taskId
+      };
+      
+      userFavorites.push(newFavorite);
+      userFavoriteTasks.set(userId, userFavorites);
+      
+      console.log(`✅ 任務已收藏: ${favoriteTask.text}`);
+      
+      // 發送收錄確認訊息
+      const favoriteMessage = {
+        type: 'text',
+        text: `收錄：${favoriteTask.text}`
+      };
+      
+      // 發送更新後的任務清單（星星變黑色）
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+      
+      if (client) {
+        // 先發送收錄訊息，再發送更新的任務清單
+        await client.replyMessage(event.replyToken, favoriteMessage);
+        return client.pushMessage(userId, updatedFlexMessage);
+      } else {
+        console.log('測試模式：收錄訊息', favoriteMessage.text);
         console.log('測試模式：更新任務清單', JSON.stringify(updatedFlexMessage, null, 2));
         return Promise.resolve(null);
       }
@@ -285,6 +354,7 @@ async function handleEvent(event) {
         
         // 重新生成任務堆疊 Flex Message
         const userTags = await getUserTags(userId);
+        const { createTaskStackFlexMessage } = getTaskFlexModule();
         const taskStackFlexMessage = createTaskStackFlexMessage(cleanedTasks, userTags);
         
         console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
@@ -314,6 +384,7 @@ async function handleEvent(event) {
         
         if (userTasks.length > 0) {
           const userTags = await getUserTags(userId);
+          const { createTaskStackFlexMessage } = getTaskFlexModule();
           const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
           
           if (client) {
@@ -344,6 +415,7 @@ async function handleEvent(event) {
       if (userTasks.length > 0) {
         // 重新生成任務堆疊 Flex Message
         const userTags = await getUserTags(userId);
+        const { createTaskStackFlexMessage } = getTaskFlexModule();
         const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
         
         console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
@@ -449,6 +521,7 @@ async function handleEvent(event) {
     
     // 創建包含所有任務的 Flex Message
     const userTags = await getUserTags(userId);
+    const { createTaskStackFlexMessage } = getTaskFlexModule();
     const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
@@ -460,16 +533,43 @@ async function handleEvent(event) {
     console.log(`  - altText: ${flexMessage.altText}`);
     console.log(`  - type: ${flexMessage.type}`);
     console.log(`  - quickReply items: ${flexMessage.quickReply?.items?.length || 0}`);
-    console.log('🔍 [FLEX DEBUG] 底部按鈕檢查:');
+    console.log('🔍 [FLEX DEBUG] 任務ICON結構檢查:');
     const bodyContents = flexMessage.contents?.body?.contents || [];
-    const buttonBox = bodyContents.find(item => item.type === 'box' && item.layout === 'horizontal');
-    if (buttonBox) {
-      console.log(`  ✅ 找到水平按鈕區域，包含 ${buttonBox.contents?.length || 0} 個按鈕`);
-      buttonBox.contents?.forEach((btn, idx) => {
+    
+    // 檢查任務項目的ICON結構
+    let taskIconCount = 0;
+    bodyContents.forEach((item, idx) => {
+      if (item.type === 'box' && item.layout === 'horizontal' && item.contents && item.contents.length >= 3) {
+        const taskText = item.contents[0]?.text || '';
+        if (taskText.match(/^\d+\./)) { // 匹配任務項目格式 "1. xxx"
+          taskIconCount++;
+          console.log(`  📋 任務 ${taskIconCount}:`);
+          console.log(`    - 文字: ${taskText.substring(0, 20)}...`);
+          console.log(`    - ICON數量: ${item.contents.length}`);
+          item.contents.slice(1).forEach((icon, iconIdx) => {
+            const actionType = icon.action?.type || 'none';
+            const actionData = icon.action?.data || icon.action?.uri || 'none';
+            console.log(`    - ICON ${iconIdx + 1}: ${icon.text} (${actionType}: ${actionData})`);
+          });
+        }
+      }
+    });
+    
+    // 檢查底部按鈕區域
+    console.log('🔍 [FLEX DEBUG] 底部按鈕檢查:');
+    const bottomButtonBox = bodyContents.find(item => 
+      item.type === 'box' && 
+      item.layout === 'horizontal' && 
+      item.contents && 
+      item.contents.some(btn => btn.text && (btn.text.includes('全部記錄') || btn.text.includes('任務收藏')))
+    );
+    if (bottomButtonBox) {
+      console.log(`  ✅ 找到底部按鈕區域，包含 ${bottomButtonBox.contents?.length || 0} 個按鈕`);
+      bottomButtonBox.contents?.forEach((btn, idx) => {
         console.log(`  📋 按鈕 ${idx + 1}: ${btn.text} -> ${btn.action?.uri}`);
       });
     } else {
-      console.log('  ❌ 未找到水平按鈕區域');
+      console.log('  ❌ 未找到底部按鈕區域');
     }
     
     if (client) {

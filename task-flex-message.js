@@ -95,11 +95,23 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         },
         {
           type: 'text',
+          text: task.favorited ? '★' : '☆',
+          size: 'md',
+          color: '#000000',
+          flex: 0,
+          margin: 'xs',
+          action: {
+            type: 'postback',
+            data: `favorite_task_${task.id}`
+          }
+        },
+        {
+          type: 'text',
           text: '✎',
           size: 'md',
           color: '#000000',
           flex: 0,
-          margin: 'sm',
+          margin: 'xs',
           action: {
             type: 'uri',
             uri: `https://e15a3f219d53.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
