@@ -182,7 +182,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             margin: 'md',
             action: {
               type: 'uri',
-              uri: `https://e15a3f219d53.ngrok-free.app/liff`
+              uri: `https://e15a3f219d53.ngrok-free.app/liff/records`
             }
           }
         ])
