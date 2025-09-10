@@ -91,7 +91,11 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           flex: 1,
           wrap: true,
           decoration: isCompleted ? 'line-through' : 'none',
-          margin: 'none'
+          margin: 'none',
+          action: {
+            type: 'uri',
+            uri: `https://e15a3f219d53.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
+          }
         },
         {
           type: 'text',
@@ -103,18 +107,6 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           action: {
             type: 'postback',
             data: `favorite_task_${task.id}`
-          }
-        },
-        {
-          type: 'text',
-          text: '✎',
-          size: 'md',
-          color: '#000000',
-          flex: 0,
-          margin: 'xs',
-          action: {
-            type: 'uri',
-            uri: `https://e15a3f219d53.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
           }
         },
         {
