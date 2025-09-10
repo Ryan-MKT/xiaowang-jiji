@@ -863,6 +863,30 @@ app.delete('/api/tags/:tagId', async (req, res) => {
   }
 });
 
+// 取得使用者任務列表 API
+app.get('/api/tasks', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    console.log(`🔍 [任務API] 取得使用者 ${userId} 的任務列表`);
+    
+    // 從記憶體獲取用戶任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    
+    console.log(`✅ [任務API] 成功回傳 ${userTasks.length} 個任務`);
+    console.log(`📝 [任務API] 任務預覽:`, userTasks.slice(0, 3).map(task => task.text));
+    
+    res.json(userTasks);
+  } catch (err) {
+    console.error('❌ [任務API] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== 管理員 API ====================
 
 app.post('/admin/create-tags-table', async (req, res) => {

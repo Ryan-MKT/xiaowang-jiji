@@ -661,33 +661,9 @@
         let selectedColor = '#4169E1';
         let selectedEmoji = '🏷️';
 
-        // 🔄 檢查 URL 參數中的同步資料
+        // 🔄 檢查頁面初始化（保留函數名稱以避免破壞其他調用）
         function checkForSyncData() {
-            console.log('🔍 [URL 診斷] 開始檢查同步資料...');
-            console.log('🔍 [URL 診斷] 完整 URL:', window.location.href);
-            console.log('🔍 [URL 診斷] URL 參數部分:', window.location.search);
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            const syncTasks = urlParams.get('syncTasks');
-            
-            console.log('🔍 [URL 診斷] syncTasks 參數存在:', !!syncTasks);
-            
-            if (syncTasks) {
-                console.log('🔍 [URL 診斷] syncTasks 參數長度:', syncTasks.length);
-                console.log('🔍 [URL 診斷] syncTasks 前100字元:', syncTasks.substring(0, 100) + '...');
-                
-                try {
-                    window.flexMessageTasks = JSON.parse(decodeURIComponent(syncTasks));
-                    console.log('✅ [同步檢查] 從 URL 參數成功解析任務:', window.flexMessageTasks.length, '個');
-                    console.log('📝 [同步檢查] 任務預覽:', window.flexMessageTasks.slice(0, 3).map(task => task.text));
-                } catch (error) {
-                    console.error('❌ [同步檢查] 解析 URL 同步資料失敗:', error);
-                    console.error('❌ [同步檢查] 原始資料:', syncTasks.substring(0, 200));
-                }
-            } else {
-                console.log('⚠️ [同步檢查] URL 中沒有 syncTasks 參數');
-                console.log('🔍 [URL 診斷] 所有可用參數:', Array.from(urlParams.keys()));
-            }
+            console.log('🔄 [頁面檢查] 全部記錄頁面已載入，準備從伺服器獲取最新任務');
         }
 
         // LIFF 初始化
@@ -735,31 +711,41 @@
         // 載入所有記錄
         async function loadAllRecords() {
             try {
-                console.log('🔄 [記錄同步] 開始載入任務記錄...');
+                console.log('🔄 [任務載入] 開始從伺服器載入最新任務...');
                 
-                // 🔄 優先檢查是否有來自 FLEX MESSAGE 的同步資料
-                if (window.flexMessageTasks && window.flexMessageTasks.length > 0) {
-                    console.log('📱 [記錄同步] 使用 FLEX MESSAGE 同步的任務資料:', window.flexMessageTasks.length, '個任務');
-                    allTasks = window.flexMessageTasks;
+                // 🆕 從伺服器API獲取最新任務
+                const response = await fetch('/api/tasks', {
+                    method: 'GET',
+                    headers: {
+                        'x-user-id': liffProfile.userId,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    allTasks = await response.json();
+                    console.log('✅ [任務載入] 成功從伺服器載入任務:', allTasks.length, '個');
+                    console.log('📝 [任務載入] 任務預覽:', allTasks.slice(0, 3).map(task => task.text));
                     
-                    // 同步到 localStorage
+                    // 同步到 localStorage 作為備份
                     localStorage.setItem('userTasks_' + liffProfile.userId, JSON.stringify(allTasks));
-                    console.log('💾 [記錄同步] 已同步任務到 localStorage');
+                    console.log('💾 [任務載入] 已備份任務到 localStorage');
                 } else {
-                    // 從 localStorage 載入任務
-                    const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
+                    console.error('❌ [任務載入] API 請求失敗:', response.status, response.statusText);
                     
+                    // 備援：從 localStorage 載入
+                    const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
                     if (savedTasks) {
                         allTasks = JSON.parse(savedTasks);
-                        console.log('💾 [記錄同步] 從 localStorage 載入任務數量:', allTasks.length);
+                        console.log('💾 [任務載入] 備援：從 localStorage 載入任務:', allTasks.length, '個');
                     } else {
                         allTasks = [];
-                        console.log('💾 [記錄同步] 無現有任務記錄');
+                        console.log('💾 [任務載入] 無任務資料');
                     }
                 }
                 
-                console.log('📊 [記錄同步] 最終任務數量:', allTasks.length);
-                console.log('📝 [記錄同步] 任務預覽:', allTasks.slice(0, 3).map(task => task.text));
+                console.log('📊 [任務載入] 最終任務數量:', allTasks.length);
+                console.log('📝 [任務載入] 任務預覽:', allTasks.slice(0, 3).map(task => task.text || ''));
 
                 // 按日期分組並顯示
                 displayTasksByDate(allTasks);

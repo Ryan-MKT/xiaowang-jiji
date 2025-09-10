@@ -61,8 +61,12 @@ function createTaskFlexMessage(taskText) {
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply
 function createTaskStackFlexMessage(tasks, userTags = null) {
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(task => task.completed).length;
+  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-10-19:17');
+  console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
+  console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
+  
+  const totalTasks = tasks ? tasks.length : 0;
+  const completedTasks = tasks ? tasks.filter(task => task.completed).length : 0;
   const pendingTasks = totalTasks - completedTasks;
 
   // 創建任務清單內容，每個任務之間加上分隔線
@@ -182,7 +186,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             margin: 'md',
             action: {
               type: 'uri',
-              uri: `https://e15a3f219d53.ngrok-free.app/liff/records?syncTasks=${encodeURIComponent(JSON.stringify(tasks))}`
+              uri: 'https://e15a3f219d53.ngrok-free.app/liff/records'
             }
           }
         ])
