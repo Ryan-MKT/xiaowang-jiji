@@ -661,9 +661,27 @@
         let selectedColor = '#4169E1';
         let selectedEmoji = '🏷️';
 
+        // 🔄 檢查 URL 參數中的同步資料
+        function checkForSyncData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const syncTasks = urlParams.get('syncTasks');
+            
+            if (syncTasks) {
+                try {
+                    window.flexMessageTasks = JSON.parse(decodeURIComponent(syncTasks));
+                    console.log('📱 [同步檢查] 從 URL 參數獲取同步任務:', window.flexMessageTasks.length, '個');
+                } catch (error) {
+                    console.error('❌ [同步檢查] 解析 URL 同步資料失敗:', error);
+                }
+            }
+        }
+
         // LIFF 初始化
         async function initializeLiff() {
             try {
+                // 🔄 首先檢查同步資料
+                checkForSyncData();
+                
                 await liff.init({
                     liffId: '2008077335-rZlgE4bX'
                 });
@@ -703,22 +721,38 @@
         // 載入所有記錄
         async function loadAllRecords() {
             try {
-                // 從 localStorage 載入任務
-                const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
+                console.log('🔄 [記錄同步] 開始載入任務記錄...');
                 
-                if (savedTasks) {
-                    allTasks = JSON.parse(savedTasks);
-                    console.log('載入任務數量:', allTasks.length);
+                // 🔄 優先檢查是否有來自 FLEX MESSAGE 的同步資料
+                if (window.flexMessageTasks && window.flexMessageTasks.length > 0) {
+                    console.log('📱 [記錄同步] 使用 FLEX MESSAGE 同步的任務資料:', window.flexMessageTasks.length, '個任務');
+                    allTasks = window.flexMessageTasks;
+                    
+                    // 同步到 localStorage
+                    localStorage.setItem('userTasks_' + liffProfile.userId, JSON.stringify(allTasks));
+                    console.log('💾 [記錄同步] 已同步任務到 localStorage');
                 } else {
-                    allTasks = [];
+                    // 從 localStorage 載入任務
+                    const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
+                    
+                    if (savedTasks) {
+                        allTasks = JSON.parse(savedTasks);
+                        console.log('💾 [記錄同步] 從 localStorage 載入任務數量:', allTasks.length);
+                    } else {
+                        allTasks = [];
+                        console.log('💾 [記錄同步] 無現有任務記錄');
+                    }
                 }
+                
+                console.log('📊 [記錄同步] 最終任務數量:', allTasks.length);
+                console.log('📝 [記錄同步] 任務預覽:', allTasks.slice(0, 3).map(task => task.text));
 
                 // 按日期分組並顯示
                 displayTasksByDate(allTasks);
                 updateStatistics(allTasks);
 
             } catch (error) {
-                console.error('載入記錄失敗:', error);
+                console.error('❌ [記錄同步] 載入記錄失敗:', error);
                 showError('載入記錄失敗');
             }
         }

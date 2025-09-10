@@ -437,12 +437,19 @@ async function handleEvent(event) {
     userTasks.push(newTask);
     userTaskStacks.set(userId, userTasks);
     
-    console.log(`📋 用戶 ${userId} 目前任務數量: ${userTasks.length}`);
-    console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
+    console.log(`📋 [任務同步] 用戶 ${userId} 目前任務數量: ${userTasks.length}`);
+    console.log('📝 [任務同步] 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
+    
+    // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
+    console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
     
     // 創建包含所有任務的 Flex Message
     const userTags = await getUserTags(userId);
     const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
+    
+    // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
+    const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
+    console.log('📱 [任務同步] 準備發送 FLEX MESSAGE 和同步資料');
     
     if (client) {
       return client.replyMessage(event.replyToken, flexMessage);
