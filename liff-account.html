@@ -151,6 +151,13 @@
 
                 <!-- 功能按鈕 -->
                 <div class="mt-4 pt-3 border-top">
+                    <div class="row g-2 mb-2">
+                        <div class="col-12">
+                            <button class="btn btn-warning w-100" onclick="upgradeSubscription()">
+                                <i class="bi bi-star me-2"></i>訂閱升級
+                            </button>
+                        </div>
+                    </div>
                     <div class="row g-2">
                         <div class="col-6">
                             <button class="btn btn-outline-primary w-100" onclick="closeApp()">
@@ -244,6 +251,12 @@
         // 關閉應用程式
         function closeApp() {
             liff.closeWindow();
+        }
+
+        // 訂閱升級功能
+        function upgradeSubscription() {
+            alert('🎉 訂閱升級功能即將推出！\n敬請期待更多進階功能。');
+            // 未來可以在這裡實作實際的訂閱升級流程
         }
 
         // 頁面載入時初始化 LIFF
