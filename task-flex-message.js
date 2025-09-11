@@ -1,4 +1,4 @@
-// 任務 Flex Message 建構器
+// 任務 Flex Message 建構器 - 最終修正版 2025-09-11-15:50-TAG-FIX
 
 // 單一任務 Flex Message
 function createTaskFlexMessage(taskText) {
@@ -61,7 +61,7 @@ function createTaskFlexMessage(taskText) {
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply
 function createTaskStackFlexMessage(tasks, userTags = null) {
-  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-10-24:00-UPDATED');
+  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-15:50-TAG-FIX-FINAL');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
   
@@ -94,7 +94,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           margin: 'none',
           action: {
             type: 'uri',
-            uri: `https://e15a3f219d53.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
+            uri: `https://22af292ce500.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
           }
         },
         {
@@ -198,7 +198,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://e15a3f219d53.ngrok-free.app/liff/records'
+                  uri: 'https://22af292ce500.ngrok-free.app/liff/records'
                 }
               },
               {
@@ -210,7 +210,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://e15a3f219d53.ngrok-free.app/liff/favorites'
+                  uri: 'https://22af292ce500.ngrok-free.app/liff/favorites'
                 }
               },
               {
@@ -222,7 +222,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://e15a3f219d53.ngrok-free.app/liff/account'
+                  uri: 'https://22af292ce500.ngrok-free.app/liff/account'
                 }
               }
             ]

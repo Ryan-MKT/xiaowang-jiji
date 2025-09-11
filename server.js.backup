@@ -14,11 +14,8 @@ const path = require('path');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
-  console.log(`🔄 [MODULE RELOAD] 清除快取: ${modulePath}`);
   delete require.cache[modulePath];
-  const module = require('./task-flex-message');
-  console.log(`📦 [MODULE RELOAD] 重新載入模組完成`);
-  return module;
+  return require('./task-flex-message');
 }
 
 // 用戶任務堆疊儲存（記憶體版本）
@@ -34,8 +31,8 @@ const userFavoriteTasks = new Map();
 const userTagSelectionStates = new Map();
 
 const app = express();
-const PORT = process.env.PORT || 3010;
-console.log('🚀 小汪記記 with LINE Login starting - TAG FIXED VERSION 2025-09-11-15:50...');
+const PORT = process.env.PORT || 3001;
+console.log('🚀 小汪記記 with LINE Login starting...');
 
 // 初始化 OpenAI
 const openai = new OpenAI({
@@ -148,13 +145,9 @@ async function handlePostback(event) {
     
     // 取得用戶任務堆疊
     let userTasks = userTaskStacks.get(userId) || [];
-    console.log(`🔍 [任務搜尋] 用戶 ${userId} 目前有 ${userTasks.length} 個任務`);
-    console.log(`🔍 [任務搜尋] 任務ID清單:`, userTasks.map(task => `ID:${task.id}("${task.text}")`));
-    console.log(`🔍 [任務搜尋] 要找的任務ID: ${taskId}`);
     
     // 找到對應的任務
     const taskIndex = userTasks.findIndex(task => task.id === taskId);
-    console.log(`🔍 [任務搜尋] 找到的任務索引: ${taskIndex}`);
     if (taskIndex !== -1) {
       const favoriteTask = userTasks[taskIndex];
       
@@ -203,7 +196,6 @@ async function handlePostback(event) {
           name: favoriteTask.text,
           description: '',
           category: '',
-          tag: null, // 標籤將在用戶選擇後更新
           used_count: 0,
           created_at: new Date().toISOString(),
           source_task_id: taskId
@@ -215,15 +207,15 @@ async function handlePostback(event) {
       
       console.log(`✅ 任務已收藏: ${favoriteTask.text}`);
       
-      // 🔧 關鍵修復：無論是否有 client 都要設置標籤選擇狀態
-      userTagSelectionStates.set(userId, {
-        waitingForTag: true,
-        targetTaskId: taskId,
-        timestamp: Date.now()
-      });
-      console.log(`🏷️ [標籤選擇] 用戶 ${userId} 進入標籤選擇狀態，目標任務 ID: ${taskId}`);
-      
       if (client) {
+        // 設置標籤選擇狀態
+        userTagSelectionStates.set(userId, {
+          waitingForTag: true,
+          targetTaskId: taskId,
+          timestamp: Date.now()
+        });
+        console.log(`🏷️ [標籤選擇] 用戶 ${userId} 進入標籤選擇狀態，目標任務 ID: ${taskId}`);
+        
         // 準備標籤詢問訊息（包含 Quick Reply 按鈕）
         const userTags = await getUserTags(userId);
         const { generateQuickReply } = getTaskFlexModule();
@@ -702,57 +694,21 @@ async function handleEvent(event) {
     if (taskIndex !== -1) {
       const originalTask = userTasks[taskIndex];
       
-      // 🔧 關鍵修復：在修改前先保存原始名稱
-      const originalTaskText = originalTask.text;
-      
       // 更新任務文字格式為 (標籤)原文字
-      const taggedText = `(${userMessage})${originalTaskText}`;
+      const taggedText = `(${userMessage})${originalTask.text}`;
       userTasks[taskIndex].text = taggedText;
       userTaskStacks.set(userId, userTasks);
       
-      console.log(`✅ 任務已標記: ${originalTaskText} -> ${taggedText}`);
-      console.log(`🔍 [標籤流程] 用戶選擇標籤: ${userMessage}`);
-      console.log(`🔍 [標籤流程] 原任務已收藏: ${originalTask.favorited}`);
+      console.log(`✅ 任務已標記: ${originalTask.text} -> ${taggedText}`);
       
-      // 同步更新收藏任務中的名稱和標籤（如果該任務已被收藏）
+      // 同步更新收藏任務中的名稱（如果該任務已被收藏）
       if (originalTask.favorited) {
-        console.log(`🚀 [標籤流程] 開始更新收藏任務的標籤...`);
-        // 更新 Supabase 中的收藏記錄
-        if (supabase) {
-          try {
-            // 🔧 關鍵修復：同時更新 name 和 tag 在同一個 SQL 操作中
-            console.log(`🔍 [標籤更新] 使用表格: favorite_tasks`);
-            console.log(`🔍 [標籤更新] 更新條件 - 用戶ID: ${userId}, 原任務名稱: ${originalTaskText}`);
-            console.log(`🔍 [標籤更新] 新任務名稱: ${taggedText}, 標籤: ${userMessage}`);
-            
-            const { error: updateError } = await supabase
-              .from('favorite_tasks')
-              .update({
-                name: taggedText,
-                tag: userMessage,
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', userId)
-              .eq('name', originalTaskText);
-
-            if (updateError) {
-              console.error('❌ [標籤更新] 更新失敗:', updateError);
-            } else {
-              console.log(`✅ [標籤更新] 任務名稱和標籤已成功更新: ${taggedText} -> 標籤: ${userMessage}`);
-            }
-          } catch (dbError) {
-            console.error('❌ [標籤更新] 資料庫連線錯誤:', dbError);
-          }
-        }
-        
-        // 更新記憶體儲存
         let userFavorites = userFavoriteTasks.get(userId) || [];
         const favoriteIndex = userFavorites.findIndex(fav => fav.source_task_id === originalTask.id);
         if (favoriteIndex !== -1) {
           userFavorites[favoriteIndex].name = taggedText;
-          userFavorites[favoriteIndex].tag = userMessage;
           userFavoriteTasks.set(userId, userFavorites);
-          console.log(`🔄 記憶體收藏任務同步更新: ${taggedText}, 標籤: ${userMessage}`);
+          console.log(`🔄 收藏任務同步更新: ${taggedText}`);
         }
       }
       
@@ -853,8 +809,6 @@ async function handleEvent(event) {
       text: userMessage,
       timestamp: new Date().toISOString()
     };
-    
-    console.log(`🆔 [任務ID] 新任務已生成，ID: ${newTask.id}, 內容: "${newTask.text}"`);
     
     userTasks.push(newTask);
     userTaskStacks.set(userId, userTasks);
@@ -1465,13 +1419,11 @@ app.get('/api/favorites', async (req, res) => {
           name: item.name,
           description: item.description,
           category: item.category,
-          tag: item.tag,
           used_count: item.used_count,
           created_at: item.created_at
         }));
         
         console.log(`✅ [收藏API] 成功回傳 ${formattedFavorites.length} 個收藏任務（從 Supabase）`);
-        console.log('🔍 [收藏API] 回傳資料樣本:', formattedFavorites.slice(0, 2));
         res.json(formattedFavorites);
       } catch (dbError) {
         console.error('❌ [收藏API] 資料庫連線錯誤:', dbError);

@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全部記錄 - 小汪記記</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         * {
@@ -269,12 +272,22 @@
     </div>
 
     <button class="floating-button" onclick="closeApp()">✕</button>
+    
+    <!-- 除錯測試按鈕 -->
+    <div style="position: fixed; bottom: 80px; left: 20px; z-index: 1001;">
+        <button onclick="testDateFilter()" style="background: #FF6B6B; color: white; padding: 10px; border: none; border-radius: 5px; font-size: 12px;">
+            測試9/9
+        </button>
+    </div>
 
 
     <script>
         let liffProfile = null;
         let allTasks = [];
         let filteredTasks = [];
+        
+        // 版本控制 - 強制更新 2025-09-11-12:35
+        console.log('🔄 [頁面版本] 全部記錄頁面 - 日曆篩選版本 v2025-09-11-15:20 已載入');
 
         // 🔄 檢查頁面初始化（保留函數名稱以避免破壞其他調用）
         function checkForSyncData() {
@@ -303,16 +316,13 @@
                 // 顯示使用者名稱
                 document.getElementById('userName').textContent = liffProfile.displayName;
 
-                // 設定今天日期為預設值
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('dateInput').value = today;
-
-                // 載入所有記錄
-                await loadAllRecords();
-
-                // 隱藏載入畫面
+                // 不設定預設日期，讓用戶主動選擇
+                // 隱藏載入畫面，顯示空白狀態
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('recordsContainer').style.display = 'block';
+                
+                // 顯示提示訊息
+                showDateSelectionPrompt();
 
             } catch (error) {
                 console.error('LIFF 初始化失敗:', error);
@@ -320,13 +330,23 @@
             }
         }
 
-        // 載入所有記錄
-        async function loadAllRecords() {
+        // 載入所有記錄（直接從 Supabase dev_messages）
+        async function loadAllRecords(specificDate = null) {
             try {
-                console.log('🔄 [任務載入] 開始從伺服器載入最新任務...');
+                console.log(`🔄 [訊息載入] 🚀🚀🚀 函數被調用 - 參數 specificDate: ${specificDate} 🚀🚀🚀`);
+                console.log(`🔄 [訊息載入] 開始從 Supabase 載入訊息記錄${specificDate ? ` (日期: ${specificDate})` : ''}...`);
                 
-                // 🆕 從伺服器API獲取最新任務
-                const response = await fetch('/api/tasks', {
+                // 🆕 清空之前的資料以防止混淆
+                allTasks = [];
+                console.log(`🧹 [資料清理] 已清空 allTasks 數組`);
+                
+                // 🆕 從 Supabase dev_messages 獲取訊息記錄
+                let apiUrl = '/api/messages';
+                if (specificDate) {
+                    apiUrl += `?date=${specificDate}`;
+                }
+                
+                const response = await fetch(apiUrl, {
                     method: 'GET',
                     headers: {
                         'x-user-id': liffProfile.userId,
@@ -336,31 +356,38 @@
                 
                 if (response.ok) {
                     allTasks = await response.json();
-                    console.log('✅ [任務載入] 成功從伺服器載入任務:', allTasks.length, '個');
-                    console.log('📝 [任務載入] 任務預覽:', allTasks.slice(0, 3).map(task => task.text));
+                    console.log(`✅ [訊息載入] 成功從 Supabase 載入訊息記錄: ${allTasks.length} 筆`);
+                    console.log('📝 [訊息載入] 記錄預覽:', allTasks.slice(0, 3).map(msg => msg.text));
                     
-                    // 同步到 localStorage 作為備份
-                    localStorage.setItem('userTasks_' + liffProfile.userId, JSON.stringify(allTasks));
-                    console.log('💾 [任務載入] 已備份任務到 localStorage');
+                    // 同步到 localStorage 作為備份（只在無特定日期篩選時）
+                    if (!specificDate) {
+                        localStorage.setItem('userMessages_' + liffProfile.userId, JSON.stringify(allTasks));
+                        console.log('💾 [訊息載入] 已備份記錄到 localStorage');
+                    }
                 } else {
-                    console.error('❌ [任務載入] API 請求失敗:', response.status, response.statusText);
+                    console.error('❌ [訊息載入] API 請求失敗:', response.status, response.statusText);
                     
-                    // 備援：從 localStorage 載入
-                    const savedTasks = localStorage.getItem('userTasks_' + liffProfile.userId);
-                    if (savedTasks) {
-                        allTasks = JSON.parse(savedTasks);
-                        console.log('💾 [任務載入] 備援：從 localStorage 載入任務:', allTasks.length, '個');
+                    // 備援：從 localStorage 載入（僅在無特定日期篩選時）
+                    if (!specificDate) {
+                        const savedMessages = localStorage.getItem('userMessages_' + liffProfile.userId);
+                        if (savedMessages) {
+                            allTasks = JSON.parse(savedMessages);
+                            console.log('💾 [訊息載入] 備援：從 localStorage 載入記錄:', allTasks.length, '筆');
+                        } else {
+                            allTasks = [];
+                            console.log('💾 [訊息載入] 無記錄資料');
+                        }
                     } else {
                         allTasks = [];
-                        console.log('💾 [任務載入] 無任務資料');
+                        console.log('❌ [訊息載入] 特定日期查詢失敗，無備援資料');
                     }
                 }
                 
-                console.log('📊 [任務載入] 最終任務數量:', allTasks.length);
-                console.log('📝 [任務載入] 任務預覽:', allTasks.slice(0, 3).map(task => task.text || ''));
+                console.log('📊 [訊息載入] 最終記錄數量:', allTasks.length);
+                console.log('📝 [訊息載入] 記錄預覽:', allTasks.slice(0, 3).map(msg => msg.text || ''));
 
-                // 按日期分組並顯示
-                displayTasksByDate(allTasks);
+                // 按日期分組並顯示 (傳遞選定日期參數)
+                displayTasksByDate(allTasks, specificDate);
                 updateStatistics(allTasks);
 
             } catch (error) {
@@ -370,7 +397,8 @@
         }
 
         // 按日期分組顯示任務
-        function displayTasksByDate(tasks) {
+        function displayTasksByDate(tasks, forcedDate = null) {
+            console.log(`🎯 [顯示任務] 函數被調用 - 強制日期: ${forcedDate}, 任務數量: ${tasks.length}`);
             const container = document.getElementById('recordsContainer');
             container.innerHTML = '';
 
@@ -379,15 +407,25 @@
                 return;
             }
 
-            // 按日期分組
-            const tasksByDate = {};
-            tasks.forEach(task => {
-                const date = new Date(task.timestamp || Date.now()).toLocaleDateString('zh-TW');
-                if (!tasksByDate[date]) {
-                    tasksByDate[date] = [];
-                }
-                tasksByDate[date].push(task);
-            });
+            // 如果有強制日期，直接顯示在該日期下
+            let tasksByDate = {};
+            if (forcedDate) {
+                console.log(`🎯 [強制日期] 使用強制日期 ${forcedDate} 顯示所有 ${tasks.length} 筆任務`);
+                // 將日期格式轉換為本地格式
+                const displayDate = new Date(forcedDate + 'T00:00:00').toLocaleDateString('zh-TW');
+                tasksByDate[displayDate] = tasks;
+                console.log(`🎯 [強制日期] 顯示日期格式: ${displayDate}`);
+            } else {
+                // 正常按日期分組
+                console.log(`📅 [正常分組] 開始按日期分組`);
+                tasks.forEach(task => {
+                    const date = new Date(task.timestamp || Date.now()).toLocaleDateString('zh-TW');
+                    if (!tasksByDate[date]) {
+                        tasksByDate[date] = [];
+                    }
+                    tasksByDate[date].push(task);
+                });
+            }
 
             // 按日期降序排列
             const sortedDates = Object.keys(tasksByDate).sort((a, b) => {
@@ -442,37 +480,61 @@
             const completedTasks = tasks.filter(t => t.completed).length;
             const pendingTasks = totalTasks - completedTasks;
             
-            // 計算記錄天數
-            const uniqueDates = new Set(
-                tasks.map(t => new Date(t.timestamp || Date.now()).toDateString())
-            );
-            const totalDays = uniqueDates.size;
+            // 當有特定日期選擇時，天數固定為1或0
+            const selectedDate = document.getElementById('dateInput').value;
+            const totalDays = tasks.length > 0 && selectedDate ? 1 : 0;
 
             document.getElementById('totalTasks').textContent = totalTasks;
             document.getElementById('completedTasks').textContent = completedTasks;
             document.getElementById('pendingTasks').textContent = pendingTasks;
             document.getElementById('totalDays').textContent = totalDays;
+            
+            console.log(`📊 [統計更新] 日期: ${selectedDate || '未選擇'}, 記錄數: ${totalTasks}, 天數: ${totalDays}`);
         }
 
-        // 按日期篩選
-        function filterByDate() {
+        // 按日期篩選（只載入選定日期的記錄）
+        async function filterByDate() {
             const selectedDate = document.getElementById('dateInput').value;
             
+            console.log(`📅 [日期篩選] 🔥🔥🔥 函數被調用 - 選擇日期: ${selectedDate || '無'} 🔥🔥🔥`);
+            console.log(`📅 [日期篩選] 當前時間: ${new Date().toISOString()}`);
+            console.log(`📅 [日期篩選] 版本確認: v2025-09-11-15:20`);
+            
             if (!selectedDate) {
-                displayTasksByDate(allTasks);
-                updateStatistics(allTasks);
+                // 沒有選擇日期時，顯示提示訊息
+                console.log('📅 [日期篩選] 無日期選擇，顯示提示');
+                showDateSelectionPrompt();
                 return;
             }
 
-            const selectedDateStr = new Date(selectedDate).toLocaleDateString('zh-TW');
+            // 有選擇日期時，從 Supabase 查詢該日期的記錄
+            console.log(`📅 [日期篩選] 🎯 準備載入 ${selectedDate} 的記錄`);
+            console.log(`📅 [日期篩選] API URL 將會是: /api/messages?date=${selectedDate}`);
             
-            const filteredTasks = allTasks.filter(task => {
-                const taskDate = new Date(task.timestamp || Date.now()).toLocaleDateString('zh-TW');
-                return taskDate === selectedDateStr;
-            });
+            try {
+                await loadAllRecords(selectedDate);
+                console.log(`📅 [日期篩選] ✅ 成功完成 ${selectedDate} 的記錄載入`);
+            } catch (error) {
+                console.error(`📅 [日期篩選] ❌ 載入失敗:`, error);
+            }
+        }
 
-            displayTasksByDate(filteredTasks);
-            updateStatistics(filteredTasks);
+        // 顯示日期選擇提示
+        function showDateSelectionPrompt() {
+            const container = document.getElementById('recordsContainer');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: #8B4513;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">📅</div>
+                    <h2 style="margin-bottom: 15px; color: #8B4513;">選擇日期查看記錄</h2>
+                    <p style="color: #999; font-size: 14px;">請在上方日期選擇器中選擇您要查看的日期</p>
+                </div>
+            `;
+            
+            // 清空統計資訊
+            document.getElementById('totalTasks').textContent = '0';
+            document.getElementById('completedTasks').textContent = '0';
+            document.getElementById('pendingTasks').textContent = '0';
+            document.getElementById('totalDays').textContent = '0';
         }
 
         // 顯示錯誤訊息
@@ -488,6 +550,44 @@
             liff.closeWindow();
         }
 
+        // 測試日期篩選功能
+        function testDateFilter() {
+            console.log('🧪 [測試] 測試按鈕被點擊，模擬選擇 2025-09-09');
+            const dateInput = document.getElementById('dateInput');
+            if (dateInput) {
+                dateInput.value = '2025-09-09';
+                console.log('🧪 [測試] 設定日期選擇器值為 2025-09-09');
+                filterByDate();
+            } else {
+                console.error('🧪 [測試] 找不到日期選擇器');
+            }
+        }
+
+
+        // 確保事件綁定正確
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📅 [事件綁定] DOMContentLoaded 觸發，檢查日期選擇器');
+            
+            setTimeout(() => {
+                const dateInput = document.getElementById('dateInput');
+                if (dateInput) {
+                    console.log('📅 [事件綁定] 找到日期選擇器，添加額外事件監聽');
+                    
+                    // 添加額外的事件綁定作為備用
+                    dateInput.addEventListener('change', function() {
+                        console.log('📅 [事件綁定] addEventListener change 觸發');
+                        filterByDate();
+                    });
+                    
+                    dateInput.addEventListener('input', function() {
+                        console.log('📅 [事件綁定] addEventListener input 觸發');
+                        filterByDate();
+                    });
+                } else {
+                    console.error('📅 [事件綁定] 找不到日期選擇器元素');
+                }
+            }, 1000);
+        });
 
         // 頁面載入時初始化 LIFF
         window.addEventListener('load', initializeLiff);

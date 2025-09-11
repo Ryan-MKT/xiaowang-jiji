@@ -33,7 +33,7 @@ function testFlexMessageSync() {
     
     // 模擬生成 FLEX MESSAGE 中的 "📚 全部記錄" 連結
     const syncDataParam = encodeURIComponent(JSON.stringify(testTasks));
-    const recordsUrl = `https://e15a3f219d53.ngrok-free.app/liff/records?syncTasks=${syncDataParam}`;
+    const recordsUrl = `https://22af292ce500.ngrok-free.app/liff/records?syncTasks=${syncDataParam}`;
     
     console.log('🔗 [FLEX MESSAGE] 生成同步連結長度:', recordsUrl.length, '字元');
     console.log('🔗 [FLEX MESSAGE] 同步參數前100字元:', syncDataParam.substring(0, 100) + '...');

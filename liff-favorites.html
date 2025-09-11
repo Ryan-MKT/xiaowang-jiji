@@ -714,18 +714,42 @@
             document.getElementById('loadingState').style.display = 'none';
         }
 
-        // 從任務名稱中提取標籤信息
-        function extractTagInfo(taskName) {
-            // 檢查任務名稱是否符合 (標籤)內容 的格式
-            const tagMatch = taskName.match(/^\(([^)]+)\)(.+)$/);
-            if (tagMatch) {
+        // 從任務中提取標籤信息（優先使用API的tag欄位）
+        function extractTagInfo(task) {
+            console.log('🔍 [標籤解析] 輸入任務:', task);
+            console.log('🔍 [標籤解析] task.tag:', task.tag);
+            console.log('🔍 [標籤解析] task.name:', task.name);
+            
+            // 優先使用API回傳的tag欄位
+            if (task.tag && task.tag.trim()) {
+                console.log('✅ [標籤解析] 使用API tag欄位:', task.tag);
                 return {
                     hasTag: true,
-                    tag: tagMatch[1],
-                    content: tagMatch[2],
+                    tag: task.tag.trim(),
+                    content: task.name,
+                    displayName: task.name
+                };
+            }
+            
+            // 如果沒有tag欄位，則從任務名稱中解析
+            const taskName = task.name || task;
+            console.log('🔍 [標籤解析] 從任務名稱解析:', taskName);
+            
+            // 檢查任務名稱是否符合 (標籤)內容 的格式
+            const tagMatch = taskName.match(/^\(([^)]+)\)(.*)$/);
+            if (tagMatch && tagMatch[1].trim()) {
+                const extractedTag = tagMatch[1].trim();
+                const extractedContent = tagMatch[2] ? tagMatch[2].trim() : taskName;
+                console.log('✅ [標籤解析] 從名稱解析出標籤:', extractedTag, '內容:', extractedContent);
+                return {
+                    hasTag: true,
+                    tag: extractedTag,
+                    content: extractedContent,
                     displayName: taskName
                 };
             }
+            
+            console.log('❌ [標籤解析] 沒有找到標籤');
             return {
                 hasTag: false,
                 tag: null,
@@ -771,7 +795,7 @@
             // 計算每個標籤的任務數量
             const tagCounts = {};
             favoritesTasks.forEach(task => {
-                const tagInfo = extractTagInfo(task.name);
+                const tagInfo = extractTagInfo(task);
                 if (tagInfo.hasTag) {
                     tagCounts[tagInfo.tag] = (tagCounts[tagInfo.tag] || 0) + 1;
                 }
@@ -821,15 +845,25 @@
 
         // 獲取標籤對應的圖示
         function getTagIcon(tagName) {
+            if (!tagName) return '🏷️';
+            
             const tagIcons = {
                 '工作': '💼',
                 '學習': '📚', 
                 '運動': '🏃‍♂️',
                 'AI': '🤖',
-                '你好': '🏷️',
+                'AIII': '🤖',
+                '你好': '👋',
                 '生活': '🏠',
-                '娛樂': '🎮'
+                '娛樂': '🎮',
+                '讀書': '📖',
+                '家事': '🧹',
+                '購物': '🛒',
+                '健康': '💪',
+                '旅行': '✈️'
             };
+            
+            // 如果找到對應的圖示就回傳，否則回傳預設圖示
             return tagIcons[tagName] || '🏷️';
         }
 
@@ -842,7 +876,7 @@
             let filteredTasks = favoritesTasks;
             if (currentFilterTag !== '') {
                 filteredTasks = favoritesTasks.filter(task => {
-                    const tagInfo = extractTagInfo(task.name);
+                    const tagInfo = extractTagInfo(task);
                     return tagInfo.hasTag && tagInfo.tag === currentFilterTag;
                 });
             }
@@ -869,7 +903,7 @@
             emptyState.style.display = 'none';
             
             favoritesList.innerHTML = filteredTasks.map(task => {
-                const tagInfo = extractTagInfo(task.name);
+                const tagInfo = extractTagInfo(task);
                 
                 return `
                     <div class="favorite-item p-3">
@@ -884,17 +918,24 @@
                                 </div>
                             </div>
                             <div class="col-4 text-end">
-                                ${tagInfo.hasTag ? 
-                                    `<button class="btn btn-sm btn-gradient-success mb-1" onclick="useFavoriteTask('${task.id}')">
-                                        ${getTagIcon(tagInfo.tag)} ${tagInfo.tag}
-                                    </button>` :
-                                    `<button class="btn btn-sm btn-gradient-primary mb-1" onclick="useFavoriteTask('${task.id}')">
-                                        <i class="bi bi-plus-circle"></i> 使用
-                                    </button>`
-                                }
-                                <button class="btn btn-sm btn-gradient-danger" onclick="deleteFavoriteTask('${task.id}')">
-                                    <i class="bi bi-trash"></i> 刪除
-                                </button>
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    ${tagInfo.hasTag ? 
+                                        `<span class="badge bg-primary" style="font-size: 12px;">
+                                            ${getTagIcon(tagInfo.tag)} ${tagInfo.tag}
+                                        </span>` :
+                                        `<span class="badge bg-secondary" style="font-size: 12px;">
+                                            🏷️ 無標籤
+                                        </span>`
+                                    }
+                                    <div>
+                                        <button class="btn btn-sm btn-gradient-primary me-1" onclick="useFavoriteTask('${task.id}')">
+                                            <i class="bi bi-plus-circle"></i> 使用
+                                        </button>
+                                        <button class="btn btn-sm btn-gradient-danger" onclick="deleteFavoriteTask('${task.id}')">
+                                            <i class="bi bi-trash"></i> 刪除
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
