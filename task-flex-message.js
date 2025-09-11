@@ -1,4 +1,4 @@
-// 任務 Flex Message 建構器 - 最終修正版 2025-09-11-15:50-TAG-FIX
+// 任務 Flex Message 建構器 - 最新備註功能版本 2025-09-11-16:20-NOTE-FINAL
 
 // 單一任務 Flex Message
 function createTaskFlexMessage(taskText) {
@@ -61,7 +61,7 @@ function createTaskFlexMessage(taskText) {
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply
 function createTaskStackFlexMessage(tasks, userTags = null) {
-  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-15:50-TAG-FIX-FINAL');
+  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-16:20-NOTE-FINAL-CACHE-CLEARED');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
   
@@ -75,27 +75,49 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   tasks.forEach((task, index) => {
     const isCompleted = task.completed || false;
     
-    // 添加任務項目
+    // 添加任務項目 - 支援備註顯示
+    const taskBoxContents = [
+      {
+        type: 'text',
+        text: `${index + 1}. ${task.text}`,
+        size: 'sm',
+        color: isCompleted ? '#999999' : '#333333',
+        flex: 1,
+        wrap: true,
+        decoration: isCompleted ? 'line-through' : 'none',
+        margin: 'none',
+        action: {
+          type: 'uri',
+          uri: `https://c5251d8c180a.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+        }
+      }
+    ];
+
+    // 如果有備註，在任務下方顯示
+    if (task.note && task.note.trim()) {
+      taskBoxContents.push({
+        type: 'text',
+        text: `💬 ${task.note}`,
+        size: 'xs',
+        color: '#666666',
+        flex: 1,
+        wrap: true,
+        margin: 'xs'
+      });
+    }
+
     taskContents.push({
       type: 'box',
       layout: 'horizontal',
       spacing: 'sm',
       paddingAll: 'md',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       contents: [
         {
-          type: 'text',
-          text: `${index + 1}. ${task.text}`,
-          size: 'sm',
-          color: isCompleted ? '#999999' : '#333333',
+          type: 'box',
+          layout: 'vertical',
           flex: 1,
-          wrap: true,
-          decoration: isCompleted ? 'line-through' : 'none',
-          margin: 'none',
-          action: {
-            type: 'uri',
-            uri: `https://c5251d8c180a.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
-          }
+          contents: taskBoxContents
         },
         {
           type: 'text',

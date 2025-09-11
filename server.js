@@ -854,7 +854,8 @@ async function handleEvent(event) {
     const newTask = {
       id: Date.now(),
       text: userMessage,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      note: '' // 備註欄位初始化為空字串
     };
     
     console.log(`🆔 [任務ID] 新任務已生成，ID: ${newTask.id}, 內容: "${newTask.text}"`);
@@ -1646,7 +1647,8 @@ app.post('/api/favorites/:id/use', async (req, res) => {
       text: favoriteTask.name,
       timestamp: new Date().toISOString(),
       completed: false,
-      fromFavorite: true
+      fromFavorite: true,
+      note: '' // 備註欄位初始化為空字串
     };
     
     currentTasks.push(newTask);
@@ -1715,6 +1717,76 @@ app.delete('/api/favorites/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('❌ [刪除收藏] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== 任務備註 API ====================
+
+// 取得任務備註
+app.get('/api/task-note/:taskId', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const taskId = req.params.taskId;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    console.log(`📝 [取得備註] 用戶 ${userId} 取得任務 ${taskId} 的備註`);
+    
+    // 從記憶體中的任務堆疊尋找對應的任務並取得備註
+    const userTasks = userTaskStacks.get(userId) || [];
+    const task = userTasks.find(t => t.id.toString() === taskId.toString());
+    
+    if (task && task.note) {
+      console.log(`✅ [取得備註] 找到備註: ${task.note}`);
+      res.json({ note: task.note });
+    } else {
+      console.log(`📝 [取得備註] 任務 ${taskId} 沒有備註`);
+      res.json({ note: '' });
+    }
+    
+  } catch (err) {
+    console.error('❌ [取得備註] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 儲存任務備註
+app.post('/api/task-note', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const { taskId, taskText, note } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+    
+    if (!taskId) {
+      return res.status(400).json({ error: 'Missing task ID' });
+    }
+    
+    console.log(`💾 [儲存備註] 用戶 ${userId} 儲存任務 ${taskId} 的備註: ${note}`);
+    
+    // 從記憶體中的任務堆疊尋找對應的任務並更新備註
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
+    
+    if (taskIndex !== -1) {
+      // 更新現有任務的備註
+      userTasks[taskIndex].note = note.trim();
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [儲存備註] 任務 ${taskId} 備註已更新`);
+    } else {
+      console.log(`❌ [儲存備註] 找不到任務 ${taskId}`);
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    res.json({ success: true, note: note.trim() });
+    
+  } catch (err) {
+    console.error('❌ [儲存備註] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
