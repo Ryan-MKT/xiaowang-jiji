@@ -958,8 +958,17 @@
 
         // 標籤設定相關功能
         function openTagSettings() {
-            loadUserTags();
-            document.getElementById('tagSettingsModal').style.display = 'block';
+            console.log('🔧 開啟標籤設定');
+            console.log('📋 liffProfile:', liffProfile);
+            try {
+                loadUserTags();
+                const modal = document.getElementById('tagSettingsModal');
+                console.log('📋 Modal element:', modal);
+                modal.style.display = 'block';
+                console.log('✅ 模態框已顯示');
+            } catch (error) {
+                console.error('❌ 開啟標籤設定失敗:', error);
+            }
         }
 
         function closeTagSettings() {
@@ -1193,6 +1202,21 @@
                     selectedEmoji = this.dataset.emoji;
                 });
             });
+            
+            // 檢查設定標籤按鈕
+            const tagSettingsBtn = document.querySelector('.tag-settings-btn');
+            console.log('🔍 檢查設定標籤按鈕:', tagSettingsBtn);
+            if (tagSettingsBtn) {
+                console.log('✅ 設定標籤按鈕存在，onclick:', tagSettingsBtn.onclick);
+                // 備用事件綁定
+                tagSettingsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('🖱️ 設定標籤按鈕被點擊 (addEventListener)');
+                    openTagSettings();
+                });
+            } else {
+                console.error('❌ 設定標籤按鈕不存在');
+            }
             
             // 點擊模態框外部關閉
             document.getElementById('tagSettingsModal').addEventListener('click', function(e) {

@@ -731,6 +731,13 @@ app.get('/liff/records', (req, res) => {
     console.log(`📱 [記錄頁面] 使用 LIFF ID: ${liffId}`);
     console.log(`🔗 [記錄頁面] URL 參數:`, req.url);
     
+    // 強制不緩存
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     res.send(html);
   } catch (error) {
     console.error('讀取記錄頁面錯誤:', error);
@@ -752,6 +759,13 @@ app.get('/liff/favorites', (req, res) => {
     
     console.log(`⭐ [收藏頁面] 使用 LIFF ID: ${liffId}`);
     console.log(`🔗 [收藏頁面] URL 參數:`, req.url);
+    
+    // 強制不緩存
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     
     res.send(html);
   } catch (error) {

@@ -61,7 +61,7 @@ function createTaskFlexMessage(taskText) {
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply
 function createTaskStackFlexMessage(tasks, userTags = null) {
-  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-10-19:17');
+  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-10-24:00-UPDATED');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
   

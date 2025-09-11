@@ -130,6 +130,306 @@
             text-align: center;
             padding: 20px;
         }
+        
+        /* 標籤任務區樣式 */
+        .tag-section {
+            background: white;
+            padding: 20px;
+            margin: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 4px solid #4169E1;
+        }
+
+        .tag-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .tag-title {
+            font-weight: bold;
+            color: #4169E1;
+            font-size: 16px;
+        }
+
+        .tag-count {
+            background: #4169E1;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .tag-item {
+            background: #F0F8FF;
+            color: #4169E1;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            border: 1px solid #4169E1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tag-item:hover {
+            background: #4169E1;
+            color: white;
+        }
+
+        .tag-item.selected {
+            background: #4169E1;
+            color: white;
+        }
+
+        .tagged-tasks-container {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .tagged-task-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #F8F9FF;
+            border-radius: 6px;
+            border-left: 3px solid #4169E1;
+            font-size: 13px;
+        }
+
+        .tagged-task-text {
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .tagged-task-meta {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .no-tagged-tasks {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        /* 設定標籤模態框樣式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+        }
+
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 90%;
+            width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4169E1;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tag-form {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4169E1;
+        }
+
+        .color-picker-group {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-option.selected {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+
+        .emoji-picker-group {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .emoji-option {
+            width: 35px;
+            height: 35px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .emoji-option.selected {
+            border-color: #4169E1;
+            background: #F0F8FF;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: #4169E1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #365AC7;
+        }
+
+        .btn-danger {
+            background: #DC3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #C82333;
+        }
+
+        .tag-settings-btn {
+            background: #4169E1;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .existing-tags-list {
+            margin-top: 15px;
+        }
+
+        .existing-tag-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #F8F9FA;
+            border-radius: 8px;
+            border-left: 3px solid #4169E1;
+        }
+
+        .existing-tag-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .existing-tag-preview {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: white;
+        }
+
+        .tag-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -161,6 +461,25 @@
             </div>
         </div>
 
+        <!-- 標籤任務區 -->
+        <div id="tagSection" class="tag-section" style="display: none;">
+            <div class="tag-header">
+                <div class="tag-title">🏷️ 標籤任務區</div>
+                <div style="display: flex; align-items: center;">
+                    <div class="tag-count" id="tagCount">0</div>
+                    <button class="tag-settings-btn" onclick="openTagSettings()">⚙️ 設定標籤</button>
+                </div>
+            </div>
+            
+            <div class="tag-list" id="tagList">
+                <!-- 標籤會動態插入這裡 -->
+                <div class="no-tagged-tasks">目前沒有任何標籤任務</div>
+            </div>
+            
+            <div class="tagged-tasks-container" id="taggedTasksContainer">
+                <!-- 選中標籤的任務會顯示在這裡 -->
+            </div>
+        </div>
 
         <!-- 收藏任務列表 -->
         <div class="card favorites-list-card">
@@ -190,12 +509,134 @@
         </div>
     </div>
 
+    <!-- 標籤設定模態框 -->
+    <div id="tagSettingsModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">⚙️ 設定標籤</h3>
+                <button class="modal-close" onclick="closeTagSettings()">×</button>
+            </div>
+
+            <div class="tag-form">
+                <div class="form-group">
+                    <label class="form-label">標籤名稱 (最多20字)</label>
+                    <input type="text" id="tagNameInput" class="form-input" placeholder="輸入標籤名稱..." maxlength="20">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">選擇顏色</label>
+                    <div class="color-picker-group">
+                        <div class="color-option selected" style="background-color: #4169E1;" data-color="#4169E1"></div>
+                        <div class="color-option" style="background-color: #FF6B6B;" data-color="#FF6B6B"></div>
+                        <div class="color-option" style="background-color: #4ECDC4;" data-color="#4ECDC4"></div>
+                        <div class="color-option" style="background-color: #45B7D1;" data-color="#45B7D1"></div>
+                        <div class="color-option" style="background-color: #96CEB4;" data-color="#96CEB4"></div>
+                        <div class="color-option" style="background-color: #FFEAA7;" data-color="#FFEAA7"></div>
+                        <div class="color-option" style="background-color: #DDA0DD;" data-color="#DDA0DD"></div>
+                        <div class="color-option" style="background-color: #98D8C8;" data-color="#98D8C8"></div>
+                        <div class="color-option" style="background-color: #F7DC6F;" data-color="#F7DC6F"></div>
+                        <div class="color-option" style="background-color: #BB8FCE;" data-color="#BB8FCE"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">選擇圖標</label>
+                    <div class="emoji-picker-group">
+                        <div class="emoji-option selected" data-emoji="🏷️">🏷️</div>
+                        <div class="emoji-option" data-emoji="💼">💼</div>
+                        <div class="emoji-option" data-emoji="📚">📚</div>
+                        <div class="emoji-option" data-emoji="🏃‍♂️">🏃‍♂️</div>
+                        <div class="emoji-option" data-emoji="🍽️">🍽️</div>
+                        <div class="emoji-option" data-emoji="🏠">🏠</div>
+                        <div class="emoji-option" data-emoji="🎯">🎯</div>
+                        <div class="emoji-option" data-emoji="💡">💡</div>
+                        <div class="emoji-option" data-emoji="❤️">❤️</div>
+                        <div class="emoji-option" data-emoji="⭐">⭐</div>
+                        <div class="emoji-option" data-emoji="🚗">🚗</div>
+                        <div class="emoji-option" data-emoji="✈️">✈️</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="saveTag()">💾 儲存標籤</button>
+                    <button class="btn" onclick="closeTagSettings()" style="background: #6c757d; color: white;">取消</button>
+                </div>
+            </div>
+
+            <div class="existing-tags-list">
+                <h4 style="margin-bottom: 15px; color: #333;">現有標籤</h4>
+                <div id="existingTagsList">
+                    <!-- 現有標籤會動態插入這裡 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        console.log('🚀 [FAVORITES] JavaScript 檔案開始載入 - 版本 2025-09-11-10:51');
+        console.log('🚀 [FAVORITES] 載入時間:', new Date().toISOString());
+        console.log('🚀 [FAVORITES] 頁面版本:', '2025-09-11-10:51-SUPER-DEBUG');
+        
         let liffProfile = null;
         let favoritesTasks = [];
+        
+        // 標籤任務區變數
+        let taggedTasks = [];
+        let selectedTag = null;
+        
+        console.log('🚀 [FAVORITES] 變數初始化完成');
+        let userTags = [];
+        let selectedColor = '#4169E1';
+        let selectedEmoji = '🏷️';
+        
+        // 立即檢查函數
+        function immediateCheck() {
+            console.log('🔍 [FAVORITES] 立即檢查開始');
+            console.log('🔍 [FAVORITES] document 狀態:', document.readyState);
+            console.log('🔍 [FAVORITES] 所有按鈕元素:', document.querySelectorAll('button').length);
+            console.log('🔍 [FAVORITES] .tag-settings-btn 元素:', document.querySelectorAll('.tag-settings-btn').length);
+            console.log('🔍 [FAVORITES] #tagSettingsModal 元素:', !!document.getElementById('tagSettingsModal'));
+            
+            // 5秒後再檢查一次
+            setTimeout(() => {
+                console.log('🔍 [FAVORITES] 5秒後檢查');
+                console.log('🔍 [FAVORITES] document 狀態:', document.readyState);
+                console.log('🔍 [FAVORITES] 所有按鈕元素:', document.querySelectorAll('button').length);
+                console.log('🔍 [FAVORITES] .tag-settings-btn 元素:', document.querySelectorAll('.tag-settings-btn').length);
+                console.log('🔍 [FAVORITES] #tagSettingsModal 元素:', !!document.getElementById('tagSettingsModal'));
+                
+                const btn = document.querySelector('.tag-settings-btn');
+                if (btn) {
+                    console.log('✅ [FAVORITES] 5秒後找到按鈕，測試點擊');
+                    btn.click();
+                } else {
+                    console.log('❌ [FAVORITES] 5秒後仍未找到按鈕');
+                }
+            }, 5000);
+        }
+        
+        // 立即執行檢查
+        immediateCheck();
+        
+        // 簡單直接的解決方案：強制顯示標籤區域
+        function forceShowTagSection() {
+            console.log('🔧 [FAVORITES] 強制顯示標籤區域');
+            const tagSection = document.getElementById('tagSection');
+            if (tagSection) {
+                tagSection.style.display = 'block';
+                console.log('✅ [FAVORITES] 標籤區域已強制顯示');
+            } else {
+                console.log('❌ [FAVORITES] 找不到 tagSection 元素');
+            }
+        }
+        
+        // 在不同時間點嘗試顯示標籤區域
+        setTimeout(forceShowTagSection, 1000);
+        setTimeout(forceShowTagSection, 3000);
+        setTimeout(forceShowTagSection, 5000);
 
         // LIFF 初始化
         async function initializeLiff() {
@@ -214,6 +655,9 @@
 
                 // 載入收藏任務
                 await loadFavoriteTasks();
+                
+                // 初始化標籤任務區
+                initializeTagSection();
                 
             } catch (error) {
                 console.error('❌ LIFF 初始化失敗:', error);
@@ -426,8 +870,528 @@
             }, 3000);
         }
 
+        // 初始化標籤任務區
+        function initializeTagSection() {
+            console.log('🚀 [標籤區] 初始化標籤任務區');
+            
+            // 初始化用戶標籤為預設標籤
+            if (userTags.length === 0) {
+                userTags = getDefaultTags();
+                console.log('📦 [標籤區] 使用預設標籤:', userTags.length, '個');
+            }
+            
+            // 更新標籤顯示
+            updateTagDisplay();
+            updateTagCount();
+            
+            console.log('✅ [標籤區] 標籤任務區初始化完成');
+        }
+
+        // 顯示標籤列表
+        function displayTags(tags) {
+            const tagList = document.getElementById('tagList');
+            
+            if (tags.length === 0) {
+                tagList.innerHTML = '<div class="no-tagged-tasks">目前沒有任何標籤任務</div>';
+                return;
+            }
+
+            tagList.innerHTML = tags.map(tag => {
+                const count = taggedTasks.filter(task => task.tag === tag).length;
+                return `<div class="tag-item" onclick="selectTag('${tag}')">${tag} (${count})</div>`;
+            }).join('');
+        }
+
+        // 選擇標籤
+        function selectTag(tag) {
+            selectedTag = tag;
+            
+            // 更新標籤外觀
+            document.querySelectorAll('.tag-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+
+            // 顯示該標籤的任務
+            displayTaggedTasks(tag);
+        }
+
+        // 顯示特定標籤的任務
+        function displayTaggedTasks(tag) {
+            const container = document.getElementById('taggedTasksContainer');
+            const tasksWithTag = taggedTasks.filter(task => task.tag === tag);
+
+            if (tasksWithTag.length === 0) {
+                container.innerHTML = '<div class="no-tagged-tasks">這個標籤還沒有任務</div>';
+                container.style.display = 'block';
+                return;
+            }
+
+            container.innerHTML = tasksWithTag.map((task, index) => `
+                <div class="tagged-task-item">
+                    <div class="tagged-task-text">
+                        ${index + 1}. ${task.text} ${task.completed ? '✓' : ''}
+                    </div>
+                    <div class="tagged-task-meta">
+                        標籤: ${task.tag} | ${new Date(task.timestamp).toLocaleString('zh-TW')}
+                    </div>
+                </div>
+            `).join('');
+            
+            container.style.display = 'block';
+        }
+
+        // 更新標籤計數
+        function updateTagCount() {
+            const tagCount = document.getElementById('tagCount');
+            tagCount.textContent = taggedTasks.length;
+        }
+
+        // 標籤設定相關功能
+        function openTagSettings() {
+            console.log('🔧 [FAVORITES] openTagSettings 函數被調用');
+            console.log('📋 [FAVORITES] liffProfile:', liffProfile);
+            console.log('🕒 [FAVORITES] 調用時間:', new Date().toISOString());
+            
+            try {
+                console.log('🔍 [FAVORITES] 開始載入用戶標籤...');
+                loadUserTags();
+                
+                console.log('🔍 [FAVORITES] 查找模態框元素...');
+                const modal = document.getElementById('tagSettingsModal');
+                console.log('📋 [FAVORITES] Modal element:', modal);
+                console.log('📋 [FAVORITES] Modal 存在:', !!modal);
+                
+                if (modal) {
+                    console.log('📋 [FAVORITES] Modal 當前 display 樣式:', modal.style.display);
+                    console.log('📋 [FAVORITES] Modal 計算樣式:', window.getComputedStyle(modal).display);
+                    
+                    // 檢查所有可能的問題
+                    const computedStyle = window.getComputedStyle(modal);
+                    console.log('🔍 [MODAL DEBUG] 完整檢查:');
+                    console.log('  - position:', computedStyle.position);
+                    console.log('  - top:', computedStyle.top);
+                    console.log('  - left:', computedStyle.left);
+                    console.log('  - width:', computedStyle.width);
+                    console.log('  - height:', computedStyle.height);
+                    console.log('  - z-index:', computedStyle.zIndex);
+                    console.log('  - opacity:', computedStyle.opacity);
+                    console.log('  - visibility:', computedStyle.visibility);
+                    console.log('  - background:', computedStyle.background);
+                    console.log('  - transform:', computedStyle.transform);
+                    
+                    // 強制設定所有可能的問題屬性
+                    modal.style.setProperty('display', 'block', 'important');
+                    modal.style.setProperty('position', 'fixed', 'important');
+                    modal.style.setProperty('z-index', '9999', 'important');
+                    modal.style.setProperty('opacity', '1', 'important');
+                    modal.style.setProperty('visibility', 'visible', 'important');
+                    modal.style.setProperty('pointer-events', 'auto', 'important');
+                    
+                    // 強制重繪和觸發事件
+                    modal.style.setProperty('transform', 'translateZ(0)', 'important'); // 強制硬體加速
+                    modal.offsetHeight; // 強制重繪
+                    
+                    // 確保子元素也正確顯示
+                    const modalInner = modal.querySelector('.modal');
+                    if (modalInner) {
+                        modalInner.style.setProperty('display', 'block', 'important');
+                        modalInner.style.setProperty('position', 'absolute', 'important');
+                        modalInner.style.setProperty('z-index', '10000', 'important');
+                        console.log('✅ [MODAL] 內容元素樣式已強制設定');
+                    }
+                    
+                    console.log('✅ [FAVORITES] 模態框所有屬性已強制設定');
+                    console.log('📋 [FAVORITES] Modal 設定後 display 樣式:', modal.style.display);
+                    
+                    // 檢查模態框內容
+                    const modalContent = modal.querySelector('.modal');
+                    if (modalContent) {
+                        console.log('📦 [MODAL] 內容元素存在:', !!modalContent);
+                        console.log('📦 [MODAL] 內容元素計算樣式:', {
+                            display: window.getComputedStyle(modalContent).display,
+                            position: window.getComputedStyle(modalContent).position,
+                            width: window.getComputedStyle(modalContent).width,
+                            height: window.getComputedStyle(modalContent).height
+                        });
+                    }
+                    
+                    // 再次確認
+                    setTimeout(() => {
+                        const finalStyle = window.getComputedStyle(modal);
+                        console.log('🔍 [FAVORITES] 1秒後檢查 Modal 最終狀態:');
+                        console.log('  - display:', finalStyle.display);
+                        console.log('  - z-index:', finalStyle.zIndex);
+                        console.log('  - opacity:', finalStyle.opacity);
+                        console.log('  - position:', finalStyle.position);
+                        
+                        // 檢查是否被其他元素遮蓋
+                        const rect = modal.getBoundingClientRect();
+                        console.log('📐 [MODAL] 位置信息:');
+                        console.log('  - top:', rect.top);
+                        console.log('  - left:', rect.left);
+                        console.log('  - width:', rect.width);
+                        console.log('  - height:', rect.height);
+                        console.log('  - visible:', rect.width > 0 && rect.height > 0);
+                        console.log('  - right:', rect.right);
+                        console.log('  - bottom:', rect.bottom);
+                        
+                        // 檢查是否真的在視窗內
+                        const inViewport = rect.top >= 0 && rect.left >= 0 && 
+                                         rect.bottom <= window.innerHeight && 
+                                         rect.right <= window.innerWidth;
+                        console.log('👁️ [MODAL] 在視窗內:', inViewport);
+                        
+                        // 檢查模態框的子元素
+                        const modalInner = modal.querySelector('.modal');
+                        if (modalInner) {
+                            const innerRect = modalInner.getBoundingClientRect();
+                            console.log('📦 [MODAL-INNER] 內容位置:');
+                            console.log('  - top:', innerRect.top);
+                            console.log('  - left:', innerRect.left);
+                            console.log('  - width:', innerRect.width);
+                            console.log('  - height:', innerRect.height);
+                            console.log('  - 中心點 X:', innerRect.left + innerRect.width / 2);
+                            console.log('  - 中心點 Y:', innerRect.top + innerRect.height / 2);
+                        }
+                        
+                        // 測試點擊檢測
+                        const centerX = window.innerWidth / 2;
+                        const centerY = window.innerHeight / 2;
+                        const elementAtCenter = document.elementFromPoint(centerX, centerY);
+                        console.log('🎯 [MODAL] 螢幕中心元素:', elementAtCenter);
+                        console.log('🎯 [MODAL] 是否為模態框或子元素:', 
+                                  elementAtCenter === modal || modal.contains(elementAtCenter));
+                    }, 1000);
+                } else {
+                    console.error('❌ [FAVORITES] 模態框元素不存在！');
+                }
+            } catch (error) {
+                console.error('❌ [FAVORITES] 開啟標籤設定失敗:', error);
+                console.error('❌ [FAVORITES] 錯誤堆疊:', error.stack);
+            }
+        }
+
+        function closeTagSettings() {
+            const modal = document.getElementById('tagSettingsModal');
+            modal.style.setProperty('display', 'none', 'important');
+            resetTagForm();
+        }
+
+        function resetTagForm() {
+            document.getElementById('tagNameInput').value = '';
+            selectedColor = '#4169E1';
+            selectedEmoji = '🏷️';
+            
+            // 重置顏色選擇
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.dataset.color === selectedColor) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            // 重置圖標選擇
+            document.querySelectorAll('.emoji-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.dataset.emoji === selectedEmoji) {
+                    option.classList.add('selected');
+                }
+            });
+        }
+
+        // 載入用戶標籤
+        async function loadUserTags() {
+            console.log('📥 開始載入用戶標籤');
+            try {
+                if (!liffProfile || !liffProfile.userId) {
+                    console.error('❌ liffProfile 未初始化');
+                    userTags = getDefaultTags();
+                    displayExistingTags();
+                    return;
+                }
+                
+                console.log('🌐 發送 API 請求到 /api/tags');
+                const response = await fetch('/api/tags', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': liffProfile.userId
+                    }
+                });
+                
+                console.log('📡 API 響應狀態:', response.status);
+                if (response.ok) {
+                    userTags = await response.json();
+                    console.log('✅ 成功載入標籤:', userTags.length, '個');
+                    displayExistingTags();
+                } else {
+                    // 如果 API 不存在，使用本地儲存
+                    console.log('⚠️ API 不可用，使用本地儲存');
+                    const savedTags = localStorage.getItem('userTags_' + liffProfile.userId);
+                    userTags = savedTags ? JSON.parse(savedTags) : getDefaultTags();
+                    console.log('📦 載入本地標籤:', userTags.length, '個');
+                    displayExistingTags();
+                }
+            } catch (error) {
+                console.log('❌ 載入標籤失敗，使用預設標籤:', error);
+                userTags = getDefaultTags();
+                displayExistingTags();
+            }
+        }
+
+        // 獲取預設標籤
+        function getDefaultTags() {
+            return [
+                { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', orderIndex: 1 },
+                { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', orderIndex: 2 },
+                { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', orderIndex: 3 }
+            ];
+        }
+
+        // 儲存標籤
+        async function saveTag() {
+            const tagName = document.getElementById('tagNameInput').value.trim();
+            
+            if (!tagName) {
+                alert('請輸入標籤名稱！');
+                return;
+            }
+            
+            if (tagName.length > 20) {
+                alert('標籤名稱不能超過20個字！');
+                return;
+            }
+            
+            // 檢查是否已存在相同名稱的標籤
+            if (userTags.some(tag => tag.name === tagName)) {
+                alert('標籤名稱已存在！');
+                return;
+            }
+            
+            // 檢查標籤數量限制（最多10個）
+            if (userTags.length >= 10) {
+                alert('最多只能建立10個標籤！');
+                return;
+            }
+            
+            const newTag = {
+                id: Date.now(),
+                name: tagName,
+                color: selectedColor,
+                icon: selectedEmoji,
+                orderIndex: userTags.length + 1
+            };
+            
+            try {
+                const response = await fetch('/api/tags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': liffProfile.userId
+                    },
+                    body: JSON.stringify({
+                        name: tagName,
+                        color: selectedColor,
+                        icon: selectedEmoji,
+                        orderIndex: userTags.length + 1
+                    })
+                });
+                
+                if (response.ok) {
+                    userTags.push(newTag);
+                } else {
+                    // 如果 API 不存在，儲存到本地
+                    userTags.push(newTag);
+                    localStorage.setItem('userTags_' + liffProfile.userId, JSON.stringify(userTags));
+                }
+                
+                displayExistingTags();
+                resetTagForm();
+                
+                // 更新主頁面的標籤顯示
+                updateTagDisplay();
+                
+                alert('標籤建立成功！');
+                
+            } catch (error) {
+                console.log('儲存標籤失敗，使用本地儲存:', error);
+                userTags.push(newTag);
+                localStorage.setItem('userTags_' + liffProfile.userId, JSON.stringify(userTags));
+                displayExistingTags();
+                resetTagForm();
+                updateTagDisplay();
+                alert('標籤建立成功！');
+            }
+        }
+
+        // 顯示現有標籤
+        function displayExistingTags() {
+            const container = document.getElementById('existingTagsList');
+            
+            if (userTags.length === 0) {
+                container.innerHTML = '<div class="no-tagged-tasks">目前沒有任何標籤</div>';
+                return;
+            }
+            
+            container.innerHTML = userTags.map(tag => `
+                <div class="existing-tag-item">
+                    <div class="existing-tag-info">
+                        <span style="font-size: 16px;">${tag.icon}</span>
+                        <div class="existing-tag-preview" style="background-color: ${tag.color};">
+                            ${tag.name}
+                        </div>
+                    </div>
+                    <div class="tag-actions">
+                        <button class="btn btn-danger btn-small" onclick="deleteTag(${tag.id})">刪除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 刪除標籤
+        async function deleteTag(tagId) {
+            if (!confirm('確定要刪除這個標籤嗎？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/tags/${tagId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'x-user-id': liffProfile.userId
+                    }
+                });
+                
+                if (response.ok) {
+                    userTags = userTags.filter(tag => tag.id !== tagId);
+                } else {
+                    // 如果 API 不存在，從本地刪除
+                    userTags = userTags.filter(tag => tag.id !== tagId);
+                    localStorage.setItem('userTags_' + liffProfile.userId, JSON.stringify(userTags));
+                }
+                
+                displayExistingTags();
+                updateTagDisplay();
+                alert('標籤已刪除！');
+                
+            } catch (error) {
+                console.log('刪除標籤失敗，使用本地儲存:', error);
+                userTags = userTags.filter(tag => tag.id !== tagId);
+                localStorage.setItem('userTags_' + liffProfile.userId, JSON.stringify(userTags));
+                displayExistingTags();
+                updateTagDisplay();
+                alert('標籤已刪除！');
+            }
+        }
+
+        // 更新主頁面標籤顯示
+        function updateTagDisplay() {
+            const tagNames = userTags.map(tag => tag.name);
+            displayTags(tagNames);
+            
+            // 始終顯示標籤區域（讓用戶可以設定標籤）
+            console.log('🏷️ 顯示標籤區域，標籤數量:', userTags.length);
+            document.getElementById('tagSection').style.display = 'block';
+        }
+
         // 頁面載入時初始化 LIFF
         window.addEventListener('load', initializeLiff);
+
+        // 顏色和圖標選擇器事件監聽
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 [FAVORITES] DOMContentLoaded 事件觸發');
+            
+            // 立即嘗試顯示標籤區域
+            forceShowTagSection();
+            
+            // 檢查模態框元素
+            console.log('🔍 [FAVORITES] 檢查模態框元素...');
+            const modal = document.getElementById('tagSettingsModal');
+            console.log('📋 [FAVORITES] 模態框元素:', modal);
+            console.log('📋 [FAVORITES] 模態框存在:', !!modal);
+            if (modal) {
+                console.log('📋 [FAVORITES] 模態框初始 display:', modal.style.display);
+                console.log('📋 [FAVORITES] 模態框計算樣式:', window.getComputedStyle(modal).display);
+                console.log('📋 [FAVORITES] 模態框類別:', modal.className);
+            }
+            // 顏色選擇器
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedColor = this.dataset.color;
+                });
+            });
+            
+            // 圖標選擇器
+            document.querySelectorAll('.emoji-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.emoji-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedEmoji = this.dataset.emoji;
+                });
+            });
+            
+            // 點擊模態框外部關閉
+            document.getElementById('tagSettingsModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeTagSettings();
+                }
+            });
+            
+            // 檢查設定標籤按鈕
+            console.log('🔍 [FAVORITES] 開始檢查設定標籤按鈕...');
+            const tagSettingsBtn = document.querySelector('.tag-settings-btn');
+            console.log('🔍 [FAVORITES] 檢查設定標籤按鈕:', tagSettingsBtn);
+            console.log('🔍 [FAVORITES] 按鈕元素類別:', tagSettingsBtn ? tagSettingsBtn.className : 'null');
+            console.log('🔍 [FAVORITES] 按鈕文字內容:', tagSettingsBtn ? tagSettingsBtn.textContent : 'null');
+            
+            if (tagSettingsBtn) {
+                console.log('✅ [FAVORITES] 設定標籤按鈕存在');
+                console.log('📋 [FAVORITES] 按鈕 onclick 屬性:', tagSettingsBtn.onclick);
+                console.log('📋 [FAVORITES] 按鈕 onclick 字串:', tagSettingsBtn.getAttribute('onclick'));
+                
+                // 測試直接調用 onclick
+                console.log('🔄 [FAVORITES] 測試 onclick 函數是否可調用...');
+                if (typeof tagSettingsBtn.onclick === 'function') {
+                    console.log('✅ [FAVORITES] onclick 是函數，可以調用');
+                } else {
+                    console.log('❌ [FAVORITES] onclick 不是函數');
+                }
+                
+                // 測試全域函數
+                console.log('🔄 [FAVORITES] 測試全域 openTagSettings 函數...');
+                if (typeof window.openTagSettings === 'function') {
+                    console.log('✅ [FAVORITES] 全域 openTagSettings 函數存在');
+                } else {
+                    console.log('❌ [FAVORITES] 全域 openTagSettings 函數不存在');
+                }
+                
+                // 備用事件綁定
+                console.log('🔄 [FAVORITES] 綁定備用點擊事件...');
+                tagSettingsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('🖱️ [FAVORITES] 設定標籤按鈕被點擊 (addEventListener)');
+                    console.log('🖱️ [FAVORITES] 事件對象:', e);
+                    console.log('🖱️ [FAVORITES] 目標元素:', e.target);
+                    openTagSettings();
+                });
+                console.log('✅ [FAVORITES] 備用事件綁定完成');
+                
+                // 手動測試按鈕
+                console.log('🔄 [FAVORITES] 手動測試按鈕點擊...');
+                setTimeout(() => {
+                    console.log('🧪 [FAVORITES] 模擬按鈕點擊測試');
+                    tagSettingsBtn.click();
+                }, 2000);
+                
+            } else {
+                console.error('❌ [FAVORITES] 設定標籤按鈕不存在');
+                console.log('🔍 [FAVORITES] 所有按鈕元素:', document.querySelectorAll('button'));
+                console.log('🔍 [FAVORITES] 所有 .tag-settings-btn 類別元素:', document.querySelectorAll('.tag-settings-btn'));
+            }
+        });
     </script>
 </body>
 </html>
