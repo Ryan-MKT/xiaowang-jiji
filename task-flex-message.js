@@ -105,8 +105,9 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           flex: 0,
           margin: 'xs',
           action: {
-            type: 'postback',
-            data: `favorite_task_${task.id}`
+            type: 'message',
+            label: '收藏任務',
+            text: `收藏任務_${task.id}`
           }
         },
         {
@@ -117,8 +118,9 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           flex: 0,
           align: 'center',
           action: {
-            type: 'postback',
-            data: `complete_task_${task.id}`
+            type: 'message',
+            label: '完成任務',
+            text: `完成任務_${task.id}`
           }
         }
       ]

@@ -463,6 +463,38 @@ async function handleEvent(event) {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
   }
 
+  // 特殊指令：收藏任務
+  if (userMessage.startsWith('收藏任務_')) {
+    const taskId = parseInt(userMessage.replace('收藏任務_', ''));
+    console.log(`⭐ 用戶 ${userId} 點擊收藏任務 ID: ${taskId}`);
+    
+    // 建立模擬的 postback 事件
+    const mockPostbackEvent = {
+      type: 'postback',
+      postback: { data: `favorite_task_${taskId}` },
+      source: { userId: userId },
+      replyToken: event.replyToken
+    };
+    
+    return handlePostback(mockPostbackEvent);
+  }
+  
+  // 特殊指令：完成任務
+  if (userMessage.startsWith('完成任務_')) {
+    const taskId = parseInt(userMessage.replace('完成任務_', ''));
+    console.log(`✅ 用戶 ${userId} 點擊完成任務 ID: ${taskId}`);
+    
+    // 建立模擬的 postback 事件
+    const mockPostbackEvent = {
+      type: 'postback',
+      postback: { data: `complete_task_${taskId}` },
+      source: { userId: userId },
+      replyToken: event.replyToken
+    };
+    
+    return handlePostback(mockPostbackEvent);
+  }
+
   // 特殊指令：任務更新完成，重新生成任務堆疊
   if (userMessage.includes('任務更新完成') || userMessage.includes('刷新任務列表') || userMessage.includes('SYNC_TASKS')) {
     console.log('🔄 收到任務更新指令，重新生成任務堆疊');

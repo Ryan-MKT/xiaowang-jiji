@@ -484,10 +484,23 @@
         <!-- 收藏任務列表 -->
         <div class="card favorites-list-card">
             <div class="card-body">
-                <h5 class="card-title mb-3">
-                    <i class="bi bi-heart-fill text-danger"></i>
-                    我的收藏任務
-                </h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-heart-fill text-danger"></i>
+                        我的收藏任務
+                    </h5>
+                    <!-- 標籤篩選下拉選單 -->
+                    <div class="dropdown">
+                        <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="tagFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-filter"></i> 篩選標籤
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="tagFilterDropdown" id="tagFilterMenu">
+                            <li><a class="dropdown-item active" href="#" data-tag="" onclick="filterByTag('')"><i class="bi bi-grid-3x3-gap-fill"></i> 全部任務</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-muted" href="#"><i class="bi bi-hourglass-split"></i> 載入中...</a></li>
+                        </ul>
+                    </div>
+                </div>
                 
                 <div id="loadingState" class="loading">
                     <div class="spinner-border text-primary" role="status">
@@ -680,6 +693,10 @@
                 if (response.ok) {
                     favoritesTasks = await response.json();
                     console.log('✅ [收藏任務] 成功載入:', favoritesTasks.length, '個收藏任務');
+                    
+                    // 載入標籤並更新篩選選單
+                    await loadTagsForFilter();
+                    
                     displayFavoriteTasks();
                     updateStats();
                 } else {
@@ -717,6 +734,91 @@
             };
         }
 
+        // 全域變數：當前篩選的標籤
+        let currentFilterTag = '';
+
+        // 載入用戶標籤並填充下拉選單
+        async function loadTagsForFilter() {
+            try {
+                console.log('📋 [標籤篩選] 開始載入用戶標籤');
+                
+                const response = await fetch('/api/tags', {
+                    method: 'GET',
+                    headers: {
+                        'x-user-id': liffProfile.userId,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    userTags = await response.json();
+                    console.log('✅ [標籤篩選] 成功載入標籤:', userTags.length, '個');
+                    updateTagFilterMenu();
+                } else {
+                    console.error('❌ [標籤篩選] 載入標籤失敗:', response.status);
+                }
+                
+            } catch (error) {
+                console.error('❌ [標籤篩選] 載入標籤錯誤:', error);
+            }
+        }
+
+        // 更新標籤篩選下拉選單
+        function updateTagFilterMenu() {
+            const menu = document.getElementById('tagFilterMenu');
+            const currentButton = document.getElementById('tagFilterDropdown');
+            
+            // 計算每個標籤的任務數量
+            const tagCounts = {};
+            favoritesTasks.forEach(task => {
+                const tagInfo = extractTagInfo(task.name);
+                if (tagInfo.hasTag) {
+                    tagCounts[tagInfo.tag] = (tagCounts[tagInfo.tag] || 0) + 1;
+                }
+            });
+            
+            let menuHTML = `
+                <li><a class="dropdown-item ${currentFilterTag === '' ? 'active' : ''}" href="#" data-tag="" onclick="filterByTag('')">
+                    <i class="bi bi-grid-3x3-gap-fill"></i> 全部任務 (${favoritesTasks.length})
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+            `;
+            
+            // 添加用戶標籤
+            userTags.forEach(tag => {
+                const count = tagCounts[tag.name] || 0;
+                menuHTML += `
+                    <li><a class="dropdown-item ${currentFilterTag === tag.name ? 'active' : ''}" href="#" data-tag="${tag.name}" onclick="filterByTag('${tag.name}')">
+                        ${tag.icon} ${tag.name} (${count})
+                    </a></li>
+                `;
+            });
+            
+            menu.innerHTML = menuHTML;
+            
+            // 更新按鈕文字
+            if (currentFilterTag === '') {
+                currentButton.innerHTML = '<i class="bi bi-filter"></i> 篩選標籤';
+            } else {
+                const selectedTag = userTags.find(tag => tag.name === currentFilterTag);
+                if (selectedTag) {
+                    currentButton.innerHTML = `${selectedTag.icon} ${selectedTag.name}`;
+                }
+            }
+        }
+
+        // 根據標籤篩選收藏任務
+        function filterByTag(tagName) {
+            console.log('🔍 [標籤篩選] 篩選標籤:', tagName || '全部');
+            currentFilterTag = tagName;
+            
+            // 更新下拉選單顯示
+            updateTagFilterMenu();
+            
+            // 重新顯示任務列表
+            displayFavoriteTasks();
+        }
+
         // 獲取標籤對應的圖示
         function getTagIcon(tagName) {
             const tagIcons = {
@@ -736,15 +838,37 @@
             const favoritesList = document.getElementById('favoritesList');
             const emptyState = document.getElementById('emptyState');
             
-            if (favoritesTasks.length === 0) {
+            // 根據當前篩選標籤過濾任務
+            let filteredTasks = favoritesTasks;
+            if (currentFilterTag !== '') {
+                filteredTasks = favoritesTasks.filter(task => {
+                    const tagInfo = extractTagInfo(task.name);
+                    return tagInfo.hasTag && tagInfo.tag === currentFilterTag;
+                });
+            }
+            
+            console.log('🔍 [標籤篩選] 顯示任務:', filteredTasks.length, '個 (總共', favoritesTasks.length, '個)');
+            
+            if (filteredTasks.length === 0) {
                 favoritesList.innerHTML = '';
-                emptyState.style.display = 'block';
+                if (currentFilterTag === '') {
+                    emptyState.style.display = 'block';
+                } else {
+                    favoritesList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-funnel display-1 text-muted mb-3"></i>
+                            <h5>沒有「${currentFilterTag}」標籤的收藏任務</h5>
+                            <p class="text-muted">試試其他標籤或檢視全部任務！</p>
+                        </div>
+                    `;
+                    emptyState.style.display = 'none';
+                }
                 return;
             }
             
             emptyState.style.display = 'none';
             
-            favoritesList.innerHTML = favoritesTasks.map(task => {
+            favoritesList.innerHTML = filteredTasks.map(task => {
                 const tagInfo = extractTagInfo(task.name);
                 
                 return `
