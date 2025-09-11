@@ -189,9 +189,9 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             contents: [
               {
                 type: 'text',
-                text: '📚 全部記錄',
+                text: '紀錄區',
                 size: 'sm',
-                color: '#4169E1',
+                color: '#000000',
                 align: 'center',
                 flex: 1,
                 action: {
@@ -201,14 +201,26 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
               },
               {
                 type: 'text',
-                text: '⭐ 任務收藏',
+                text: '收藏區',
                 size: 'sm',
-                color: '#FF6B6B',
+                color: '#000000',
                 align: 'center',
                 flex: 1,
                 action: {
                   type: 'uri',
                   uri: 'https://e15a3f219d53.ngrok-free.app/liff/favorites'
+                }
+              },
+              {
+                type: 'text',
+                text: '帳戶區',
+                size: 'sm',
+                color: '#000000',
+                align: 'center',
+                flex: 1,
+                action: {
+                  type: 'uri',
+                  uri: 'https://e15a3f219d53.ngrok-free.app/liff/account'
                 }
               }
             ]

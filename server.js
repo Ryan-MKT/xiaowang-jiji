@@ -774,6 +774,35 @@ app.get('/liff/favorites', (req, res) => {
   }
 });
 
+// 帳戶頁面路由
+app.get('/liff/account', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'liff-account.html'), 'utf8');
+    
+    // 進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+    
+    console.log(`👤 [帳戶頁面] 使用 LIFF ID: ${liffId}`);
+    console.log(`🔗 [帳戶頁面] URL 參數:`, req.url);
+    
+    // 強制不緩存
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    res.send(html);
+  } catch (error) {
+    console.error('讀取帳戶頁面錯誤:', error);
+    res.status(500).send('帳戶頁面載入失敗');
+  }
+});
+
 // 路由設定
 app.get('/', (req, res) => {
   const loginUrl = '/auth/line/login';
@@ -1396,6 +1425,64 @@ app.post('/webhook', (req, res) => {
       console.log('=== WEBHOOK 處理結束 (錯誤) ===\n');
       res.status(200).json({ error: 'Processing failed' });
     });
+});
+
+// 新增 API：從 Supabase 查詢訊息記錄（支援日期篩選）
+app.get('/api/messages', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const dateFilter = req.query.date; // YYYY-MM-DD 格式
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not connected' });
+    }
+
+    console.log(`🔍 [訊息API] 查詢使用者 ${userId} 的訊息記錄${dateFilter ? ` (日期: ${dateFilter})` : ''}`);
+    
+    let query = supabase
+      .from('dev_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    // 如果有日期篩選，加入日期條件
+    if (dateFilter) {
+      const startDate = `${dateFilter}T00:00:00.000Z`;
+      const endDate = `${dateFilter}T23:59:59.999Z`;
+      
+      query = query
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('❌ [訊息API] Supabase 查詢錯誤:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    // 轉換格式以符合前端預期
+    const formattedMessages = data.map(msg => ({
+      text: msg.message_text,
+      timestamp: msg.created_at,
+      completed: false, // 訊息記錄預設為未完成狀態
+      id: msg.id
+    }));
+    
+    console.log(`✅ [訊息API] 成功回傳 ${formattedMessages.length} 筆訊息記錄`);
+    console.log(`📝 [訊息API] 訊息預覽:`, formattedMessages.slice(0, 3).map(msg => msg.text));
+    
+    res.json(formattedMessages);
+    
+  } catch (err) {
+    console.error('❌ [訊息API] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // 啟動伺服器
