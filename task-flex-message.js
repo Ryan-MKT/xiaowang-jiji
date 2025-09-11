@@ -1,4 +1,4 @@
-// 任務 Flex Message 建構器 - 最新備註功能版本 2025-09-11-16:20-NOTE-FINAL
+// 任務 Flex Message 建構器 - 統計卡片功能版本 2025-09-11-23:50-STATS-CARD-LATEST
 
 // 單一任務 Flex Message
 function createTaskFlexMessage(taskText) {
@@ -61,7 +61,7 @@ function createTaskFlexMessage(taskText) {
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply
 function createTaskStackFlexMessage(tasks, userTags = null) {
-  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-16:20-NOTE-FINAL-CACHE-CLEARED');
+  console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-23:50-STATS-CARD-LATEST');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
   
@@ -256,6 +256,96 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   };
 }
 
+// 生成任務統計卡片
+function createTaskStatsCard(completedCount, favoriteCount) {
+  console.log(`📊 [統計卡片] 生成統計卡片 - 已完成: ${completedCount}, 已收藏: ${favoriteCount}`);
+  
+  return {
+    type: 'flex',
+    altText: `統計：已完成 ${completedCount} 件，已收藏 ${favoriteCount} 件`,
+    contents: {
+      type: 'bubble',
+      size: 'nano',
+      body: {
+        type: 'box',
+        layout: 'horizontal',
+        paddingAll: 'md',
+        backgroundColor: '#F8F9FA',
+        cornerRadius: '8px',
+        spacing: 'none',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            alignItems: 'center',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'text',
+                text: '已完成',
+                size: 'xs',
+                color: '#6C757D',
+                align: 'center'
+              },
+              {
+                type: 'text',
+                text: completedCount.toString(),
+                size: 'xxl',
+                weight: 'bold',
+                color: '#28A745',
+                align: 'center'
+              },
+              {
+                type: 'text',
+                text: '件',
+                size: 'xs',
+                color: '#6C757D',
+                align: 'center'
+              }
+            ]
+          },
+          {
+            type: 'separator',
+            color: '#DEE2E6'
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            alignItems: 'center',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'text',
+                text: '已收藏',
+                size: 'xs',
+                color: '#6C757D',
+                align: 'center'
+              },
+              {
+                type: 'text',
+                text: favoriteCount.toString(),
+                size: 'xxl',
+                weight: 'bold',
+                color: '#FFC107',
+                align: 'center'
+              },
+              {
+                type: 'text',
+                text: '件',
+                size: 'xs',
+                color: '#6C757D',
+                align: 'center'
+              }
+            ]
+          }
+        ]
+      }
+    }
+  };
+}
+
 // 生成動態 Quick Reply
 function generateQuickReply(userTags) {
   console.log(`🔍 [Quick Reply] 輸入標籤數據:`, userTags);
@@ -315,5 +405,6 @@ function generateQuickReply(userTags) {
 module.exports = {
   createTaskFlexMessage,
   createTaskStackFlexMessage,
+  createTaskStatsCard,
   generateQuickReply
 };

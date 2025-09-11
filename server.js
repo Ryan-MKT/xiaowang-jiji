@@ -871,8 +871,13 @@ async function handleEvent(event) {
     
     // 創建包含所有任務的 Flex Message
     const userTags = await getUserTags(userId);
-    const { createTaskStackFlexMessage } = getTaskFlexModule();
+    const { createTaskStackFlexMessage, createTaskStatsCard } = getTaskFlexModule();
     const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
+    
+    // 計算統計資料
+    const completedCount = userTasks.filter(task => task.completed).length;
+    const favoriteCount = userTasks.filter(task => task.favorited).length;
+    const statsCard = createTaskStatsCard(completedCount, favoriteCount);
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
@@ -923,8 +928,8 @@ async function handleEvent(event) {
     }
     
     if (client) {
-      console.log('🚀 [FLEX SEND] 開始發送 FLEX MESSAGE 到 LINE...');
-      return client.replyMessage(event.replyToken, flexMessage)
+      console.log('🚀 [FLEX SEND] 開始發送 FLEX MESSAGE 和統計卡片到 LINE...');
+      return client.replyMessage(event.replyToken, [flexMessage, statsCard])
         .then(result => {
           console.log('✅ [FLEX SEND] FLEX MESSAGE 發送成功!', {
             requestId: result['x-line-request-id'],
