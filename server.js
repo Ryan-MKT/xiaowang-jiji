@@ -34,7 +34,7 @@ const userFavoriteTasks = new Map();
 const userTagSelectionStates = new Map();
 
 const app = express();
-const PORT = process.env.PORT || 3010;
+const PORT = process.env.PORT || 3000;
 console.log('🚀 小汪記記 with LINE Login starting - TAG FIXED VERSION 2025-09-11-15:50...');
 
 // 初始化 OpenAI
@@ -67,6 +67,9 @@ app.use(session({
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 小時
 }));
+
+// 靜態文件服務 - 支援直接訪問 HTML 檔案
+app.use(express.static(__dirname));
 
 // 判斷是否為問句或請求
 function isQuestion(text) {

@@ -94,7 +94,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           margin: 'none',
           action: {
             type: 'uri',
-            uri: `https://22af292ce500.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
+            uri: `https://c5251d8c180a.ngrok-free.app/liff?task=${encodeURIComponent(task.text)}&taskId=${task.id}`
           }
         },
         {
@@ -198,7 +198,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://22af292ce500.ngrok-free.app/liff/records'
+                  uri: 'https://c5251d8c180a.ngrok-free.app/liff/records'
                 }
               },
               {
@@ -210,7 +210,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://22af292ce500.ngrok-free.app/liff/favorites'
+                  uri: 'https://c5251d8c180a.ngrok-free.app/liff/favorites'
                 }
               },
               {
@@ -222,7 +222,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://22af292ce500.ngrok-free.app/liff/account'
+                  uri: 'https://c5251d8c180a.ngrok-free.app/liff/account'
                 }
               }
             ]
