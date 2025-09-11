@@ -11,6 +11,8 @@ const fs = require('fs-extra');
 const FormData = require('form-data');
 const axios = require('axios');
 const path = require('path');
+const { oenPayment } = require('./payment');
+const { subscriptionService } = require('./subscription-service');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
@@ -1971,6 +1973,316 @@ app.get('/api/messages', async (req, res) => {
     console.error('❌ [訊息API] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// === 支付 API 端點 ===
+
+// 創建支付訂單
+app.post('/api/payment/create', async (req, res) => {
+  try {
+    const { userId, userName, amount, itemName, description } = req.body;
+    
+    console.log('💳 [付款API] 收到建立訂單請求:', { userId, amount, itemName });
+    
+    // 驗證必要欄位
+    if (!userId || !amount) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必要欄位：userId 和 amount'
+      });
+    }
+    
+    // 建立支付訂單
+    const orderResult = await oenPayment.createPaymentOrder({
+      userId,
+      userName: userName || '小汪記記用戶',
+      amount: parseInt(amount),
+      itemName: itemName || '小汪記記 - 訂閱升級',
+      description: description || '解鎖進階功能，享受更好的記事體驗'
+    });
+    
+    console.log('✅ [付款API] 訂單建立成功:', orderResult.orderId);
+    
+    res.json({
+      success: true,
+      orderId: orderResult.orderId,
+      paymentUrl: orderResult.paymentUrl
+    });
+    
+  } catch (error) {
+    console.error('❌ [付款API] 建立訂單失敗:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 處理付款回調
+app.post('/payment/callback', async (req, res) => {
+  try {
+    console.log('📞 [付款回調] 收到 Oen Payment 回調:', req.body);
+    
+    // 處理付款結果
+    const paymentResult = oenPayment.processPaymentResult(req.body);
+    
+    if (paymentResult.success) {
+      console.log('🎉 [付款成功] 訂單支付成功:', paymentResult.orderId);
+      
+      // 自動更新用戶訂閱狀態
+      try {
+        const subscriptionResult = await subscriptionService.processSuccessfulPayment(paymentResult);
+        console.log('✅ [訂閱更新] 用戶訂閱已自動更新:', {
+          userId: subscriptionResult.userId,
+          type: subscriptionResult.subscription_type,
+          status: subscriptionResult.status,
+          expiresAt: subscriptionResult.expires_at
+        });
+      } catch (subscriptionError) {
+        console.error('❌ [訂閱更新] 自動更新訂閱失敗:', subscriptionError.message);
+        // 付款成功但訂閱更新失敗，需要手動處理
+      }
+      
+    } else {
+      console.log('❌ [付款失敗] 訂單支付失敗:', paymentResult.orderId);
+    }
+    
+    // 返回成功回應給 Oen Payment
+    res.send('OK');
+    
+  } catch (error) {
+    console.error('❌ [付款回調] 處理回調失敗:', error);
+    res.status(400).send('ERROR');
+  }
+});
+
+// 模擬支付頁面
+app.get('/payment/create', (req, res) => {
+  const { 
+    store_id, 
+    order_id, 
+    amount, 
+    currency, 
+    item_name, 
+    item_description, 
+    customer_id, 
+    customer_name,
+    callback_url,
+    return_url,
+    timestamp,
+    signature 
+  } = req.query;
+  
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Oen Payment - 測試支付</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                margin: 0; 
+                padding: 20px; 
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .payment-container { 
+                background: white; 
+                padding: 30px; 
+                border-radius: 15px; 
+                max-width: 500px; 
+                margin: 0 auto; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+            .logo { 
+                text-align: center; 
+                color: #667eea; 
+                font-size: 2rem; 
+                margin-bottom: 30px; 
+                font-weight: bold;
+            }
+            .order-info { 
+                background: #f8f9fa; 
+                padding: 20px; 
+                border-radius: 10px; 
+                margin-bottom: 20px; 
+            }
+            .info-row { 
+                display: flex; 
+                justify-content: space-between; 
+                margin-bottom: 10px; 
+                padding: 5px 0;
+                border-bottom: 1px solid #eee;
+            }
+            .info-row:last-child { border-bottom: none; }
+            .label { font-weight: bold; color: #555; }
+            .value { color: #333; }
+            .amount { 
+                font-size: 1.5rem; 
+                color: #28a745; 
+                font-weight: bold; 
+            }
+            .buttons { 
+                display: flex; 
+                gap: 15px; 
+                margin-top: 25px; 
+            }
+            .btn { 
+                flex: 1; 
+                padding: 15px; 
+                border: none; 
+                border-radius: 8px; 
+                font-size: 1rem; 
+                cursor: pointer; 
+                font-weight: bold;
+                transition: all 0.3s ease;
+            }
+            .btn-success { 
+                background: #28a745; 
+                color: white; 
+            }
+            .btn-success:hover { 
+                background: #218838; 
+                transform: translateY(-2px);
+            }
+            .btn-danger { 
+                background: #dc3545; 
+                color: white; 
+            }
+            .btn-danger:hover { 
+                background: #c82333; 
+                transform: translateY(-2px);
+            }
+            .notice {
+                background: #fff3cd;
+                color: #856404;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                border-left: 4px solid #ffc107;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="payment-container">
+            <div class="logo">💳 Oen Payment 測試環境</div>
+            
+            <div class="notice">
+                ⚠️ 這是測試環境，不會產生實際交易
+            </div>
+            
+            <div class="order-info">
+                <h3 style="margin-top: 0; color: #333;">訂單資訊</h3>
+                <div class="info-row">
+                    <span class="label">商品名稱:</span>
+                    <span class="value">${decodeURIComponent(item_name || '')}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">商品描述:</span>
+                    <span class="value">${decodeURIComponent(item_description || '')}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">訂單編號:</span>
+                    <span class="value">${order_id}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">客戶名稱:</span>
+                    <span class="value">${decodeURIComponent(customer_name || '')}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">支付金額:</span>
+                    <span class="value amount">NT$ ${amount}</span>
+                </div>
+            </div>
+            
+            <div class="buttons">
+                <button class="btn btn-success" onclick="simulatePaymentSuccess()">
+                    ✅ 模擬付款成功
+                </button>
+                <button class="btn btn-danger" onclick="simulatePaymentFail()">
+                    ❌ 模擬付款失敗
+                </button>
+            </div>
+        </div>
+
+        <script>
+            function simulatePaymentSuccess() {
+                // 模擬支付成功，發送回調到 callback_url
+                fetch('/payment/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        order_id: '${order_id}',
+                        trade_status: 'TRADE_SUCCESS',
+                        amount: '${amount}.00',
+                        trade_no: 'OEN_TEST_' + Date.now(),
+                        customer_id: '${customer_id}',
+                        timestamp: Math.floor(Date.now() / 1000),
+                        signature: '${signature}' // 使用相同簽名用於測試
+                    })
+                }).then(() => {
+                    // 跳轉到成功頁面
+                    window.location.href = '${decodeURIComponent(return_url)}?orderId=${order_id}&status=success';
+                }).catch(error => {
+                    alert('回調發送失敗: ' + error.message);
+                });
+            }
+            
+            function simulatePaymentFail() {
+                // 模擬支付失敗
+                alert('😔 支付失敗！這是模擬的失敗情況。');
+                // 可以加入失敗回調邏輯
+            }
+        </script>
+    </body>
+    </html>
+  `);
+});
+
+// 付款成功頁面
+app.get('/payment/success', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>付款成功</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f8ff; }
+            .success-card { background: white; padding: 40px; border-radius: 15px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+            .success-icon { font-size: 4rem; color: #28a745; margin-bottom: 20px; }
+            .success-title { color: #28a745; font-size: 1.5rem; margin-bottom: 15px; }
+            .success-message { color: #666; margin-bottom: 30px; }
+            .close-btn { background: #007bff; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1rem; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <div class="success-card">
+            <div class="success-icon">✅</div>
+            <h1 class="success-title">付款成功！</h1>
+            <p class="success-message">感謝您訂閱小汪記記進階功能！<br>您現在可以享受更多便利的記事體驗。</p>
+            <button class="close-btn" onclick="closeWindow()">返回應用</button>
+        </div>
+        <script>
+            function closeWindow() {
+                if (window.opener) {
+                    window.close();
+                } else {
+                    alert('請手動關閉此頁面返回小汪記記');
+                }
+            }
+        </script>
+    </body>
+    </html>
+  `);
 });
 
 // 啟動伺服器

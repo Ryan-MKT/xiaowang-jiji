@@ -254,9 +254,68 @@
         }
 
         // 訂閱升級功能
-        function upgradeSubscription() {
-            alert('🎉 訂閱升級功能即將推出！\n敬請期待更多進階功能。');
-            // 未來可以在這裡實作實際的訂閱升級流程
+        async function upgradeSubscription() {
+            try {
+                console.log('💳 [訂閱升級] 開始升級流程...');
+                
+                if (!liffProfile) {
+                    alert('請先重新整理頁面載入用戶資料');
+                    return;
+                }
+                
+                // 顯示載入狀態
+                const button = document.querySelector('.btn-warning');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>處理中...';
+                button.disabled = true;
+                
+                // 調用後端 API 創建支付訂單
+                const response = await fetch('/api/payment/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: liffProfile.userId,
+                        userName: liffProfile.displayName,
+                        amount: 299, // 訂閱升級價格 299 元
+                        itemName: '小汪記記 - 進階功能訂閱',
+                        description: '解鎖進階功能：無限制任務數量、智能分類、優先客服支援'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ [訂閱升級] 訂單建立成功:', result.orderId);
+                    
+                    // 開啟支付頁面
+                    window.open(result.paymentUrl, '_blank', 'width=600,height=800');
+                    
+                    // 恢復按鈕狀態
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                    
+                    alert('💳 支付頁面已開啟，請完成付款！\n完成後您即可享受進階功能。');
+                    
+                } else {
+                    console.error('❌ [訂閱升級] 建立訂單失敗:', result.error);
+                    alert('❌ 建立訂單失敗：' + result.error + '\n請稍後再試。');
+                    
+                    // 恢復按鈕狀態
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+                
+            } catch (error) {
+                console.error('❌ [訂閱升級] 升級流程失敗:', error);
+                alert('❌ 升級失敗，請檢查網路連線後重試。');
+                
+                // 恢復按鈕狀態
+                const button = document.querySelector('.btn-warning');
+                button.innerHTML = '<i class="bi bi-star me-2"></i>訂閱升級';
+                button.disabled = false;
+            }
         }
 
         // 頁面載入時初始化 LIFF
