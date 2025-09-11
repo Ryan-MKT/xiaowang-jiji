@@ -7,6 +7,10 @@ const session = require('express-session');
 const { supabase } = require('./supabase-client');
 const { authenticateUser } = require('./auth');
 const OpenAI = require('openai');
+const fs = require('fs-extra');
+const FormData = require('form-data');
+const axios = require('axios');
+const path = require('path');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
@@ -255,6 +259,111 @@ function getDefaultUserTags() {
   ];
 }
 
+// 語音轉文字處理函數
+async function processAudioMessage(event) {
+  console.log('🎤 [語音處理] 開始處理語音訊息');
+  
+  try {
+    // 獲取語音訊息 ID
+    const messageId = event.message.id;
+    const userId = event.source.userId;
+    
+    console.log(`🎤 [語音處理] 訊息ID: ${messageId}, 使用者ID: ${userId}`);
+    
+    // 從 LINE API 下載語音檔案
+    const audioBuffer = await client.getMessageContent(messageId);
+    
+    // 建立暫存檔案路徑
+    const tempDir = path.join(__dirname, 'temp');
+    await fs.ensureDir(tempDir);
+    const tempFilePath = path.join(tempDir, `voice_${messageId}.m4a`);
+    
+    console.log(`🎤 [語音處理] 暫存檔案路徑: ${tempFilePath}`);
+    
+    // 將音頻資料寫入暫存檔案
+    const chunks = [];
+    for await (const chunk of audioBuffer) {
+      chunks.push(chunk);
+    }
+    const audioData = Buffer.concat(chunks);
+    await fs.writeFile(tempFilePath, audioData);
+    
+    console.log(`🎤 [語音處理] 音頻檔案已儲存，大小: ${audioData.length} bytes`);
+    
+    // 使用 OpenAI Whisper API 進行語音轉文字
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'dummy-key-for-testing') {
+      throw new Error('OpenAI API Key 未設定');
+    }
+    
+    console.log('🎤 [語音處理] 正在呼叫 OpenAI Whisper API...');
+    
+    const transcription = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(tempFilePath),
+      model: 'whisper-1',
+      language: 'zh',  // 指定中文
+      prompt: '請使用繁體中文輸出。'  // 提示使用繁體中文
+    });
+    
+    let transcribedText = transcription.text;
+    console.log(`🎤 [語音處理] 原始轉換結果: "${transcribedText}"`);
+    
+    // 如果需要，使用 OpenAI API 將簡體中文轉換為繁體中文
+    if (transcribedText && process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'dummy-key-for-testing') {
+      try {
+        const conversionResponse = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "請將以下文字轉換為繁體中文，保持原意不變，只輸出轉換後的文字，不要添加任何解釋或額外內容。"
+            },
+            {
+              role: "user",
+              content: transcribedText
+            }
+          ],
+          max_tokens: 500,
+          temperature: 0
+        });
+        
+        const convertedText = conversionResponse.choices[0].message.content.trim();
+        if (convertedText && convertedText !== transcribedText) {
+          console.log(`🔄 [繁體轉換] 簡體: "${transcribedText}" → 繁體: "${convertedText}"`);
+          transcribedText = convertedText;
+        }
+      } catch (conversionError) {
+        console.warn('⚠️ [繁體轉換] 轉換失敗，使用原始結果:', conversionError.message);
+      }
+    }
+    
+    console.log(`🎤 [語音處理] 最終轉換結果: "${transcribedText}"`);
+    
+    // 清理暫存檔案
+    try {
+      await fs.remove(tempFilePath);
+      console.log('🎤 [語音處理] 暫存檔案已清理');
+    } catch (cleanupError) {
+      console.warn('🎤 [語音處理] 清理暫存檔案失敗:', cleanupError.message);
+    }
+    
+    return transcribedText;
+    
+  } catch (error) {
+    console.error('❌ [語音處理] 處理失敗:', error);
+    
+    // 嘗試清理可能的暫存檔案
+    try {
+      const messageId = event.message.id;
+      const tempFilePath = path.join(__dirname, 'temp', `voice_${messageId}.m4a`);
+      await fs.remove(tempFilePath);
+    } catch (cleanupError) {
+      // 忽略清理錯誤
+    }
+    
+    throw error;
+  }
+}
+
 // 處理 LINE 事件
 async function handleEvent(event) {
   console.log('Received event:', event);
@@ -264,12 +373,45 @@ async function handleEvent(event) {
     return handlePostback(event);
   }
   
-  if (event.type !== 'message' || event.message.type !== 'text') {
+  // 只處理訊息事件
+  if (event.type !== 'message') {
     return Promise.resolve(null);
   }
 
-  let userMessage = event.message.text;
   const userId = event.source.userId;
+  let userMessage = '';
+  let isVoiceMessage = false;
+
+  // 處理不同類型的訊息
+  if (event.message.type === 'text') {
+    // 文字訊息
+    userMessage = event.message.text;
+    console.log('📝 [訊息類型] 文字訊息');
+  } else if (event.message.type === 'audio') {
+    // 語音訊息
+    console.log('🎤 [訊息類型] 語音訊息');
+    isVoiceMessage = true;
+    
+    try {
+      // 處理語音轉文字
+      userMessage = await processAudioMessage(event);
+      console.log(`🎤 [語音轉文字] 成功轉換: "${userMessage}"`);
+    } catch (error) {
+      console.error('❌ [語音轉文字] 轉換失敗:', error);
+      
+      // 回覆錯誤訊息給使用者
+      const errorReply = {
+        type: 'text',
+        text: '抱歉，語音轉文字功能暫時無法使用，請嘗試發送文字訊息。'
+      };
+      
+      return client.replyMessage(event.replyToken, errorReply);
+    }
+  } else {
+    // 其他類型訊息不處理
+    console.log(`⚠️ [訊息類型] 不支援的訊息類型: ${event.message.type}`);
+    return Promise.resolve(null);
+  }
   
   // 簡單認證
   const user = await authenticateUser(userId);
@@ -304,6 +446,7 @@ async function handleEvent(event) {
           {
             user_id: userId,
             message_text: cleanedMessage,
+            message_type: isVoiceMessage ? 'voice' : 'text',
             created_at: new Date().toISOString()
           }
         ]);
@@ -556,9 +699,15 @@ async function handleEvent(event) {
       console.log('⚠️ OpenAI API Key 未設定，使用預設回覆');
     }
     
+    // 為語音訊息添加特殊前綴
+    let finalResponse = aiResponse;
+    if (isVoiceMessage) {
+      finalResponse = `🎤 語音轉文字: "${userMessage}"\n\n${aiResponse}`;
+    }
+    
     const replyMessage = {
       type: 'text',
-      text: aiResponse
+      text: finalResponse
     };
     
     if (client) {
