@@ -1,7 +1,7 @@
 {
-  "name": "linebot-simple",
-  "version": "1.0.0",
-  "description": "Simple LINE Bot Echo Server",
+  "name": "xiaowang-linebot",
+  "version": "2.0.0",
+  "description": "小汪記記 LINE Bot - 智能待辦事項管理與付費訂閱系統",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,7 +13,11 @@
     "env:dev": "node switch-env.js dev",
     "env:prod": "node switch-env.js prod",
     "switch:dev": "node switch-env.js dev && npm run dev",
-    "switch:prod": "node switch-env.js prod"
+    "switch:prod": "node switch-env.js prod",
+    "build": "echo 'No build step required for Node.js app'",
+    "production": "NODE_ENV=production node server.js",
+    "health": "curl -f http://localhost:3001/health || exit 1",
+    "postinstall": "echo 'Post-install complete'"
   },
   "dependencies": {
     "@line/bot-sdk": "^9.0.0",

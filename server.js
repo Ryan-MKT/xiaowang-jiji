@@ -11,7 +11,8 @@ const fs = require('fs-extra');
 const FormData = require('form-data');
 const axios = require('axios');
 const path = require('path');
-const { oenPayment } = require('./payment');
+const OenPaymentCorrect = require('./payment-correct');
+const oenPayment = new OenPaymentCorrect();
 const { subscriptionService } = require('./subscription-service');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
@@ -1977,6 +1978,33 @@ app.get('/api/messages', async (req, res) => {
 
 // === 支付 API 端點 ===
 
+// 訂閱狀態查詢 API
+app.post('/api/subscription/status', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ error: '缺少用戶 ID' });
+        }
+        
+        console.log(`📋 [訂閱API] 查詢用戶訂閱狀態: ${userId}`);
+        
+        const subscription = await subscriptionService.getUserSubscription(userId);
+        
+        console.log(`✅ [訂閱API] 返回訂閱狀態:`, {
+            type: subscription.subscription_type,
+            status: subscription.status,
+            expires: subscription.expires_at
+        });
+        
+        res.json(subscription);
+        
+    } catch (error) {
+        console.error('❌ [訂閱API] 查詢訂閱狀態失敗:', error);
+        res.status(500).json({ error: '查詢訂閱狀態失敗' });
+    }
+});
+
 // 創建支付訂單
 app.post('/api/payment/create', async (req, res) => {
   try {
@@ -2024,7 +2052,7 @@ app.post('/payment/callback', async (req, res) => {
     console.log('📞 [付款回調] 收到 Oen Payment 回調:', req.body);
     
     // 處理付款結果
-    const paymentResult = oenPayment.processPaymentResult(req.body);
+    const paymentResult = oenPayment.processWebhook(req.body);
     
     if (paymentResult.success) {
       console.log('🎉 [付款成功] 訂單支付成功:', paymentResult.orderId);
@@ -2054,6 +2082,225 @@ app.post('/payment/callback', async (req, res) => {
     console.error('❌ [付款回調] 處理回調失敗:', error);
     res.status(400).send('ERROR');
   }
+});
+
+// Token Webhook 處理端點
+app.post('/api/payment/token-webhook', async (req, res) => {
+  try {
+    console.log('📞 [Token Webhook] 收到 Oen Payment Token 回調:', req.body);
+    
+    const webhookData = req.body;
+    
+    // 驗證是否為 Token 相關回調
+    if (webhookData.purpose === 'token' && webhookData.success) {
+      console.log('🎫 [Token Webhook] Token 綁卡成功:', {
+        token: webhookData.token,
+        transactionId: webhookData.transactionId,
+        customId: webhookData.customId
+      });
+      
+      // 處理 customId 中的用戶資訊
+      try {
+        const customData = JSON.parse(webhookData.customId);
+        console.log('👤 [Token Webhook] 用戶資訊:', customData);
+        
+        // TODO: 將 Token 儲存到資料庫，與用戶 ID 關聯
+        // 這裡可以儲存 Token 供後續交易使用
+        
+        console.log('✅ [Token Webhook] Token 處理完成');
+      } catch (parseError) {
+        console.error('❌ [Token Webhook] customId 解析失敗:', parseError);
+      }
+      
+    } else {
+      console.log('❌ [Token Webhook] Token 綁卡失敗或非 Token 回調');
+    }
+    
+    // 返回成功回應給 Oen Payment
+    res.json({ success: true, message: 'Token webhook processed' });
+    
+  } catch (error) {
+    console.error('❌ [Token Webhook] 處理 Token 回調失敗:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Token 成功頁面
+app.get('/payment/token-success', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>綁卡成功 - 小汪記記</title>
+        <style>
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                margin: 0; 
+                padding: 20px; 
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .container { 
+                background: white; 
+                padding: 40px; 
+                border-radius: 15px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                text-align: center;
+                max-width: 500px;
+                width: 100%;
+            }
+            .success-icon { 
+                font-size: 64px; 
+                color: #28a745; 
+                margin-bottom: 20px;
+            }
+            h1 { 
+                color: #28a745; 
+                margin-bottom: 20px;
+                font-size: 28px;
+            }
+            p { 
+                color: #666; 
+                line-height: 1.6;
+                margin-bottom: 15px;
+            }
+            .highlight { 
+                background: #e7f5e7; 
+                padding: 15px; 
+                border-radius: 8px; 
+                margin: 20px 0;
+                border-left: 4px solid #28a745;
+            }
+            .btn { 
+                display: inline-block; 
+                background: #28a745; 
+                color: white; 
+                padding: 12px 30px; 
+                text-decoration: none; 
+                border-radius: 25px; 
+                margin-top: 20px;
+                transition: background 0.3s;
+            }
+            .btn:hover { 
+                background: #218838; 
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="success-icon">🎉</div>
+            <h1>信用卡綁定成功！</h1>
+            <p>恭喜您成功綁定信用卡到小汪記記系統！</p>
+            
+            <div class="highlight">
+                <strong>✅ 綁卡完成</strong><br>
+                您的信用卡已安全綁定，可以開始使用 Premium 功能
+            </div>
+            
+            <p>系統已自動處理您的綁卡資訊，您現在可以：</p>
+            <p>• 享受無限制任務管理</p>
+            <p>• 使用自定義標籤功能</p>
+            <p>• 存取任務收藏功能</p>
+            
+            <a href="#" class="btn" onclick="window.close()">關閉頁面</a>
+        </div>
+    </body>
+    </html>
+  `);
+});
+
+// Token 失敗頁面
+app.get('/payment/token-failure', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="zh-TW">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>綁卡失敗 - 小汪記記</title>
+        <style>
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+                margin: 0; 
+                padding: 20px; 
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .container { 
+                background: white; 
+                padding: 40px; 
+                border-radius: 15px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                text-align: center;
+                max-width: 500px;
+                width: 100%;
+            }
+            .error-icon { 
+                font-size: 64px; 
+                color: #dc3545; 
+                margin-bottom: 20px;
+            }
+            h1 { 
+                color: #dc3545; 
+                margin-bottom: 20px;
+                font-size: 28px;
+            }
+            p { 
+                color: #666; 
+                line-height: 1.6;
+                margin-bottom: 15px;
+            }
+            .highlight { 
+                background: #f8d7da; 
+                padding: 15px; 
+                border-radius: 8px; 
+                margin: 20px 0;
+                border-left: 4px solid #dc3545;
+            }
+            .btn { 
+                display: inline-block; 
+                background: #dc3545; 
+                color: white; 
+                padding: 12px 30px; 
+                text-decoration: none; 
+                border-radius: 25px; 
+                margin-top: 20px;
+                transition: background 0.3s;
+            }
+            .btn:hover { 
+                background: #c82333; 
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="error-icon">❌</div>
+            <h1>信用卡綁定失敗</h1>
+            <p>很抱歉，您的信用卡綁定過程中發生了問題。</p>
+            
+            <div class="highlight">
+                <strong>可能的原因：</strong><br>
+                • 信用卡資訊輸入錯誤<br>
+                • 信用卡餘額不足進行驗證<br>
+                • 網路連線問題<br>
+                • 銀行系統暫時不可用
+            </div>
+            
+            <p>請稍後再試，或聯絡客服協助解決問題。</p>
+            
+            <a href="#" class="btn" onclick="window.close()">關閉頁面</a>
+        </div>
+    </body>
+    </html>
+  `);
 });
 
 // 模擬支付頁面
@@ -2212,6 +2459,11 @@ app.get('/payment/create', (req, res) => {
 
         <script>
             function simulatePaymentSuccess() {
+                // 顯示處理中狀態
+                const btn = event.target;
+                btn.disabled = true;
+                btn.innerHTML = '⏳ 處理中...';
+                
                 // 模擬支付成功，發送回調到 callback_url
                 fetch('/payment/callback', {
                     method: 'POST',
@@ -2227,11 +2479,21 @@ app.get('/payment/create', (req, res) => {
                         timestamp: Math.floor(Date.now() / 1000),
                         signature: '${signature}' // 使用相同簽名用於測試
                     })
-                }).then(() => {
-                    // 跳轉到成功頁面
-                    window.location.href = '${decodeURIComponent(return_url)}?orderId=${order_id}&status=success';
+                }).then(response => {
+                    if (response.ok) {
+                        // 顯示成功訊息並跳轉
+                        btn.innerHTML = '✅ 成功！跳轉中...';
+                        setTimeout(() => {
+                            window.location.href = '${decodeURIComponent(return_url)}?orderId=${order_id}&status=success&customerName=${encodeURIComponent(customer_name)}';
+                        }, 1000);
+                    } else {
+                        throw new Error('服務器回應錯誤: ' + response.status);
+                    }
                 }).catch(error => {
-                    alert('回調發送失敗: ' + error.message);
+                    console.error('支付處理失敗:', error);
+                    btn.disabled = false;
+                    btn.innerHTML = '✅ 模擬付款成功';
+                    alert('⚠️ 支付處理失敗: ' + error.message + '\\n請稍後重試或聯繫客服。');
                 });
             }
             
@@ -2248,28 +2510,166 @@ app.get('/payment/create', (req, res) => {
 
 // 付款成功頁面
 app.get('/payment/success', (req, res) => {
+  const { orderId, status, customerName } = req.query;
+  const displayName = customerName ? decodeURIComponent(customerName) : '用戶';
+  
   res.send(`
     <!DOCTYPE html>
     <html lang="zh-TW">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>付款成功</title>
+        <title>付款成功 - 小汪記記</title>
         <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f8ff; }
-            .success-card { background: white; padding: 40px; border-radius: 15px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-            .success-icon { font-size: 4rem; color: #28a745; margin-bottom: 20px; }
-            .success-title { color: #28a745; font-size: 1.5rem; margin-bottom: 15px; }
-            .success-message { color: #666; margin-bottom: 30px; }
-            .close-btn { background: #007bff; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1rem; cursor: pointer; }
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                margin: 0; 
+                padding: 20px; 
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .success-card { 
+                background: white; 
+                padding: 40px; 
+                border-radius: 20px; 
+                max-width: 500px; 
+                margin: 0 auto; 
+                box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            .success-icon { 
+                font-size: 5rem; 
+                margin-bottom: 20px;
+                animation: bounce 1s ease-out;
+            }
+            .success-title { 
+                color: #28a745; 
+                font-size: 2rem; 
+                margin-bottom: 15px;
+                font-weight: 600;
+            }
+            .customer-name {
+                color: #667eea;
+                font-size: 1.2rem;
+                margin-bottom: 20px;
+                font-weight: 500;
+            }
+            .success-message { 
+                color: #555; 
+                margin-bottom: 25px;
+                line-height: 1.6;
+                font-size: 1.1rem;
+            }
+            .order-info {
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 10px;
+                margin-bottom: 25px;
+                border-left: 4px solid #28a745;
+            }
+            .order-id {
+                color: #666;
+                font-size: 0.9rem;
+                margin-bottom: 5px;
+            }
+            .features {
+                text-align: left;
+                margin-bottom: 25px;
+            }
+            .feature-item {
+                display: flex;
+                align-items: center;
+                margin-bottom: 10px;
+                color: #555;
+            }
+            .feature-icon {
+                color: #28a745;
+                margin-right: 10px;
+                font-weight: bold;
+            }
+            .buttons {
+                display: flex;
+                gap: 15px;
+                justify-content: center;
+            }
+            .btn {
+                padding: 12px 25px;
+                border: none;
+                border-radius: 25px;
+                font-size: 1rem;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-weight: 500;
+            }
+            .btn-primary {
+                background: #007bff;
+                color: white;
+            }
+            .btn-secondary {
+                background: #6c757d;
+                color: white;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            }
+            @keyframes bounce {
+                0%, 20%, 60%, 100% { transform: translateY(0); }
+                40% { transform: translateY(-20px); }
+                80% { transform: translateY(-10px); }
+            }
         </style>
     </head>
     <body>
         <div class="success-card">
-            <div class="success-icon">✅</div>
+            <div class="success-icon">🎉</div>
             <h1 class="success-title">付款成功！</h1>
-            <p class="success-message">感謝您訂閱小汪記記進階功能！<br>您現在可以享受更多便利的記事體驗。</p>
-            <button class="close-btn" onclick="closeWindow()">返回應用</button>
+            <div class="customer-name">歡迎 ${displayName}！</div>
+            
+            <div class="order-info">
+                <div class="order-id">訂單編號：${orderId || 'N/A'}</div>
+                <div style="color: #28a745; font-weight: 600;">✅ 小汪記記 Premium 會員已啟用</div>
+            </div>
+            
+            <div class="success-message">
+                恭喜您成功訂閱小汪記記進階功能！<br>
+                現在您可以享受完整的記事體驗，包括：
+            </div>
+            
+            <div class="features">
+                <div class="feature-item">
+                    <span class="feature-icon">∞</span>
+                    <span>無限制任務數量</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🏷️</span>
+                    <span>自定義標籤管理</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">⭐</span>
+                    <span>任務收藏功能</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <span>進階統計報表</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">💬</span>
+                    <span>優先客服支援</span>
+                </div>
+            </div>
+            
+            <div class="buttons">
+                <button class="btn btn-primary" onclick="returnToApp()">
+                    🏠 返回小汪記記
+                </button>
+                <button class="btn btn-secondary" onclick="closeWindow()">
+                    ✖️ 關閉頁面
+                </button>
+            </div>
         </div>
         <script>
             function closeWindow() {
@@ -2279,7 +2679,38 @@ app.get('/payment/success', (req, res) => {
                     alert('請手動關閉此頁面返回小汪記記');
                 }
             }
+            
+            function returnToApp() {
+                // 如果是從 LIFF 或應用內開啟，嘗試回到應用
+                try {
+                    if (window.opener && window.opener.location) {
+                        window.opener.location.reload(); // 重新載入父頁面以刷新訂閱狀態
+                        window.close();
+                    } else {
+                        // 嘗試打開 LINE Bot 對話
+                        window.open('https://line.me/R/ti/p/@小汪記記', '_blank');
+                        window.close();
+                    }
+                } catch (error) {
+                    alert('請手動返回小汪記記應用，您的進階功能已啟用！');
+                    closeWindow();
+                }
+            }
+            
+            // 3秒後自動顯示返回提示
+            setTimeout(() => {
+                if (document.querySelector('.btn-primary')) {
+                    document.querySelector('.btn-primary').style.animation = 'pulse 1s infinite';
+                }
+            }, 3000);
         </script>
+        <style>
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+            }
+        </style>
     </body>
     </html>
   `);

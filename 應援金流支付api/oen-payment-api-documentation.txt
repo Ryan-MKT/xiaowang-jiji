@@ -1,0 +1,272 @@
+Oen Tech Payment API
+Endpoints
+Production：https://payment-api.oen.tw
+
+Testing：https://payment-api.testing.oen.tw
+
+Headers
+Content-Type: application/json
+
+Authorization: Bearer {authToken}
+
+HTTP response status code
+200 - 成功
+
+401 - 未授權
+
+400 - 請求錯誤
+
+500 - 伺服器錯誤
+
+Response structure
+json
+{
+  "code": "",
+  "message": "",
+  "data": {}
+}
+注意事項
+若要使用範例中的程式碼，請將 token 置換成您於應援 CRM 後台中取得的 token，及將 request 中的 merchantId 置換成您申請時填入的網域名稱（domain），eg. 您的應援頁面的網址為：https://ming.oen.tw，則 merchantId 請填入 ming
+
+測試環境請用測試環境中取得的 token，正式環境請用正式環境中取得的 token
+
+欲測試成功情境金額需 > 100，欲測試失敗情境金額 < 100
+
+非必填的欄位，在取得資料時，若無該欄位則無該 key
+
+所有日期相關欄位格式皆為 ISO Date（UTC+0）
+
+目前列表的資料一頁數量皆為 50 筆；因資料庫特性關係無法提供分頁功能，若要拿下一頁請帶上前一次 response 中的 page token
+
+測試卡號：
+
+4242 4242 4242 4242
+
+4000 0000 0000 2503（欲觸發 3D 驗證時使用）
+
+5200 0000 0000 2151（欲觸發 3D 驗證時使用）
+
+4012 8888 1888 8333（欲觸發失敗情境時使用）
+
+系統回應代碼對照表
+View More
+Code    Description
+S0000    執行成功
+A0001    未授權
+V0001    請求錯誤
+V0002    交易狀態錯誤
+T0001    交易失敗
+T0002    安全碼 CVV 錯誤
+T0003    卡片過期
+T0004    額度不足
+T0005    拒絕授權
+F0001    系統錯誤
+GET
+用訂單編號查詢交易列表
+https://payment-api.testing.oen.tw/order/:orderId/transactions
+說明
+Response 請參考 Resources - Transaction
+
+HEADERS
+Content-Type
+application/json
+
+Authorization
+Bearer yourToken
+
+PATH VARIABLES
+orderId
+訂單編號
+
+Example Request
+用訂單編號查詢交易列表
+View More
+curl
+curl --location 'https://payment-api.testing.oen.tw/order/:orderId/transactions'
+200 OK
+Example Response
+Body
+Headers (1)
+View More
+json
+{
+  "code": "S0000",
+  "data": {
+    "transactions": [
+      {
+        "id": "P20240412CIK7KPPH",
+        "transactionId": "2ezXfrdyypKEajH1J7nO3qOQH73",
+        "action": "onetime",
+        "amount": 1000,
+        "fee": 30,
+        "paymentInfo": {
+          "cardType": "Visa",
+          "cardNum": "4242424242424242",
+          "method": "card",
+          "cardName": "王小明"
+        },
+        "status": "charged",
+        "userId": "OEN00001",
+        "userName": "王小明",
+        "userEmail": "test@oen.tw",
+        "orderId": "ORDER00001",
+        "note": "備註",
+        "createdAt": "2024-04-12T07:54:46.755Z",
+        "refundAmount": 0
+      }
+    ]
+  },
+  "message": ""
+}
+PUT
+取消定期定額
+https://payment-api.testing.oen.tw/subscriptions/:subscriptionId
+Request
+View More
+Description    Key    Type    Required    Note
+商戶 ID    merchantId    string    V    
+取消原因    reason    string        
+HEADERS
+Content-Type
+application/json
+
+Authorization
+Bearer yourToken
+
+PATH VARIABLES
+subscriptionId
+定期定額 ID
+
+Body
+raw (json)
+json
+{
+    "merchantId": "oentech",
+    "reason": "客戶自行取消"
+}
+Example Request
+取消定期定額
+View More
+curl
+curl --location --request PUT 'https://payment-api.testing.oen.tw/subscriptions/:subscriptionId' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer yourToken' \
+--data '{
+    "merchantId": "oentech",
+    "reason": "客戶自行取消"
+}'
+200 OK
+Example Response
+Body
+Headers (1)
+View More
+json
+{
+  "code": "S0000",
+  "data": {
+    "id": "S202404112CYPRJPZ",
+    "status": "cancelled",
+    "period": 1,
+    "startedAt": "2024-04-11T10:31:46.640Z",
+    "cancelledAt": "2024-04-11T10:31:46.744Z",
+    "reason": "客戶自行取消",
+    "createdAt": "2024-04-11T10:31:46.640Z"
+  },
+  "message": ""
+}
+POST
+退款
+https://payment-api.testing.oen.tw/refunds/:transactionHid
+說明：
+每筆限定退款單次
+
+API 目前只支援原交易方式為信用卡的退款，若欲退款 ATM/CVS 的交易，請至應援 CRM 後台進行退款
+
+注意: 此 API path parameter transactionHid 範例: 'P20240620ABCD1234'，不支援 transactionId
+
+Request
+View More
+Description    Key    Type    Required    Note
+商戶 ID    merchantId    string    V    
+退款金額    amount    number    V    最低 1 元，最高原金額
+商品詳細    productDetails    array of object（參考下方 productDetails）    O    若該筆交易時有開立發票，此處需要填入相對應退款的品項，以利開立折讓
+退款帳戶資訊    remitInfo    object（參考下方　remitInfo）    O（若該筆交易為超商付款則必填）    
+取消原因    reason    string        
+productDetails
+View More
+Description    Key    Type    Required    Note
+商品編號    productionCode    string    V    
+商品描述    description    string    V    
+數量    quantity    number    V    
+單位    unit    string    V    
+單價    unitPrice    number    V    
+remitInfo
+View More
+Description    Key    Type    Required    Note
+銀行代碼    bankCode    string    V    
+銀行名稱    bankName    string    V    
+分行代碼    branchCode    string    V    
+分行名稱    branchName    string    V    
+銀行帳號    account    string    V    
+戶名    accountName    string    V    
+HEADERS
+Content-Type
+application/json
+
+Authorization
+Bearer yourToken
+
+PATH VARIABLES
+transactionHid
+交易 HID (e.g., 'P20240620ABCD1234')
+
+Body
+raw (json)
+json
+{
+    "merchantId": "oentech",
+    "amount": 1000
+}
+Example Request
+無開立發票之退款
+View More
+curl
+curl --location 'https://payment-api.testing.oen.tw/refunds/:transactionHid' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer yourToken' \
+--data '{
+    "merchantId": "oentech",
+    "amount": 1000,
+    "reason": "客戶取消訂單"
+}'
+200 OK
+Example Response
+Body
+Headers (1)
+View More
+json
+{
+  "code": "S0000",
+  "data": {
+    "id": "P20240411AN3KW7BK",
+    "action": "onetime",
+    "amount": 1000,
+    "fee": 30,
+    "paymentInfo": {
+      "cardType": "Visa",
+      "cardNum": "4242424242424242",
+      "method": "card",
+      "cardName": "王小明"
+    },
+    "status": "refunded",
+    "userId": "OEN00001",
+    "userName": "王小明",
+    "userEmail": "test@oen.tw",
+    "orderId": "ORDER00001",
+    "note": "客戶取消訂單",
+    "createdAt": "2024-04-11T10:45:22.026Z",
+    "refundAmount": 1000,
+    "refundedAt": "2024-04-11T10:45:22.076Z"
+  },
+  "message": ""
+}

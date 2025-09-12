@@ -21,7 +21,7 @@ function checkUrlGeneration() {
     // 模擬 task-flex-message.js 中的 URL 生成
     const tasksJson = JSON.stringify(mockTasks);
     const encodedTasks = encodeURIComponent(tasksJson);
-    const fullUrl = `https://22af292ce500.ngrok-free.app/liff/records?syncTasks=${encodedTasks}`;
+    const fullUrl = `https://a4cc9d907f15.ngrok-free.app/liff/records?syncTasks=${encodedTasks}`;
     
     console.log('📝 原始任務 JSON 長度:', tasksJson.length);
     console.log('🔗 編碼後參數長度:', encodedTasks.length);
@@ -44,7 +44,7 @@ function checkLiffRouting() {
     console.log('=' .repeat(40));
     
     console.log('📋 當前 FLEX MESSAGE 連結指向:');
-    console.log('   https://22af292ce500.ngrok-free.app/liff/records');
+    console.log('   https://a4cc9d907f15.ngrok-free.app/liff/records');
     
     console.log('📋 server.js 中的路由配置:');
     console.log('   GET /liff → liff-app.html (編輯頁面)');
@@ -81,7 +81,7 @@ function checkSyncLogic() {
     console.log('=' .repeat(40));
     
     // 模擬 LIFF 頁面的同步檢查邏輯
-    const mockUrl = 'https://22af292ce500.ngrok-free.app/liff/records?syncTasks=%5B%7B%22id%22%3A1%7D%5D';
+    const mockUrl = 'https://a4cc9d907f15.ngrok-free.app/liff/records?syncTasks=%5B%7B%22id%22%3A1%7D%5D';
     const urlParams = new URLSearchParams(mockUrl.split('?')[1]);
     const syncTasks = urlParams.get('syncTasks');
     

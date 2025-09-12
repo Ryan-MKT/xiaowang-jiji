@@ -139,6 +139,19 @@
                     <div class="col-12">
                         <div class="info-item p-3">
                             <div class="d-flex align-items-center">
+                                <i class="bi bi-star text-warning me-3 fs-5"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold text-dark">會員狀態</div>
+                                    <div id="subscriptionStatus" class="text-muted small">載入中...</div>
+                                </div>
+                                <div id="subscriptionBadge" class="badge bg-secondary">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <div class="info-item p-3">
+                            <div class="d-flex align-items-center">
                                 <i class="bi bi-calendar-check text-primary me-3 fs-5"></i>
                                 <div>
                                     <div class="fw-bold text-dark">加入時間</div>
@@ -211,6 +224,7 @@
                 console.log('✅ [使用者資料] 使用者資料載入成功:', liffProfile);
                 
                 displayUserProfile();
+                await loadSubscriptionStatus();
                 
             } catch (error) {
                 console.error('❌ [使用者資料] 載入失敗:', error);
@@ -251,6 +265,71 @@
         // 關閉應用程式
         function closeApp() {
             liff.closeWindow();
+        }
+
+        // 載入訂閱狀態
+        async function loadSubscriptionStatus() {
+            try {
+                console.log('💳 [訂閱狀態] 開始載入訂閱狀態...');
+                
+                const response = await fetch('/api/subscription/status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: liffProfile.userId
+                    })
+                });
+                
+                if (response.ok) {
+                    const subscription = await response.json();
+                    console.log('✅ [訂閱狀態] 訂閱狀態載入成功:', subscription);
+                    displaySubscriptionStatus(subscription);
+                } else {
+                    console.error('❌ [訂閱狀態] 載入失敗:', response.status);
+                    displaySubscriptionStatus(null);
+                }
+                
+            } catch (error) {
+                console.error('❌ [訂閱狀態] 載入錯誤:', error);
+                displaySubscriptionStatus(null);
+            }
+        }
+
+        // 顯示訂閱狀態
+        function displaySubscriptionStatus(subscription) {
+            const statusElement = document.getElementById('subscriptionStatus');
+            const badgeElement = document.getElementById('subscriptionBadge');
+            const upgradeButton = document.querySelector('.btn-warning');
+            
+            if (subscription && subscription.subscription_type === 'premium' && subscription.status === 'active') {
+                // Premium 會員
+                const expiryDate = new Date(subscription.expires_at);
+                const expiryDateStr = expiryDate.toLocaleDateString('zh-TW');
+                
+                statusElement.textContent = `Premium 會員，有效期至 ${expiryDateStr}`;
+                badgeElement.textContent = 'Premium';
+                badgeElement.className = 'badge bg-warning';
+                
+                // 更新按鈕為續約
+                upgradeButton.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>續約 Premium';
+                upgradeButton.className = 'btn btn-outline-warning w-100';
+                
+                console.log('✨ [訂閱狀態] 顯示 Premium 會員狀態');
+                
+            } else {
+                // 免費會員
+                statusElement.textContent = '免費會員，立即升級享受進階功能';
+                badgeElement.textContent = '免費';
+                badgeElement.className = 'badge bg-secondary';
+                
+                // 保持原來的升級按鈕
+                upgradeButton.innerHTML = '<i class="bi bi-star me-2"></i>訂閱升級';
+                upgradeButton.className = 'btn btn-warning w-100';
+                
+                console.log('📄 [訂閱狀態] 顯示免費會員狀態');
+            }
         }
 
         // 訂閱升級功能

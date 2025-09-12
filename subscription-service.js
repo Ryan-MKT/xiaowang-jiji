@@ -1,8 +1,21 @@
 // 小汪記記訂閱管理服務
 const { supabase } = require('./supabase-client');
+const { Client } = require('@line/bot-sdk');
 
 class SubscriptionService {
     constructor() {
+        // 初始化 LINE Bot 客戶端 (用於發送通知)
+        this.lineClient = null;
+        try {
+            if (process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+                this.lineClient = new Client({
+                    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
+                });
+                console.log('✅ [訂閱服務] LINE 客戶端初始化成功');
+            }
+        } catch (error) {
+            console.warn('⚠️  [訂閱服務] LINE 客戶端初始化失敗:', error.message);
+        }
         console.log('📋 [訂閱服務] 訂閱管理服務初始化完成');
     }
 
@@ -218,6 +231,14 @@ class SubscriptionService {
 
             console.log('🎊 [訂閱服務] 支付處理完成，用戶已升級為高級會員');
 
+            // 發送 LINE 通知給用戶
+            try {
+                await this.sendPaymentSuccessNotification(paymentResult.userId, subscription, paymentResult.orderId);
+            } catch (notificationError) {
+                console.error('⚠️  [訂閱服務] 發送通知失敗:', notificationError.message);
+                // 不影響主要流程，繼續執行
+            }
+
             return {
                 userId: paymentResult.userId,
                 subscription_type: subscription.subscription_type,
@@ -275,6 +296,194 @@ class SubscriptionService {
 
         } catch (error) {
             console.error('❌ [訂閱服務] 獲取訂閱統計失敗:', error);
+            throw error;
+        }
+    }
+
+    // 發送支付成功通知
+    async sendPaymentSuccessNotification(userId, subscription, orderId) {
+        if (!this.lineClient) {
+            console.log('⚠️  [訂閱服務] LINE 客戶端未初始化，跳過通知');
+            return;
+        }
+
+        try {
+            console.log(`📱 [訂閱服務] 發送支付成功通知給用戶: ${userId}`);
+
+            // 計算到期日期顯示
+            const expiryDate = new Date(subscription.expires_at);
+            const expiryDateStr = expiryDate.toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
+            // 創建支付成功的 Flex Message
+            const successMessage = {
+                type: 'flex',
+                altText: '🎉 小汪記記 Premium 訂閱成功！',
+                contents: {
+                    type: 'bubble',
+                    size: 'kilo',
+                    header: {
+                        type: 'box',
+                        layout: 'vertical',
+                        paddingAll: 'md',
+                        backgroundColor: '#28a745',
+                        contents: [
+                            {
+                                type: 'text',
+                                text: '🎉 訂閱成功！',
+                                color: '#ffffff',
+                                size: 'xl',
+                                weight: 'bold',
+                                align: 'center'
+                            }
+                        ]
+                    },
+                    body: {
+                        type: 'box',
+                        layout: 'vertical',
+                        paddingAll: 'lg',
+                        backgroundColor: '#f8f9fa',
+                        contents: [
+                            {
+                                type: 'text',
+                                text: '恭喜您成功訂閱小汪記記 Premium！',
+                                size: 'md',
+                                weight: 'bold',
+                                color: '#333333',
+                                align: 'center',
+                                margin: 'none'
+                            },
+                            {
+                                type: 'separator',
+                                margin: 'md',
+                                color: '#e9ecef'
+                            },
+                            {
+                                type: 'box',
+                                layout: 'vertical',
+                                margin: 'md',
+                                spacing: 'sm',
+                                contents: [
+                                    {
+                                        type: 'box',
+                                        layout: 'horizontal',
+                                        contents: [
+                                            {
+                                                type: 'text',
+                                                text: '訂單編號:',
+                                                size: 'sm',
+                                                color: '#666666',
+                                                flex: 0
+                                            },
+                                            {
+                                                type: 'text',
+                                                text: orderId || 'N/A',
+                                                size: 'sm',
+                                                color: '#333333',
+                                                flex: 0,
+                                                align: 'end'
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        type: 'box',
+                                        layout: 'horizontal',
+                                        contents: [
+                                            {
+                                                type: 'text',
+                                                text: '會員等級:',
+                                                size: 'sm',
+                                                color: '#666666',
+                                                flex: 0
+                                            },
+                                            {
+                                                type: 'text',
+                                                text: '⭐ Premium',
+                                                size: 'sm',
+                                                color: '#ffc107',
+                                                weight: 'bold',
+                                                flex: 0,
+                                                align: 'end'
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        type: 'box',
+                                        layout: 'horizontal',
+                                        contents: [
+                                            {
+                                                type: 'text',
+                                                text: '有效期至:',
+                                                size: 'sm',
+                                                color: '#666666',
+                                                flex: 0
+                                            },
+                                            {
+                                                type: 'text',
+                                                text: expiryDateStr,
+                                                size: 'sm',
+                                                color: '#28a745',
+                                                weight: 'bold',
+                                                flex: 0,
+                                                align: 'end'
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                type: 'separator',
+                                margin: 'md',
+                                color: '#e9ecef'
+                            },
+                            {
+                                type: 'text',
+                                text: '✨ 進階功能已啟用',
+                                size: 'md',
+                                color: '#28a745',
+                                weight: 'bold',
+                                align: 'center',
+                                margin: 'md'
+                            },
+                            {
+                                type: 'text',
+                                text: '• 無限制任務數量\n• 自定義標籤管理\n• 任務收藏功能\n• 進階統計報表\n• 優先客服支援',
+                                size: 'sm',
+                                color: '#555555',
+                                margin: 'md',
+                                wrap: true
+                            }
+                        ]
+                    },
+                    footer: {
+                        type: 'box',
+                        layout: 'vertical',
+                        paddingAll: 'sm',
+                        contents: [
+                            {
+                                type: 'text',
+                                text: '立即開始使用進階功能！',
+                                size: 'sm',
+                                color: '#667eea',
+                                align: 'center',
+                                action: {
+                                    type: 'message',
+                                    text: '開始使用'
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            await this.lineClient.pushMessage(userId, successMessage);
+            console.log('✅ [訂閱服務] 支付成功通知已發送');
+
+        } catch (error) {
+            console.error('❌ [訂閱服務] 發送通知失敗:', error);
             throw error;
         }
     }

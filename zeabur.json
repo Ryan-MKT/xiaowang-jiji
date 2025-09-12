@@ -1,9 +1,23 @@
 {
-  "name": "xiaowang-linebot",
-  "buildCommand": "npm install",
-  "startCommand": "npm start",
+  "name": "xiaowang-linebot-with-payment",
+  "buildCommand": "npm install --production",
+  "startCommand": "node server.js",
   "environment": "nodejs",
   "nodeVersion": "18",
   "port": 3001,
-  "healthCheck": "/health"
+  "healthCheck": "/health",
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "3001",
+    "TABLE_PREFIX": "prod_",
+    "PAYMENT_SIGNATURE_VERIFICATION": "true",
+    "LOG_LEVEL": "info",
+    "PREMIUM_SUBSCRIPTION_PRICE": "299",
+    "PREMIUM_SUBSCRIPTION_DURATION_MONTHS": "1",
+    "ENABLE_PAYMENT_NOTIFICATIONS": "true",
+    "ENABLE_SUBSCRIPTION_EXPIRY_CHECK": "true",
+    "ENABLE_METRICS_COLLECTION": "true"
+  },
+  "domains": [],
+  "volumes": []
 }
