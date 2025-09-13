@@ -402,90 +402,9 @@ function generateQuickReply(userTags) {
   };
 }
 
-// 創建第3個 bubble - 快捷功能卡片
-function createQuickActionCard() {
-  console.log('🎯 [快捷卡片] 生成快捷功能卡片');
-  
-  return {
-    type: 'flex',
-    altText: '快捷功能：語音輸入、設定、幫助',
-    contents: {
-      type: 'bubble',
-      size: 'micro',
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'sm',
-        backgroundColor: '#667eea',
-        contents: [
-          {
-            type: 'text',
-            text: '⚡ 快捷功能',
-            color: '#FFFFFF',
-            size: 'sm',
-            weight: 'bold',
-            align: 'center'
-          }
-        ]
-      },
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        backgroundColor: '#f7fafc',
-        spacing: 'sm',
-        contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            spacing: 'md',
-            contents: [
-              {
-                type: 'text',
-                text: '🎙️',
-                size: 'lg',
-                flex: 0,
-                action: {
-                  type: 'message',
-                  label: '語音輸入',
-                  text: '語音輸入'
-                }
-              },
-              {
-                type: 'text',
-                text: '⚙️',
-                size: 'lg',
-                flex: 0,
-                action: {
-                  type: 'message',
-                  label: '設定',
-                  text: '設定'
-                }
-              },
-              {
-                type: 'text',
-                text: '❓',
-                size: 'lg',
-                flex: 0,
-                action: {
-                  type: 'message',
-                  label: '幫助',
-                  text: '幫助'
-                }
-              }
-            ]
-          }
-        ]
-      }
-    }
-  };
-}
-
-
 module.exports = {
   createTaskFlexMessage,
   createTaskStackFlexMessage,
   createTaskStatsCard,
-  generateQuickReply,
-  createQuickActionCard
+  generateQuickReply
 };
