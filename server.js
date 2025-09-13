@@ -132,8 +132,10 @@ async function handlePostback(event) {
       
       // 發送更新後的任務清單
       const userTags = await getUserTags(userId);
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+      const { create3BubbleCarousel } = getTaskFlexModule();
+      const completedCount = userTasks.filter(task => task.completed).length;
+      const favoriteCount = userTasks.filter(task => task.favorited).length;
+      const updatedFlexMessage = create3BubbleCarousel(userTasks, userTags, completedCount, favoriteCount);
       
       if (client) {
         // 先發送恭喜訊息，再發送更新的任務清單
@@ -599,8 +601,10 @@ async function handleEvent(event) {
         
         // 重新生成任務堆疊 Flex Message
         const userTags = await getUserTags(userId);
-        const { createTaskStackFlexMessage } = getTaskFlexModule();
-        const taskStackFlexMessage = createTaskStackFlexMessage(cleanedTasks, userTags);
+        const { create3BubbleCarousel } = getTaskFlexModule();
+        const completedCount = cleanedTasks.filter(task => task.completed).length;
+        const favoriteCount = cleanedTasks.filter(task => task.favorited).length;
+        const taskStackFlexMessage = create3BubbleCarousel(cleanedTasks, userTags, completedCount, favoriteCount);
         
         console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
         console.log('📝 更新後任務清單:', cleanedTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -629,8 +633,10 @@ async function handleEvent(event) {
         
         if (userTasks.length > 0) {
           const userTags = await getUserTags(userId);
-          const { createTaskStackFlexMessage } = getTaskFlexModule();
-          const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+          const { create3BubbleCarousel } = getTaskFlexModule();
+          const completedCount = userTasks.filter(task => task.completed).length;
+          const favoriteCount = userTasks.filter(task => task.favorited).length;
+          const taskStackFlexMessage = create3BubbleCarousel(userTasks, userTags, completedCount, favoriteCount);
           
           if (client) {
             return client.replyMessage(event.replyToken, taskStackFlexMessage);
@@ -660,8 +666,10 @@ async function handleEvent(event) {
       if (userTasks.length > 0) {
         // 重新生成任務堆疊 Flex Message
         const userTags = await getUserTags(userId);
-        const { createTaskStackFlexMessage } = getTaskFlexModule();
-        const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+        const { create3BubbleCarousel } = getTaskFlexModule();
+        const completedCount = userTasks.filter(task => task.completed).length;
+        const favoriteCount = userTasks.filter(task => task.favorited).length;
+        const taskStackFlexMessage = create3BubbleCarousel(userTasks, userTags, completedCount, favoriteCount);
         
         console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
         console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -764,8 +772,10 @@ async function handleEvent(event) {
       
       // 重新生成任務堆疊 Flex Message
       const userTags = await getUserTags(userId);
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+      const { create3BubbleCarousel } = getTaskFlexModule();
+      const completedCount = userTasks.filter(task => task.completed).length;
+      const favoriteCount = userTasks.filter(task => task.favorited).length;
+      const updatedFlexMessage = create3BubbleCarousel(userTasks, userTags, completedCount, favoriteCount);
       
       if (client) {
         return client.replyMessage(event.replyToken, updatedFlexMessage);
@@ -874,14 +884,12 @@ async function handleEvent(event) {
     
     // 創建包含所有任務的 Flex Message
     const userTags = await getUserTags(userId);
-    const { createTaskStackFlexMessage, createTaskStatsCard, createQuickActionCard } = getTaskFlexModule();
-    const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
-    
+    const { create3BubbleCarousel } = getTaskFlexModule();
+
     // 計算統計資料
     const completedCount = userTasks.filter(task => task.completed).length;
     const favoriteCount = userTasks.filter(task => task.favorited).length;
-    const statsCard = createTaskStatsCard(completedCount, favoriteCount);
-    const quickActionCard = createQuickActionCard();
+    const flexMessage = create3BubbleCarousel(userTasks, userTags, completedCount, favoriteCount);
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
@@ -932,8 +940,8 @@ async function handleEvent(event) {
     }
     
     if (client) {
-      console.log('🚀 [FLEX SEND] 開始發送 FLEX MESSAGE 和統計卡片到 LINE...');
-      return client.replyMessage(event.replyToken, [flexMessage, statsCard, quickActionCard])
+      console.log('🚀 [FLEX SEND] 開始發送 3頁輪播 FLEX MESSAGE 到 LINE...');
+      return client.replyMessage(event.replyToken, flexMessage)
         .then(result => {
           console.log('✅ [FLEX SEND] FLEX MESSAGE 發送成功!', {
             requestId: result['x-line-request-id'],

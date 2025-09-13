@@ -88,7 +88,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://80841f07983f.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+          uri: `https://86588cc9ebf7.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
         }
       }
     ];
@@ -220,7 +220,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://80841f07983f.ngrok-free.app/liff-records.html'
+                  uri: 'https://86588cc9ebf7.ngrok-free.app/liff-records.html'
                 }
               },
               {
@@ -232,7 +232,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://80841f07983f.ngrok-free.app/liff-favorites.html'
+                  uri: 'https://86588cc9ebf7.ngrok-free.app/liff-favorites.html'
                 }
               },
               {
@@ -244,7 +244,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://80841f07983f.ngrok-free.app/liff-account.html'
+                  uri: 'https://86588cc9ebf7.ngrok-free.app/liff-account.html'
                 }
               }
             ]
@@ -265,7 +265,7 @@ function createTaskStatsCard(completedCount, favoriteCount) {
     altText: `統計：已完成 ${completedCount} 件，已收藏 ${favoriteCount} 件`,
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'nano',
       body: {
         type: 'box',
         layout: 'horizontal',
@@ -411,7 +411,7 @@ function createQuickActionCard() {
     altText: '快捷功能：語音輸入、設定、幫助',
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'micro',
       header: {
         type: 'box',
         layout: 'vertical',
@@ -482,38 +482,10 @@ function createQuickActionCard() {
 }
 
 
-// 創建3個Bubble的Carousel FLEX Message
-function create3BubbleCarousel(tasks, userTags = null, completedCount = 0, favoriteCount = 0) {
-  console.log('🎠 [CAROUSEL] 生成3個Bubble輪播訊息');
-
-  // 第1個bubble: 主任務清單
-  const mainBubble = createTaskStackFlexMessage(tasks, userTags);
-
-  // 第2個bubble: 統計卡片
-  const statsBubble = createTaskStatsCard(completedCount, favoriteCount);
-
-  // 第3個bubble: 快捷功能卡片
-  const quickActionBubble = createQuickActionCard();
-
-  return {
-    type: 'flex',
-    altText: `今天 ${tasks ? tasks.length : 0} 件事要做 - 3頁輪播`,
-    contents: {
-      type: 'carousel',
-      contents: [
-        mainBubble.contents,
-        statsBubble.contents,
-        quickActionBubble.contents
-      ]
-    }
-  };
-}
-
 module.exports = {
   createTaskFlexMessage,
   createTaskStackFlexMessage,
   createTaskStatsCard,
   generateQuickReply,
-  createQuickActionCard,
-  create3BubbleCarousel
+  createQuickActionCard
 };
