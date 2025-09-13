@@ -74,12 +74,12 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   
   tasks.forEach((task, index) => {
     const isCompleted = task.completed || false;
-    
+
     // 添加任務項目 - 支援備註顯示
     const taskBoxContents = [
       {
         type: 'text',
-        text: `${index + 1}. ${task.text}`,
+        text: task.text,
         size: 'sm',
         color: isCompleted ? '#999999' : '#333333',
         flex: 1,
@@ -114,6 +114,20 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
       alignItems: 'flex-start',
       contents: [
         {
+          type: 'text',
+          text: isCompleted ? '●' : '○',
+          size: 'lg',
+          color: '#000000',
+          flex: 0,
+          align: 'center',
+          margin: 'xs',
+          action: {
+            type: 'message',
+            label: '完成任務',
+            text: `完成任務_${task.id}`
+          }
+        },
+        {
           type: 'box',
           layout: 'vertical',
           flex: 1,
@@ -130,19 +144,6 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             type: 'message',
             label: '收藏任務',
             text: `收藏任務_${task.id}`
-          }
-        },
-        {
-          type: 'text',
-          text: isCompleted ? '☑' : '□',
-          size: 'lg',
-          color: '#000000',
-          flex: 0,
-          align: 'center',
-          action: {
-            type: 'message',
-            label: '完成任務',
-            text: `完成任務_${task.id}`
           }
         }
       ]
@@ -652,7 +653,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
         },
         {
           type: 'text',
-          text: isCompleted ? '☑' : '□',
+          text: isCompleted ? '●' : '○',
           size: 'lg',
           color: '#000000',
           flex: 0,
@@ -740,7 +741,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
       const taskBoxContents = [
         {
           type: 'text',
-          text: `${index + 1}. ${task.text}`,
+          text: task.text,
           size: 'sm',
           color: isCompleted ? '#999999' : '#333333',
           flex: 1,
@@ -775,6 +776,20 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         alignItems: 'flex-start',
         contents: [
           {
+            type: 'text',
+            text: isCompleted ? '●' : '○',
+            size: 'lg',
+            color: '#000000',
+            flex: 0,
+            align: 'center',
+            margin: 'xs',
+            action: {
+              type: 'message',
+              label: '完成任務',
+              text: `完成任務_${task.id}`
+            }
+          },
+          {
             type: 'box',
             layout: 'vertical',
             flex: 1,
@@ -791,19 +806,6 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
               type: 'message',
               label: '收藏任務',
               text: `收藏任務_${task.id}`
-            }
-          },
-          {
-            type: 'text',
-            text: isCompleted ? '☑' : '□',
-            size: 'lg',
-            color: '#000000',
-            flex: 0,
-            align: 'center',
-            action: {
-              type: 'message',
-              label: '完成任務',
-              text: `完成任務_${task.id}`
             }
           }
         ]
