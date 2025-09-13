@@ -130,12 +130,12 @@ async function handlePostback(event) {
         text: `🎉 恭喜！${completedTask.text} 已完成！`
       };
       
-      // 發送更新後的任務清單
+      // 發送更新後的任務清單 (預設顯示主任務清單)
       const userTags = await getUserTags(userId);
-      const { createDynamicTagCarousel } = getTaskFlexModule();
+      const { createMainTaskList } = getTaskFlexModule();
       const completedCount = userTasks.filter(task => task.completed).length;
       const favoriteCount = userTasks.filter(task => task.favorited).length;
-      const updatedFlexMessage = createDynamicTagCarousel(userTasks, userTags, completedCount, favoriteCount);
+      const updatedFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
       
       if (client) {
         // 先發送恭喜訊息，再發送更新的任務清單
@@ -249,7 +249,29 @@ async function handlePostback(event) {
       }
     }
   }
-  
+
+  // 檢查是否為展開標籤事件
+  if (postbackData === 'expand_tags') {
+    console.log(`🏷️ 用戶 ${userId} 點擊展開標籤`);
+
+    // 取得用戶任務和標籤資料
+    const userTasks = userTaskStacks.get(userId) || [];
+    const userTags = await getUserTags(userId);
+    const completedCount = userTasks.filter(task => task.completed).length;
+    const favoriteCount = userTasks.filter(task => task.favorited).length;
+
+    // 使用動態標籤輪播 FLEX Message
+    const { createDynamicTagCarousel } = getTaskFlexModule();
+    const tagCarouselMessage = createDynamicTagCarousel(userTasks, userTags, completedCount, favoriteCount);
+
+    if (client) {
+      return client.replyMessage(event.replyToken, tagCarouselMessage);
+    } else {
+      console.log('測試模式：展開標籤輪播訊息', JSON.stringify(tagCarouselMessage, null, 2));
+      return Promise.resolve(null);
+    }
+  }
+
   return Promise.resolve(null);
 }
 
@@ -599,12 +621,12 @@ async function handleEvent(event) {
         // 更新伺服器端的任務堆疊
         userTaskStacks.set(userId, cleanedTasks);
         
-        // 重新生成任務堆疊 Flex Message
+        // 重新生成任務堆疊 Flex Message (預設顯示主任務清單)
         const userTags = await getUserTags(userId);
-        const { createDynamicTagCarousel } = getTaskFlexModule();
+        const { createMainTaskList } = getTaskFlexModule();
         const completedCount = cleanedTasks.filter(task => task.completed).length;
         const favoriteCount = cleanedTasks.filter(task => task.favorited).length;
-        const taskStackFlexMessage = createDynamicTagCarousel(cleanedTasks, userTags, completedCount, favoriteCount);
+        const taskStackFlexMessage = createMainTaskList(cleanedTasks, userTags, completedCount, favoriteCount);
         
         console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
         console.log('📝 更新後任務清單:', cleanedTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -633,10 +655,10 @@ async function handleEvent(event) {
         
         if (userTasks.length > 0) {
           const userTags = await getUserTags(userId);
-          const { createDynamicTagCarousel } = getTaskFlexModule();
+          const { createMainTaskList } = getTaskFlexModule();
           const completedCount = userTasks.filter(task => task.completed).length;
           const favoriteCount = userTasks.filter(task => task.favorited).length;
-          const taskStackFlexMessage = createDynamicTagCarousel(userTasks, userTags, completedCount, favoriteCount);
+          const taskStackFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
           
           if (client) {
             return client.replyMessage(event.replyToken, taskStackFlexMessage);
@@ -664,12 +686,12 @@ async function handleEvent(event) {
       let userTasks = userTaskStacks.get(userId) || [];
       
       if (userTasks.length > 0) {
-        // 重新生成任務堆疊 Flex Message
+        // 重新生成任務堆疊 Flex Message (預設顯示主任務清單)
         const userTags = await getUserTags(userId);
-        const { createDynamicTagCarousel } = getTaskFlexModule();
+        const { createMainTaskList } = getTaskFlexModule();
         const completedCount = userTasks.filter(task => task.completed).length;
         const favoriteCount = userTasks.filter(task => task.favorited).length;
-        const taskStackFlexMessage = createDynamicTagCarousel(userTasks, userTags, completedCount, favoriteCount);
+        const taskStackFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
         
         console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
         console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -770,12 +792,12 @@ async function handleEvent(event) {
         }
       }
       
-      // 重新生成任務堆疊 Flex Message
+      // 重新生成任務堆疊 Flex Message (預設顯示主任務清單)
       const userTags = await getUserTags(userId);
-      const { createDynamicTagCarousel } = getTaskFlexModule();
+      const { createMainTaskList } = getTaskFlexModule();
       const completedCount = userTasks.filter(task => task.completed).length;
       const favoriteCount = userTasks.filter(task => task.favorited).length;
-      const updatedFlexMessage = createDynamicTagCarousel(userTasks, userTags, completedCount, favoriteCount);
+      const updatedFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
       
       if (client) {
         return client.replyMessage(event.replyToken, updatedFlexMessage);
@@ -882,14 +904,17 @@ async function handleEvent(event) {
     // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
     console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
     
-    // 創建包含所有任務的 Flex Message
+    // 創建包含所有任務的 Flex Message (預設顯示主任務清單，包含展開標籤按鈕)
     const userTags = await getUserTags(userId);
-    const { createDynamicTagCarousel } = getTaskFlexModule();
+    const { createMainTaskList } = getTaskFlexModule();
 
     // 計算統計資料
     const completedCount = userTasks.filter(task => task.completed).length;
     const favoriteCount = userTasks.filter(task => task.favorited).length;
-    const flexMessage = createDynamicTagCarousel(userTasks, userTags, completedCount, favoriteCount);
+
+    console.log('🚨 [SERVER DEBUG] 準備調用 createMainTaskList');
+    const flexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+    console.log('✅ [SERVER DEBUG] createMainTaskList 調用完成');
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;

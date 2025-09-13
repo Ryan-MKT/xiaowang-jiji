@@ -248,6 +248,36 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 }
               }
             ]
+          },
+          {
+            type: 'separator',
+            margin: 'md',
+            color: '#E0E0E0'
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'none',
+            margin: 'md',
+            paddingAll: 'sm',
+            backgroundColor: '#667eea',
+            cornerRadius: '8px',
+            contents: [
+              {
+                type: 'text',
+                text: '🏷️ 展開標籤',
+                size: 'sm',
+                color: '#FFFFFF',
+                align: 'center',
+                weight: 'bold',
+                flex: 1,
+                action: {
+                  type: 'postback',
+                  label: '展開標籤',
+                  data: 'expand_tags'
+                }
+              }
+            ]
           }
         ])
       }
@@ -691,6 +721,234 @@ function createTagBubble(tagName, tasks, userTags = null) {
   };
 }
 
+// 創建主任務清單（帶展開標籤按鈕）
+function createMainTaskList(tasks, userTags = null, completedCount = 0, favoriteCount = 0) {
+  console.log('🚨 [MAIN TASK LIST] createMainTaskList 函數被調用 - 單一 BUBBLE 版本');
+
+  const totalTasks = tasks ? tasks.length : 0;
+  const completedTasks = tasks ? tasks.filter(task => task.completed).length : 0;
+  const pendingTasks = totalTasks - completedTasks;
+
+  // 創建任務清單內容
+  const taskContents = [];
+
+  if (tasks) {
+    tasks.forEach((task, index) => {
+      const isCompleted = task.completed || false;
+
+      // 添加任務項目
+      const taskBoxContents = [
+        {
+          type: 'text',
+          text: `${index + 1}. ${task.text}`,
+          size: 'sm',
+          color: isCompleted ? '#999999' : '#333333',
+          flex: 1,
+          wrap: true,
+          decoration: isCompleted ? 'line-through' : 'none',
+          margin: 'none',
+          action: {
+            type: 'uri',
+            uri: `https://80841f07983f.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+          }
+        }
+      ];
+
+      // 如果有備註，在任務下方顯示
+      if (task.note && task.note.trim()) {
+        taskBoxContents.push({
+          type: 'text',
+          text: `💬 ${task.note}`,
+          size: 'xs',
+          color: '#666666',
+          flex: 1,
+          wrap: true,
+          margin: 'xs'
+        });
+      }
+
+      taskContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        paddingAll: 'md',
+        alignItems: 'flex-start',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            contents: taskBoxContents
+          },
+          {
+            type: 'text',
+            text: task.favorited ? '★' : '☆',
+            size: 'md',
+            color: '#000000',
+            flex: 0,
+            margin: 'xs',
+            action: {
+              type: 'message',
+              label: '收藏任務',
+              text: `收藏任務_${task.id}`
+            }
+          },
+          {
+            type: 'text',
+            text: isCompleted ? '☑' : '□',
+            size: 'lg',
+            color: '#000000',
+            flex: 0,
+            align: 'center',
+            action: {
+              type: 'message',
+              label: '完成任務',
+              text: `完成任務_${task.id}`
+            }
+          }
+        ]
+      });
+
+      // 如果不是最後一個任務，添加分隔線
+      if (index < tasks.length - 1) {
+        taskContents.push({
+          type: 'separator',
+          margin: 'xs',
+          color: '#C0C0C0'
+        });
+      }
+    });
+  }
+
+  // 添加統計訊息、快捷功能區塊和展開標籤按鈕
+  taskContents.push(
+    {
+      type: 'separator',
+      margin: 'md',
+      color: '#E0E0E0'
+    },
+    {
+      type: 'text',
+      text: `已完成 ${completedTasks} 件，待完成 ${pendingTasks} 件`,
+      size: 'xs',
+      color: '#999999',
+      align: 'center',
+      margin: 'md'
+    },
+    {
+      type: 'separator',
+      margin: 'md',
+      color: '#E0E0E0'
+    },
+    {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'md',
+      margin: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: '紀錄區',
+          size: 'sm',
+          color: '#000000',
+          align: 'center',
+          flex: 1,
+          action: {
+            type: 'uri',
+            uri: 'https://80841f07983f.ngrok-free.app/liff-records.html'
+          }
+        },
+        {
+          type: 'text',
+          text: '收藏區',
+          size: 'sm',
+          color: '#000000',
+          align: 'center',
+          flex: 1,
+          action: {
+            type: 'uri',
+            uri: 'https://80841f07983f.ngrok-free.app/liff-favorites.html'
+          }
+        },
+        {
+          type: 'text',
+          text: '帳戶區',
+          size: 'sm',
+          color: '#000000',
+          align: 'center',
+          flex: 1,
+          action: {
+            type: 'uri',
+            uri: 'https://80841f07983f.ngrok-free.app/liff-account.html'
+          }
+        }
+      ]
+    },
+    {
+      type: 'separator',
+      margin: 'md',
+      color: '#E0E0E0'
+    },
+    {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'none',
+      margin: 'md',
+      paddingAll: 'sm',
+      backgroundColor: '#667eea',
+      cornerRadius: '8px',
+      contents: [
+        {
+          type: 'text',
+          text: '🏷️ 展開標籤',
+          size: 'sm',
+          color: '#FFFFFF',
+          align: 'center',
+          weight: 'bold',
+          flex: 1,
+          action: {
+            type: 'postback',
+            label: '展開標籤',
+            data: 'expand_tags'
+          }
+        }
+      ]
+    }
+  );
+
+  return {
+    type: 'flex',
+    altText: `今天 ${totalTasks} 件事要做`,
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'md',
+        backgroundColor: '#CD853F',
+        contents: [
+          {
+            type: 'text',
+            text: `今天 ${totalTasks} 件事要做`,
+            color: '#FFFFFF',
+            size: 'md',
+            weight: 'bold',
+            align: 'center'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        backgroundColor: '#FFF8DC',
+        contents: taskContents
+      }
+    }
+  };
+}
+
 // 創建動態標籤 Carousel FLEX Message
 function createDynamicTagCarousel(tasks, userTags = null, completedCount = 0, favoriteCount = 0) {
   console.log('🎠 [動態標籤CAROUSEL] 開始生成動態標籤輪播訊息');
@@ -769,6 +1027,7 @@ module.exports = {
   createQuickActionCard,
   create3BubbleCarousel,
   createDynamicTagCarousel,
+  createMainTaskList,
   parseTasksByTags,
   createTagBubble
 };
