@@ -214,7 +214,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             contents: [
               {
                 type: 'text',
-                text: '紀錄區',
+                text: '日歷',
                 size: 'sm',
                 color: '#000000',
                 align: 'center',
@@ -226,7 +226,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
               },
               {
                 type: 'text',
-                text: '收藏區',
+                text: '收藏',
                 size: 'sm',
                 color: '#000000',
                 align: 'center',
@@ -238,7 +238,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
               },
               {
                 type: 'text',
-                text: '帳戶區',
+                text: '我的',
                 size: 'sm',
                 color: '#000000',
                 align: 'center',
@@ -850,7 +850,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
       contents: [
         {
           type: 'text',
-          text: '紀錄區',
+          text: '日歷',
           size: 'sm',
           color: '#000000',
           align: 'center',
@@ -862,7 +862,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         },
         {
           type: 'text',
-          text: '收藏區',
+          text: '收藏',
           size: 'sm',
           color: '#000000',
           align: 'center',
@@ -874,7 +874,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         },
         {
           type: 'text',
-          text: '帳戶區',
+          text: '我的',
           size: 'sm',
           color: '#000000',
           align: 'center',
