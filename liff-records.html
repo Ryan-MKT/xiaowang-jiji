@@ -39,21 +39,108 @@
             margin-bottom: 5px;
         }
 
-        .date-selector {
+        .calendar-container {
             background: white;
-            padding: 15px;
             margin: 15px;
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
 
-        .date-input {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #CD853F;
+        .month-selector {
+            background: #CD853F;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .month-nav-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
             border-radius: 5px;
+            cursor: pointer;
             font-size: 16px;
+        }
+
+        .month-nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        #currentMonth {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .calendar-grid {
+            padding: 15px;
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .weekday {
             text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #8B4513;
+            padding: 8px 0;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: #F0F0F0;
+        }
+
+        .calendar-day.today {
+            background: #4285F4;
+            color: white;
+            font-weight: bold;
+        }
+
+        .calendar-day.selected {
+            background: #CD853F;
+            color: white;
+            font-weight: bold;
+        }
+
+        .calendar-day.other-month {
+            color: #CCC;
+        }
+
+        .calendar-day.has-tasks::after {
+            content: '•';
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #FF6B6B;
+            font-size: 12px;
         }
 
         .container {
@@ -128,39 +215,6 @@
             color: #999;
         }
 
-        .stats-section {
-            background: white;
-            padding: 20px;
-            margin: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 10px;
-            background: #FFF8DC;
-            border-radius: 8px;
-        }
-
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #CD853F;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
 
         .loading {
             text-align: center;
@@ -180,7 +234,12 @@
         .no-tasks {
             text-align: center;
             padding: 40px;
-            color: #999;
+            color: #8B4513;
+            font-size: 16px;
+            background: #FFF8DC;
+            margin: 15px;
+            border-radius: 10px;
+            border: 2px dashed #CD853F;
         }
 
         .floating-button {
@@ -232,33 +291,28 @@
         <div id="userName" style="font-size: 14px; opacity: 0.9; margin-top: 5px;"></div>
     </div>
 
-    <div class="date-selector">
-        <input type="date" id="dateInput" class="date-input" onchange="filterByDate()">
+    <div class="calendar-container">
+        <div class="month-selector">
+            <button class="month-nav-btn" onclick="previousMonth()">&lt;</button>
+            <h2 id="currentMonth">9月, 2025</h2>
+            <button class="month-nav-btn" onclick="nextMonth()">&gt;</button>
+        </div>
+        <div class="calendar-grid">
+            <div class="weekdays">
+                <div class="weekday">週日</div>
+                <div class="weekday">週一</div>
+                <div class="weekday">週二</div>
+                <div class="weekday">週三</div>
+                <div class="weekday">週四</div>
+                <div class="weekday">週五</div>
+                <div class="weekday">週六</div>
+            </div>
+            <div id="calendarDays" class="calendar-days">
+                <!-- 日期會動態生成 -->
+            </div>
+        </div>
     </div>
 
-    <div class="stats-section">
-        <div style="text-align: center; font-weight: bold; color: #8B4513; margin-bottom: 10px;">
-            📊 統計資訊
-        </div>
-        <div class="stats-grid">
-            <div class="stat-item">
-                <div class="stat-number" id="totalTasks">0</div>
-                <div class="stat-label">總任務數</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number" id="completedTasks">0</div>
-                <div class="stat-label">已完成</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number" id="pendingTasks">0</div>
-                <div class="stat-label">待完成</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number" id="totalDays">0</div>
-                <div class="stat-label">記錄天數</div>
-            </div>
-        </div>
-    </div>
 
 
     <div id="loading" class="loading">
@@ -273,21 +327,17 @@
 
     <button class="floating-button" onclick="closeApp()">✕</button>
     
-    <!-- 除錯測試按鈕 -->
-    <div style="position: fixed; bottom: 80px; left: 20px; z-index: 1001;">
-        <button onclick="testDateFilter()" style="background: #FF6B6B; color: white; padding: 10px; border: none; border-radius: 5px; font-size: 12px;">
-            測試9/9
-        </button>
-    </div>
 
 
     <script>
         let liffProfile = null;
         let allTasks = [];
         let filteredTasks = [];
+        let currentDate = new Date();
+        let selectedDate = null;
         
-        // 版本控制 - 強制更新 2025-09-11-12:35
-        console.log('🔄 [頁面版本] 全部記錄頁面 - 日曆篩選版本 v2025-09-11-15:20 已載入');
+        // 版本控制 - 強制更新 2025-09-13-14:30
+        console.log('🔄 [頁面版本] 全部記錄頁面 - 日曆視圖版本 v2025-09-13-14:30 已載入');
 
         // 🔄 檢查頁面初始化（保留函數名稱以避免破壞其他調用）
         function checkForSyncData() {
@@ -316,13 +366,22 @@
                 // 顯示使用者名稱
                 document.getElementById('userName').textContent = liffProfile.displayName;
 
-                // 不設定預設日期，讓用戶主動選擇
+                // 初始化日曆
+                generateCalendar(currentDate);
+
                 // 隱藏載入畫面，顯示空白狀態
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('recordsContainer').style.display = 'block';
-                
-                // 顯示提示訊息
-                showDateSelectionPrompt();
+
+                // 自動選中今天的日期
+                const today = new Date();
+                console.log('🗓️ [初始化] 自動選中今天的日期');
+                await selectDate(today);
+
+                // 如果自動選擇失敗或沒有選中日期，才顯示提示
+                if (!selectedDate) {
+                    showDateSelectionPrompt();
+                }
 
             } catch (error) {
                 console.error('LIFF 初始化失敗:', error);
@@ -330,7 +389,7 @@
             }
         }
 
-        // 載入所有記錄（直接從 Supabase dev_messages）
+        // 載入所有任務（直接從 Supabase tasks）
         async function loadAllRecords(specificDate = null) {
             try {
                 console.log(`🔄 [訊息載入] 🚀🚀🚀 函數被調用 - 參數 specificDate: ${specificDate} 🚀🚀🚀`);
@@ -340,8 +399,8 @@
                 allTasks = [];
                 console.log(`🧹 [資料清理] 已清空 allTasks 數組`);
                 
-                // 🆕 從 Supabase dev_messages 獲取訊息記錄
-                let apiUrl = '/api/messages';
+                // 🆕 從 Supabase tasks 獲取任務記錄
+                let apiUrl = '/api/tasks';
                 if (specificDate) {
                     apiUrl += `?date=${specificDate}`;
                 }
@@ -388,7 +447,6 @@
 
                 // 按日期分組並顯示 (傳遞選定日期參數)
                 displayTasksByDate(allTasks, specificDate);
-                updateStatistics(allTasks);
 
             } catch (error) {
                 console.error('❌ [記錄同步] 載入記錄失敗:', error);
@@ -403,7 +461,8 @@
             container.innerHTML = '';
 
             if (tasks.length === 0) {
-                container.innerHTML = '<div class="no-tasks">📝 目前沒有任何記錄</div>';
+                console.log('📝 [顯示任務] 沒有任務，顯示無記錄訊息');
+                container.innerHTML = '<div class="no-tasks">📝 這天沒有任何記錄</div>';
                 return;
             }
 
@@ -411,8 +470,10 @@
             let tasksByDate = {};
             if (forcedDate) {
                 console.log(`🎯 [強制日期] 使用強制日期 ${forcedDate} 顯示所有 ${tasks.length} 筆任務`);
-                // 將日期格式轉換為本地格式
-                const displayDate = new Date(forcedDate + 'T00:00:00').toLocaleDateString('zh-TW');
+                // 使用本地時區避免日期偏移問題
+                const [year, month, day] = forcedDate.split('-');
+                const localDate = new Date(year, month - 1, day);
+                const displayDate = localDate.toLocaleDateString('zh-TW');
                 tasksByDate[displayDate] = tasks;
                 console.log(`🎯 [強制日期] 顯示日期格式: ${displayDate}`);
             } else {
@@ -474,67 +535,112 @@
             });
         }
 
-        // 更新統計資訊
-        function updateStatistics(tasks) {
-            const totalTasks = tasks.length;
-            const completedTasks = tasks.filter(t => t.completed).length;
-            const pendingTasks = totalTasks - completedTasks;
-            
-            // 當有特定日期選擇時，天數固定為1或0
-            const selectedDate = document.getElementById('dateInput').value;
-            const totalDays = tasks.length > 0 && selectedDate ? 1 : 0;
 
-            document.getElementById('totalTasks').textContent = totalTasks;
-            document.getElementById('completedTasks').textContent = completedTasks;
-            document.getElementById('pendingTasks').textContent = pendingTasks;
-            document.getElementById('totalDays').textContent = totalDays;
-            
-            console.log(`📊 [統計更新] 日期: ${selectedDate || '未選擇'}, 記錄數: ${totalTasks}, 天數: ${totalDays}`);
+        // 生成日曆
+        function generateCalendar(date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+
+            // 更新月份標題
+            document.getElementById('currentMonth').textContent = `${month + 1}月, ${year}`;
+
+            // 獲取當月第一天和最後一天
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay()); // 從週日開始
+
+            const calendarDays = document.getElementById('calendarDays');
+            calendarDays.innerHTML = '';
+
+            const today = new Date();
+            const todayString = today.toDateString();
+
+            // 生成42天（6週）
+            for (let i = 0; i < 42; i++) {
+                const cellDate = new Date(startDate);
+                cellDate.setDate(startDate.getDate() + i);
+
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.textContent = cellDate.getDate();
+
+                // 添加類別
+                if (cellDate.getMonth() !== month) {
+                    dayElement.classList.add('other-month');
+                }
+
+                if (cellDate.toDateString() === todayString) {
+                    dayElement.classList.add('today');
+                }
+
+                if (selectedDate && cellDate.toDateString() === selectedDate.toDateString()) {
+                    dayElement.classList.add('selected');
+                }
+
+                // 點擊事件
+                dayElement.addEventListener('click', () => selectDate(cellDate));
+
+                calendarDays.appendChild(dayElement);
+            }
         }
 
-        // 按日期篩選（只載入選定日期的記錄）
-        async function filterByDate() {
-            const selectedDate = document.getElementById('dateInput').value;
-            
-            console.log(`📅 [日期篩選] 🔥🔥🔥 函數被調用 - 選擇日期: ${selectedDate || '無'} 🔥🔥🔥`);
-            console.log(`📅 [日期篩選] 當前時間: ${new Date().toISOString()}`);
-            console.log(`📅 [日期篩選] 版本確認: v2025-09-11-15:20`);
-            
-            if (!selectedDate) {
-                // 沒有選擇日期時，顯示提示訊息
-                console.log('📅 [日期篩選] 無日期選擇，顯示提示');
-                showDateSelectionPrompt();
+        // 選擇日期
+        async function selectDate(date) {
+            console.log(`🎯 [選擇日期] 函數開始執行, 輸入日期: ${date}`);
+            selectedDate = date;
+            console.log(`🎯 [選擇日期] selectedDate 已設定為: ${selectedDate}`);
+
+            // 重新生成日曆以更新選中狀態
+            generateCalendar(currentDate);
+            console.log(`🎯 [選擇日期] 日曆已重新生成`);
+
+            // 載入該日期的記錄 - 使用本地時區格式避免時區問題
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+
+            console.log(`📅 [日期選擇] 選中日期: ${dateString} (本地時間: ${date.toLocaleDateString('zh-TW')})`);
+            console.log(`🎯 [選擇日期] 準備調用 loadAllRecords 函數`);
+
+            try {
+                await loadAllRecords(dateString);
+                console.log(`🎯 [選擇日期] loadAllRecords 執行完成`);
+            } catch (error) {
+                console.error(`📅 [日期選擇] 載入失敗:`, error);
+            }
+        }
+
+        // 上一月
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            generateCalendar(currentDate);
+        }
+
+        // 下一月
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            generateCalendar(currentDate);
+        }
+
+        // 顯示日期選擇提示（只在沒有選中日期時使用）
+        function showDateSelectionPrompt() {
+            // 如果已經有選中的日期，就不顯示提示訊息
+            if (selectedDate) {
+                console.log('🗓️ [提示訊息] 已有選中日期，不顯示提示訊息');
                 return;
             }
 
-            // 有選擇日期時，從 Supabase 查詢該日期的記錄
-            console.log(`📅 [日期篩選] 🎯 準備載入 ${selectedDate} 的記錄`);
-            console.log(`📅 [日期篩選] API URL 將會是: /api/messages?date=${selectedDate}`);
-            
-            try {
-                await loadAllRecords(selectedDate);
-                console.log(`📅 [日期篩選] ✅ 成功完成 ${selectedDate} 的記錄載入`);
-            } catch (error) {
-                console.error(`📅 [日期篩選] ❌ 載入失敗:`, error);
-            }
-        }
-
-        // 顯示日期選擇提示
-        function showDateSelectionPrompt() {
             const container = document.getElementById('recordsContainer');
             container.innerHTML = `
                 <div style="text-align: center; padding: 60px 20px; color: #8B4513;">
                     <div style="font-size: 48px; margin-bottom: 20px;">📅</div>
                     <h2 style="margin-bottom: 15px; color: #8B4513;">選擇日期查看記錄</h2>
-                    <p style="color: #999; font-size: 14px;">請在上方日期選擇器中選擇您要查看的日期</p>
+                    <p style="color: #999; font-size: 14px;">請在上方日曆中點擊您要查看的日期</p>
                 </div>
             `;
-            
-            // 清空統計資訊
-            document.getElementById('totalTasks').textContent = '0';
-            document.getElementById('completedTasks').textContent = '0';
-            document.getElementById('pendingTasks').textContent = '0';
-            document.getElementById('totalDays').textContent = '0';
+            console.log('🗓️ [提示訊息] 顯示日期選擇提示');
         }
 
         // 顯示錯誤訊息
@@ -550,44 +656,6 @@
             liff.closeWindow();
         }
 
-        // 測試日期篩選功能
-        function testDateFilter() {
-            console.log('🧪 [測試] 測試按鈕被點擊，模擬選擇 2025-09-09');
-            const dateInput = document.getElementById('dateInput');
-            if (dateInput) {
-                dateInput.value = '2025-09-09';
-                console.log('🧪 [測試] 設定日期選擇器值為 2025-09-09');
-                filterByDate();
-            } else {
-                console.error('🧪 [測試] 找不到日期選擇器');
-            }
-        }
-
-
-        // 確保事件綁定正確
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('📅 [事件綁定] DOMContentLoaded 觸發，檢查日期選擇器');
-            
-            setTimeout(() => {
-                const dateInput = document.getElementById('dateInput');
-                if (dateInput) {
-                    console.log('📅 [事件綁定] 找到日期選擇器，添加額外事件監聽');
-                    
-                    // 添加額外的事件綁定作為備用
-                    dateInput.addEventListener('change', function() {
-                        console.log('📅 [事件綁定] addEventListener change 觸發');
-                        filterByDate();
-                    });
-                    
-                    dateInput.addEventListener('input', function() {
-                        console.log('📅 [事件綁定] addEventListener input 觸發');
-                        filterByDate();
-                    });
-                } else {
-                    console.error('📅 [事件綁定] 找不到日期選擇器元素');
-                }
-            }, 1000);
-        });
 
         // 頁面載入時初始化 LIFF
         window.addEventListener('load', initializeLiff);

@@ -115,7 +115,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
       contents: [
         {
           type: 'text',
-          text: isCompleted ? '●' : '○',
+          text: isCompleted ? '☑' : '○',
           size: 'lg',
           color: '#000000',
           flex: 0,
@@ -653,7 +653,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
         },
         {
           type: 'text',
-          text: isCompleted ? '●' : '○',
+          text: isCompleted ? '☑' : '○',
           size: 'lg',
           color: '#000000',
           flex: 0,
@@ -777,7 +777,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         contents: [
           {
             type: 'text',
-            text: isCompleted ? '●' : '○',
+            text: isCompleted ? '☑' : '○',
             size: 'lg',
             color: '#000000',
             flex: 0,
