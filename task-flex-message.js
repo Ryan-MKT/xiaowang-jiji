@@ -64,15 +64,29 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-23:50-STATS-CARD-LATEST');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
-  
+
+  // 限制顯示的任務數量，避免FLEX message過大
+  const MAX_TASKS = 15;
+  let displayTasks = tasks || [];
+
+  if (displayTasks.length > MAX_TASKS) {
+    console.log(`⚠️ [FLEX MESSAGE] 任務數量過多 (${displayTasks.length}個)，限制為 ${MAX_TASKS} 個最新任務`);
+    // 優先顯示未完成的任務
+    const incompleteTasks = displayTasks.filter(task => !task.completed).slice(0, MAX_TASKS - 5);
+    const completedTasks = displayTasks.filter(task => task.completed).slice(0, 5);
+    displayTasks = [...incompleteTasks, ...completedTasks];
+  }
+
   const totalTasks = tasks ? tasks.length : 0;
   const completedTasks = tasks ? tasks.filter(task => task.completed).length : 0;
   const pendingTasks = totalTasks - completedTasks;
 
+  console.log(`📋 [FLEX MESSAGE] 實際顯示 ${displayTasks.length} 個任務 (總共 ${totalTasks} 個)`);
+
   // 創建任務清單內容，每個任務之間加上分隔線
   const taskContents = [];
-  
-  tasks.forEach((task, index) => {
+
+  displayTasks.forEach((task, index) => {
     const isCompleted = task.completed || false;
 
     // 添加任務項目 - 支援備註顯示
@@ -150,7 +164,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
     });
     
     // 如果不是最後一個任務，添加筆記本風格分隔線
-    if (index < tasks.length - 1) {
+    if (index < displayTasks.length - 1) {
       taskContents.push({
         type: 'separator',
         margin: 'xs',
@@ -726,15 +740,29 @@ function createTagBubble(tagName, tasks, userTags = null) {
 function createMainTaskList(tasks, userTags = null, completedCount = 0, favoriteCount = 0) {
   console.log('🚨 [MAIN TASK LIST] createMainTaskList 函數被調用 - 單一 BUBBLE 版本');
 
+  // 限制顯示的任務數量，避免FLEX message過大
+  const MAX_TASKS = 15;
+  let displayTasks = tasks || [];
+
+  if (displayTasks.length > MAX_TASKS) {
+    console.log(`⚠️ [MAIN TASK LIST] 任務數量過多 (${displayTasks.length}個)，限制為 ${MAX_TASKS} 個最新任務`);
+    // 優先顯示未完成的任務
+    const incompleteTasks = displayTasks.filter(task => !task.completed).slice(0, MAX_TASKS - 5);
+    const completedTasks = displayTasks.filter(task => task.completed).slice(0, 5);
+    displayTasks = [...incompleteTasks, ...completedTasks];
+  }
+
   const totalTasks = tasks ? tasks.length : 0;
   const completedTasks = tasks ? tasks.filter(task => task.completed).length : 0;
   const pendingTasks = totalTasks - completedTasks;
 
+  console.log(`📋 [MAIN TASK LIST] 實際顯示 ${displayTasks.length} 個任務 (總共 ${totalTasks} 個)`);
+
   // 創建任務清單內容
   const taskContents = [];
 
-  if (tasks) {
-    tasks.forEach((task, index) => {
+  if (displayTasks) {
+    displayTasks.forEach((task, index) => {
       const isCompleted = task.completed || false;
 
       // 添加任務項目
@@ -812,7 +840,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
       });
 
       // 如果不是最後一個任務，添加分隔線
-      if (index < tasks.length - 1) {
+      if (index < displayTasks.length - 1) {
         taskContents.push({
           type: 'separator',
           margin: 'xs',

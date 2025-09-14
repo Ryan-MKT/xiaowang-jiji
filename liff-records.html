@@ -191,6 +191,33 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:hover {
+            background: #f5f5f5;
+            transform: translateX(5px);
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            cursor: pointer;
+            font-size: 12px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+
+        .task-checkbox.completed {
+            background: black;
+            color: white;
         }
 
         .task-text {
@@ -331,6 +358,7 @@
 
     <script>
         let liffProfile = null;
+        let currentUserId = null;
         let allTasks = [];
         let filteredTasks = [];
         let currentDate = new Date();
@@ -362,7 +390,11 @@
                 // 取得使用者資料
                 liffProfile = await liff.getProfile();
                 console.log('LIFF Profile:', liffProfile);
-                
+
+                // 設定當前用戶ID
+                currentUserId = liffProfile.userId;
+                console.log('🆔 [用戶ID] 設定完成:', currentUserId);
+
                 // 顯示使用者名稱
                 document.getElementById('userName').textContent = liffProfile.displayName;
 
@@ -518,8 +550,13 @@
                     </div>
                     <div class="task-list">
                         ${dayTasks.map((task, index) => `
-                            <div class="task-item ${task.completed ? 'task-completed' : ''}">
-                                <span class="task-text">${index + 1}. ${task.text || '未命名任務'}</span>
+                            <div class="task-item ${task.completed ? 'task-completed' : ''}" onclick="toggleTask('${task.id}')">
+                                <div style="display: flex; align-items: center; flex: 1;">
+                                    <div class="task-checkbox ${task.completed ? 'completed' : ''}">
+                                        ${task.completed ? '🅥' : '○'}
+                                    </div>
+                                    <span class="task-text">${task.text || '未命名任務'}</span>
+                                </div>
                                 <span class="task-time">
                                     ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
                                         hour: '2-digit',
@@ -649,6 +686,75 @@
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
             document.getElementById('loading').style.display = 'none';
+        }
+
+        // 切換任務完成狀態
+        async function toggleTask(taskId) {
+            try {
+                console.log('🔄 [Toggle Task] 切換任務狀態:', taskId);
+
+                // 發送請求到後端更新任務狀態
+                const response = await fetch('/api/tasks/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        taskId: taskId,
+                        userId: currentUserId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ [Toggle Task] 任務狀態更新成功:', result);
+
+                // 重新載入當前選中日期的記錄
+                if (selectedDate) {
+                    const year = selectedDate.getFullYear();
+                    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    const dateString = `${year}-${month}-${day}`;
+                    await loadAllRecords(dateString);
+                }
+
+                // 通知用戶操作成功
+                showNotification(result.completed ? '任務已完成！' : '任務已取消完成');
+
+            } catch (error) {
+                console.error('❌ [Toggle Task] 切換任務狀態失敗:', error);
+                showNotification('操作失敗，請稍後重試');
+            }
+        }
+
+        // 顯示通知訊息
+        function showNotification(message) {
+            // 創建通知元素
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: black;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 20px;
+                font-size: 14px;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            // 3秒後自動移除
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
         }
 
         // 關閉應用程式

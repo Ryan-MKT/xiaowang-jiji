@@ -527,7 +527,6 @@ async function handleEvent(event) {
           {
             user_id: userId,
             message_text: cleanedMessage,
-            message_type: isVoiceMessage ? 'voice' : 'text',
             tag: detectedTag,
             created_at: new Date().toISOString()
           }
@@ -1297,6 +1296,52 @@ app.get('/api/tags', async (req, res) => {
 });
 
 // 新增標籤
+// 任務切換完成狀態 API
+app.post('/api/tasks/toggle', async (req, res) => {
+  try {
+    const { taskId, userId } = req.body;
+
+    if (!taskId || !userId) {
+      return res.status(400).json({ error: 'Missing taskId or userId' });
+    }
+
+    console.log(`🔄 [Toggle Task] 用戶 ${userId} 切換任務 ${taskId} 狀態`);
+
+    // 從記憶體中獲取用戶任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskIndex = userTasks.findIndex(task => task.id == taskId);
+
+    if (taskIndex === -1) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // 切換任務完成狀態
+    const task = userTasks[taskIndex];
+    task.completed = !task.completed;
+    task.updatedAt = new Date().toISOString();
+
+    // 更新記憶體中的任務
+    userTaskStacks.set(userId, userTasks);
+
+    // 注意：此系統使用記憶體儲存任務，不依賴資料庫中的 tasks 表
+    // 任務資料已經在記憶體中更新，無需額外的資料庫操作
+    console.log('ℹ️ [Toggle Task] 系統使用記憶體儲存，任務已在 userTaskStacks 中更新');
+
+    console.log(`✅ [Toggle Task] 任務 ${taskId} 狀態已更新: ${task.completed ? '完成' : '未完成'}`);
+
+    res.json({
+      success: true,
+      taskId: taskId,
+      completed: task.completed,
+      message: task.completed ? '任務已完成！' : '任務已取消完成'
+    });
+
+  } catch (error) {
+    console.error('❌ [Toggle Task] API 錯誤:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/tags', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
@@ -1458,19 +1503,51 @@ app.delete('/api/tags/:tagId', async (req, res) => {
 app.get('/api/tasks', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
-    
+
     if (!userId) {
       return res.status(400).json({ error: 'Missing user ID' });
     }
-    
+
     console.log(`🔍 [任務API] 取得使用者 ${userId} 的任務列表`);
-    
+
     // 從記憶體獲取用戶任務
-    const userTasks = userTaskStacks.get(userId) || [];
-    
+    let userTasks = userTaskStacks.get(userId) || [];
+
+    // 如果記憶體中沒有任務，嘗試從資料庫載入歷史任務
+    if (userTasks.length === 0 && supabase) {
+      try {
+        console.log('🔄 [任務API] 記憶體中無任務，從資料庫載入歷史訊息...');
+
+        const { data: messages, error } = await supabase
+          .from('dev_messages')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true });
+
+        if (!error && messages && messages.length > 0) {
+          // 將歷史訊息轉換為任務格式
+          userTasks = messages.map((msg, index) => ({
+            id: msg.id || Date.now() + index,
+            text: msg.message_text,
+            completed: false, // 預設為未完成
+            timestamp: msg.created_at,
+            userId: userId,
+            favorited: false,
+            tag: msg.tag || null
+          }));
+
+          // 載入到記憶體中
+          userTaskStacks.set(userId, userTasks);
+          console.log(`✅ [任務API] 從資料庫載入 ${userTasks.length} 個歷史任務到記憶體`);
+        }
+      } catch (dbError) {
+        console.error('❌ [任務API] 從資料庫載入任務失敗:', dbError);
+      }
+    }
+
     console.log(`✅ [任務API] 成功回傳 ${userTasks.length} 個任務`);
     console.log(`📝 [任務API] 任務預覽:`, userTasks.slice(0, 3).map(task => task.text));
-    
+
     res.json(userTasks);
   } catch (err) {
     console.error('❌ [任務API] 錯誤:', err);
