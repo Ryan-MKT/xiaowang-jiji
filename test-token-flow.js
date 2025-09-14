@@ -13,8 +13,8 @@ async function testTokenFlow() {
         
         const checkoutOptions = {
             userId: 'wangji_test_user_123',
-            successUrl: 'https://128bc9123177.ngrok-free.app/payment/token-success',
-            failureUrl: 'https://128bc9123177.ngrok-free.app/payment/token-failure',
+            successUrl: 'https://ae4bee7dc026.ngrok-free.app/payment/token-success',
+            failureUrl: 'https://ae4bee7dc026.ngrok-free.app/payment/token-failure',
             customId: JSON.stringify({
                 userId: 'wangji_test_user_123',
                 purpose: 'premium_subscription',

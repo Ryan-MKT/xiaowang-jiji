@@ -4,7 +4,7 @@ const axios = require('axios');
 async function testCorrectedWebhook() {
     console.log('🧪 測試修正後的 webhook URL...\n');
     
-    const correctNgrokUrl = 'https://128bc9123177.ngrok-free.app';
+    const correctNgrokUrl = 'https://ae4bee7dc026.ngrok-free.app';
     const webhookEndpoint = '/api/payment/token-webhook';
     const fullWebhookUrl = `${correctNgrokUrl}${webhookEndpoint}`;
     

@@ -8,7 +8,7 @@ class LineLogin {
   constructor() {
     this.channelId = process.env.LINE_LOGIN_CHANNEL_ID;
     this.channelSecret = process.env.LINE_LOGIN_CHANNEL_SECRET;
-    this.redirectUri = process.env.LINE_LOGIN_CALLBACK_URL || 'https://128bc9123177.ngrok-free.app/auth/line/callback';
+    this.redirectUri = process.env.LINE_LOGIN_CALLBACK_URL || 'https://ae4bee7dc026.ngrok-free.app/auth/line/callback';
   }
 
   // 生成登入 URL

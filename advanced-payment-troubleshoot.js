@@ -6,7 +6,7 @@ console.log('🔧 進階支付問題排解與測試方案...\n');
 
 class AdvancedPaymentTroubleshoot {
     constructor() {
-        this.ngrokUrl = 'https://128bc9123177.ngrok-free.app';
+        this.ngrokUrl = 'https://ae4bee7dc026.ngrok-free.app';
         this.tokenPayment = new OenTokenPayment();
         this.testResults = [];
     }

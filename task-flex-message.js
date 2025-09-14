@@ -77,11 +77,12 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
     displayTasks = [...incompleteTasks, ...completedTasks];
   }
 
-  const totalTasks = tasks ? tasks.length : 0;
-  const completedTasks = tasks ? tasks.filter(task => task.completed).length : 0;
-  const pendingTasks = totalTasks - completedTasks;
+  // 使用顯示的任務數量（而非全部任務數量）
+  const displayedTotal = displayTasks.length;
+  const displayedCompleted = displayTasks.filter(task => task.completed).length;
+  const displayedPending = displayedTotal - displayedCompleted;
 
-  console.log(`📋 [FLEX MESSAGE] 實際顯示 ${displayTasks.length} 個任務 (總共 ${totalTasks} 個)`);
+  console.log(`📋 [FLEX MESSAGE] 實際顯示 ${displayTasks.length} 個任務`);
 
   // 創建任務清單內容，每個任務之間加上分隔線
   const taskContents = [];
@@ -102,7 +103,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://128bc9123177.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+          uri: `https://ae4bee7dc026.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
         }
       }
     ];
@@ -176,7 +177,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   // Linus 風格：資料結構簡單，直接附加 Quick Reply
   return {
     type: 'flex',
-    altText: `今天 ${totalTasks} 件事要做`,
+    altText: `顯示 ${displayedTotal} 件事`,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -188,7 +189,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         contents: [
           {
             type: 'text',
-            text: `今天 ${totalTasks} 件事要做`,
+            text: `顯示 ${displayedTotal} 件事`,
             color: '#FFFFFF',
             size: 'md',
             weight: 'bold',
@@ -209,7 +210,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           },
           {
             type: 'text',
-            text: `已完成 ${completedTasks} 件，待完成 ${pendingTasks} 件`,
+            text: `已完成 ${displayedCompleted} 件，待完成 ${displayedPending} 件`,
             size: 'xs',
             color: '#999999',
             align: 'center',
@@ -235,7 +236,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://128bc9123177.ngrok-free.app/liff-records.html'
+                  uri: 'https://ae4bee7dc026.ngrok-free.app/liff-records.html'
                 }
               },
               {
@@ -247,7 +248,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://128bc9123177.ngrok-free.app/liff-favorites.html'
+                  uri: 'https://ae4bee7dc026.ngrok-free.app/liff-favorites.html'
                 }
               },
               {
@@ -259,7 +260,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://128bc9123177.ngrok-free.app/liff-account.html'
+                  uri: 'https://ae4bee7dc026.ngrok-free.app/liff-account.html'
                 }
               }
             ]
@@ -621,7 +622,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://128bc9123177.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
+          uri: `https://ae4bee7dc026.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
         }
       }
     ];
@@ -752,11 +753,12 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
     displayTasks = [...incompleteTasks, ...completedTasks];
   }
 
-  const totalTasks = tasks ? tasks.length : 0;
-  const completedTasks = tasks ? tasks.filter(task => task.completed).length : 0;
-  const pendingTasks = totalTasks - completedTasks;
+  // 使用顯示的任務數量為統計基礎
+  const displayedTotal = displayTasks.length;
+  const displayedCompleted = displayTasks.filter(task => task.completed).length;
+  const displayedPending = displayedTotal - displayedCompleted;
 
-  console.log(`📋 [MAIN TASK LIST] 實際顯示 ${displayTasks.length} 個任務 (總共 ${totalTasks} 個)`);
+  console.log(`📋 [MAIN TASK LIST] 實際顯示 ${displayTasks.length} 個任務`);
 
   // 創建任務清單內容
   const taskContents = [];
@@ -778,7 +780,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           margin: 'none',
           action: {
             type: 'uri',
-            uri: `https://128bc9123177.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+            uri: `https://ae4bee7dc026.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
           }
         }
       ];
@@ -859,7 +861,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
     },
     {
       type: 'text',
-      text: `已完成 ${completedTasks} 件，待完成 ${pendingTasks} 件`,
+      text: `已完成 ${displayedCompleted} 件，待完成 ${displayedPending} 件`,
       size: 'xs',
       color: '#999999',
       align: 'center',
@@ -885,7 +887,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://128bc9123177.ngrok-free.app/liff-records.html'
+            uri: 'https://ae4bee7dc026.ngrok-free.app/liff-records.html'
           }
         },
         {
@@ -897,7 +899,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://128bc9123177.ngrok-free.app/liff-favorites.html'
+            uri: 'https://ae4bee7dc026.ngrok-free.app/liff-favorites.html'
           }
         },
         {
@@ -909,7 +911,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://128bc9123177.ngrok-free.app/liff-account.html'
+            uri: 'https://ae4bee7dc026.ngrok-free.app/liff-account.html'
           }
         }
       ]
@@ -948,7 +950,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
 
   return {
     type: 'flex',
-    altText: `今天 ${totalTasks} 件事要做`,
+    altText: `顯示 ${displayedTotal} 件事`,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -960,7 +962,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         contents: [
           {
             type: 'text',
-            text: `今天 ${totalTasks} 件事要做`,
+            text: `顯示 ${displayedTotal} 件事`,
             color: '#FFFFFF',
             size: 'md',
             weight: 'bold',

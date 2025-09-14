@@ -5,7 +5,7 @@ const OenTokenPayment = require('./oen-token-payment');
 
 class CompletePaymentTest {
     constructor() {
-        this.baseUrl = process.env.WEBHOOK_BASE_URL || 'https://128bc9123177.ngrok-free.app';
+        this.baseUrl = process.env.WEBHOOK_BASE_URL || 'https://ae4bee7dc026.ngrok-free.app';
         this.tokenPayment = new OenTokenPayment();
         console.log('🧪 [完整金流測試] 測試工具初始化完成');
         console.log('🌐 Webhook 基礎 URL:', this.baseUrl);

@@ -5,10 +5,10 @@ async function createNewTokenCheckout() {
     console.log('🚀 [修正 URL] 創建新的 Token 綁卡連結...\n');
     
     // 使用正確的 ngrok URL
-    const correctNgrokUrl = 'https://128bc9123177.ngrok-free.app';
+    const correctNgrokUrl = 'https://ae4bee7dc026.ngrok-free.app';
     
     console.log('🔧 [修正] 發現問題：之前使用了錯誤的 ngrok URL');
-    console.log('❌ 錯誤的 URL: https://128bc9123177.ngrok-free.app');
+    console.log('❌ 錯誤的 URL: https://ae4bee7dc026.ngrok-free.app');
     console.log('✅ 正確的 URL:', correctNgrokUrl);
     console.log('');
     
