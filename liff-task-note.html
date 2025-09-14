@@ -3,159 +3,437 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小汪記記 - 任務備註</title>
-    
+    <title>小汪記記 - 任務編輯</title>
+
     <!-- LINE LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    
+
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
             min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 0;
         }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
+
+        /* 頂部導航欄 */
+        .nav-bar {
+            background-color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e5e5e5;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        
-        .header-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .back-btn {
+            background: none;
             border: none;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            margin-bottom: 20px;
+            font-size: 18px;
+            color: #007AFF;
+            cursor: pointer;
+            padding: 8px;
+            margin-right: 8px;
         }
-        
-        .note-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
+
+        .nav-title {
+            color: #8E8E93;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .nav-right {
+            color: #8E8E93;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        /* 主內容區 */
+        .main-content {
+            background-color: white;
+            margin: 20px 16px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* 任務標題輸入 */
+        .task-title-section {
+            padding: 24px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .task-title-input {
+            width: 100%;
             border: none;
-            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.2);
+            outline: none;
+            font-size: 24px;
+            font-weight: 500;
+            color: #000;
+            background: transparent;
+            padding: 0;
+            line-height: 1.2;
         }
-        
-        .task-info {
-            background: rgba(103, 126, 234, 0.1);
-            border-radius: 10px;
-            border: 1px solid rgba(103, 126, 234, 0.2);
-            padding: 15px;
-            margin-bottom: 20px;
+
+        .task-title-input::placeholder {
+            color: #C7C7CC;
         }
-        
-        .note-textarea {
-            min-height: 120px;
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
+
+        /* 設定項目列表 */
+        .settings-list {
+            padding: 0;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-item:hover {
+            background-color: #f8f8f8;
+        }
+
+        .setting-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .setting-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .setting-label {
             font-size: 16px;
-            line-height: 1.5;
-            resize: vertical;
+            color: #000;
+            font-weight: 400;
         }
-        
-        .note-textarea:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+
+        .setting-value {
+            font-size: 16px;
+            color: #8E8E93;
+            margin-right: 8px;
         }
-        
-        .char-counter {
-            font-size: 0.875rem;
-            color: #6c757d;
-            text-align: right;
-            margin-top: 5px;
+
+        .setting-arrow {
+            color: #C7C7CC;
+            font-size: 14px;
         }
-        
+
+        /* 備註區域 */
+        .notes-section {
+            margin: 20px 16px;
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .notes-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .notes-item:hover {
+            background-color: #f8f8f8;
+        }
+
+        .notes-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .notes-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .notes-label {
+            font-size: 16px;
+            color: #000;
+            font-weight: 400;
+        }
+
+        .notes-value {
+            font-size: 16px;
+            color: #8E8E93;
+            margin-right: 8px;
+        }
+
+        /* 載入和錯誤狀態 */
         .loading {
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 200px;
+            background-color: white;
+            margin: 20px 16px;
+            border-radius: 12px;
         }
-        
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         .error {
-            color: #dc3545;
-            background: rgba(220, 53, 69, 0.1);
-            border: 1px solid rgba(220, 53, 69, 0.2);
-            border-radius: 8px;
-            padding: 12px;
-            margin: 10px 0;
+            color: #FF3B30;
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 16px;
+            text-align: center;
         }
-        
-        .btn-save {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+
+        /* 隱藏狀態 */
+        .hidden {
+            display: none;
+        }
+
+        /* 模態框樣式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 50% auto;
+            padding: 0;
+            border-radius: 14px;
+            width: 90%;
+            max-width: 300px;
+            text-align: center;
+        }
+
+        .modal-title {
+            padding: 20px 20px 10px 20px;
+            font-size: 17px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .modal-message {
+            padding: 0 20px 20px 20px;
+            font-size: 13px;
+            color: #8E8E93;
+            line-height: 1.4;
+        }
+
+        .modal-buttons {
+            border-top: 1px solid #e5e5e5;
+            display: flex;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            background: none;
             border: none;
-            padding: 12px 30px;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        .modal-btn:first-child {
+            border-right: 1px solid #e5e5e5;
+            color: #8E8E93;
+        }
+
+        .modal-btn:last-child {
+            color: #007AFF;
             font-weight: 600;
         }
-        
-        .btn-save:hover {
-            background: linear-gradient(45deg, #5a6fd8, #6a4190);
-            transform: translateY(-1px);
+
+        /* 備註輸入模態框 */
+        .note-modal .modal-content {
+            margin: 30% auto;
+            max-width: 350px;
+        }
+
+        .note-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 20px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            resize: none;
+            background-color: #f8f8f8;
+        }
+
+        .note-textarea::placeholder {
+            color: #C7C7CC;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- 標題卡片 -->
-        <div class="card header-card">
-            <div class="card-body text-center py-4">
-                <h1 class="h4 mb-2 text-primary">📝 任務備註編輯</h1>
-                <p class="text-muted mb-0">為任務添加詳細說明或備註</p>
-            </div>
+    <!-- 導航欄 -->
+    <div class="nav-bar">
+        <div class="nav-left">
+            <button class="back-btn" onclick="closeWindow()">‹</button>
+            <span class="nav-title">沒有分類</span>
         </div>
+        <div class="nav-right">⋯</div>
+    </div>
 
-        <!-- 載入中顯示 -->
-        <div id="loading" class="loading">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">載入中...</span>
+    <!-- 載入中 -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- 錯誤訊息 -->
+    <div id="error" class="error hidden"></div>
+
+    <!-- 主內容 -->
+    <div id="mainContent" class="hidden">
+        <!-- 任務標題和備註 -->
+        <div class="main-content">
+            <div class="task-title-section">
+                <input type="text"
+                       id="taskTitle"
+                       class="task-title-input"
+                       placeholder="輸入任務標題"
+                       maxlength="100">
             </div>
-        </div>
 
-        <!-- 錯誤訊息 -->
-        <div id="error" class="error" style="display: none;"></div>
-
-        <!-- 備註編輯卡片 -->
-        <div id="noteContent" class="card note-card" style="display: none;">
-            <div class="card-body p-4">
-                <!-- 任務資訊 -->
-                <div id="taskInfo" class="task-info">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="bi bi-check-circle text-primary me-2 fs-5"></i>
-                        <strong class="text-dark">當前任務</strong>
+            <!-- 備註欄位 -->
+            <div class="notes-item" onclick="showNoteEditor()">
+                <div class="notes-icon">📝</div>
+                <div class="notes-content">
+                    <span class="notes-label">備註</span>
+                    <div>
+                        <span class="notes-value" id="taskNoteStatus">新增</span>
+                        <span class="setting-arrow">›</span>
                     </div>
-                    <p id="taskText" class="mb-0 text-secondary">--</p>
+                </div>
+            </div>
+
+            <!-- 設定項目 -->
+            <div class="settings-list">
+                <div class="setting-item" onclick="showDatePicker()">
+                    <div class="setting-icon">📅</div>
+                    <div class="setting-content">
+                        <span class="setting-label">預定日期</span>
+                        <div>
+                            <span class="setting-value" id="taskDate">2025/09/14</span>
+                            <span class="setting-arrow">›</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 備註編輯區 -->
-                <div class="mb-3">
-                    <label for="noteTextarea" class="form-label fw-bold text-dark">
-                        <i class="bi bi-chat-text me-2"></i>備註內容
-                    </label>
-                    <textarea 
-                        id="noteTextarea" 
-                        class="form-control note-textarea" 
-                        placeholder="在這裡輸入任務的詳細說明、備註或提醒事項..."
-                        maxlength="200"></textarea>
-                    <div id="charCounter" class="char-counter">0 / 200 字</div>
+                <div class="setting-item" onclick="showTimePicker()">
+                    <div class="setting-icon">🕐</div>
+                    <div class="setting-content">
+                        <span class="setting-label">時間</span>
+                        <div>
+                            <span class="setting-value" id="taskTime">否</span>
+                            <span class="setting-arrow">›</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 操作按鈕 -->
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <button type="button" class="btn btn-outline-secondary me-md-2" onclick="closeWindow()">
-                        <i class="bi bi-x-circle me-2"></i>取消
-                    </button>
-                    <button type="button" class="btn btn-save text-white" onclick="saveNote()">
-                        <i class="bi bi-check-circle me-2"></i>儲存備註
-                    </button>
+                <div class="setting-item" onclick="showReminderPicker()">
+                    <div class="setting-icon">🔔</div>
+                    <div class="setting-content">
+                        <span class="setting-label">提醒時間</span>
+                        <div>
+                            <span class="setting-value" id="taskReminder">否</span>
+                            <span class="setting-arrow">›</span>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="setting-item" onclick="showRepeatPicker()">
+                    <div class="setting-icon">🔄</div>
+                    <div class="setting-content">
+                        <span class="setting-label">重複性任務</span>
+                        <div>
+                            <span class="setting-value" id="taskRepeat">否</span>
+                            <span class="setting-arrow">›</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 備註編輯模態框 -->
+    <div id="noteModal" class="modal note-modal">
+        <div class="modal-content">
+            <div class="modal-title">備註</div>
+            <textarea id="noteTextarea"
+                      class="note-textarea"
+                      placeholder="輸入備註內容..."
+                      maxlength="500"></textarea>
+            <div class="modal-buttons">
+                <button class="modal-btn" onclick="closeNoteModal()">取消</button>
+                <button class="modal-btn" onclick="saveNote()">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 確認對話框 -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="confirmTitle">確認</div>
+            <div class="modal-message" id="confirmMessage">確定要執行此操作嗎？</div>
+            <div class="modal-buttons">
+                <button class="modal-btn" onclick="closeConfirmModal()">取消</button>
+                <button class="modal-btn" id="confirmBtn" onclick="confirmAction()">確定</button>
             </div>
         </div>
     </div>
@@ -163,8 +441,14 @@
     <script>
         let liffProfile = null;
         let currentTaskId = null;
-        let currentTaskText = '';
-        let currentNote = '';
+        let currentTaskData = {
+            text: '',
+            date: new Date().toISOString().split('T')[0].replace(/-/g, '/'),
+            time: null,
+            reminder: null,
+            repeat: null,
+            note: ''
+        };
 
         // 從 URL 參數取得任務資訊
         function getUrlParams() {
@@ -179,17 +463,17 @@
         async function initializeLiff() {
             try {
                 console.log('🔧 [LIFF 初始化] 開始初始化 LIFF...');
-                
+
                 await liff.init({
                     liffId: '2008077335-rZlgE4bX'
                 });
-                
+
                 console.log('✅ [LIFF 初始化] LIFF 初始化成功');
-                
+
                 if (liff.isLoggedIn()) {
                     console.log('✅ [使用者驗證] 使用者已登入');
                     liffProfile = await liff.getProfile();
-                    await loadTaskNote();
+                    await loadTaskData();
                 } else {
                     console.log('❌ [使用者驗證] 使用者未登入，導向登入頁面');
                     liff.login();
@@ -200,55 +484,97 @@
             }
         }
 
-        // 載入任務備註
-        async function loadTaskNote() {
+        // 載入任務資料
+        async function loadTaskData() {
             try {
                 const params = getUrlParams();
-                
+
                 if (!params.taskId) {
                     showError('缺少任務 ID 參數');
                     return;
                 }
 
                 currentTaskId = params.taskId;
-                currentTaskText = params.taskText;
+                currentTaskData.text = params.taskText;
 
-                console.log('📋 [任務備註] 載入任務:', currentTaskId, currentTaskText);
-
-                // 顯示任務資訊
-                document.getElementById('taskText').textContent = currentTaskText;
+                // 顯示任務標題
+                document.getElementById('taskTitle').value = currentTaskData.text;
 
                 // 載入現有備註
-                const response = await fetch(`/api/task-note/${currentTaskId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-User-ID': liffProfile.userId
-                    }
-                });
+                try {
+                    const response = await fetch(`/api/task-note/${currentTaskId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-ID': liffProfile.userId
+                        }
+                    });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    currentNote = data.note || '';
-                    document.getElementById('noteTextarea').value = currentNote;
-                    updateCharCounter();
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.note && data.note.trim()) {
+                            currentTaskData.note = data.note;
+                            document.getElementById('taskNoteStatus').textContent = '已設定';
+                            document.getElementById('taskNoteStatus').style.color = '#007AFF';
+                        }
+                    }
+                } catch (noteError) {
+                    console.log('備註載入失敗，使用預設值');
                 }
 
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('noteContent').style.display = 'block';
+                updateDateDisplay();
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
 
             } catch (error) {
-                console.error('❌ [任務備註] 載入失敗:', error);
-                showError('載入任務備註失敗: ' + error.message);
+                console.error('❌ [任務載入] 載入失敗:', error);
+                showError('載入任務失敗: ' + error.message);
             }
+        }
+
+        // 更新日期顯示
+        function updateDateDisplay() {
+            const today = new Date();
+            const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+            document.getElementById('taskDate').textContent = dateStr;
+        }
+
+        // 顯示日期選擇器
+        function showDatePicker() {
+            showAlert('日期設定', '日期選擇功能開發中');
+        }
+
+        // 顯示時間選擇器
+        function showTimePicker() {
+            showAlert('時間設定', '時間選擇功能開發中');
+        }
+
+        // 顯示提醒選擇器
+        function showReminderPicker() {
+            showAlert('提醒設定', '提醒功能開發中');
+        }
+
+        // 顯示重複選擇器
+        function showRepeatPicker() {
+            showAlert('重複設定', '重複任務功能開發中');
+        }
+
+        // 顯示備註編輯器
+        function showNoteEditor() {
+            document.getElementById('noteTextarea').value = currentTaskData.note;
+            document.getElementById('noteModal').style.display = 'block';
+        }
+
+        // 關閉備註模態框
+        function closeNoteModal() {
+            document.getElementById('noteModal').style.display = 'none';
         }
 
         // 儲存備註
         async function saveNote() {
             try {
                 const noteText = document.getElementById('noteTextarea').value.trim();
-                
-                console.log('💾 [儲存備註] 任務 ID:', currentTaskId, '備註:', noteText);
 
                 const response = await fetch('/api/task-note', {
                     method: 'POST',
@@ -258,52 +584,62 @@
                     },
                     body: JSON.stringify({
                         taskId: currentTaskId,
-                        taskText: currentTaskText,
+                        taskText: currentTaskData.text,
                         note: noteText
                     })
                 });
 
                 if (response.ok) {
-                    console.log('✅ [儲存備註] 備註儲存成功');
-                    
-                    // 顯示成功訊息
-                    alert('✅ 備註已成功儲存！');
-                    
-                    // 關閉視窗
-                    closeWindow();
+                    currentTaskData.note = noteText;
+
+                    // 更新備註狀態顯示
+                    const noteStatus = document.getElementById('taskNoteStatus');
+                    if (noteText) {
+                        noteStatus.textContent = '已設定';
+                        noteStatus.style.color = '#007AFF';
+                    } else {
+                        noteStatus.textContent = '新增';
+                        noteStatus.style.color = '#8E8E93';
+                    }
+
+                    closeNoteModal();
+                    showAlert('儲存成功', '備註已成功儲存！');
                 } else {
                     const error = await response.text();
-                    showError('儲存失敗: ' + error);
+                    showAlert('儲存失敗', error);
                 }
 
             } catch (error) {
                 console.error('❌ [儲存備註] 儲存失敗:', error);
-                showError('儲存備註失敗: ' + error.message);
+                showAlert('儲存失敗', '儲存備註失敗: ' + error.message);
             }
         }
 
-        // 更新字數統計
-        function updateCharCounter() {
-            const textarea = document.getElementById('noteTextarea');
-            const counter = document.getElementById('charCounter');
-            const currentLength = textarea.value.length;
-            const maxLength = textarea.getAttribute('maxlength');
-            
-            counter.textContent = `${currentLength} / ${maxLength} 字`;
-            
-            if (currentLength > maxLength * 0.9) {
-                counter.classList.add('text-warning');
-            } else {
-                counter.classList.remove('text-warning');
-            }
+        // 顯示提示訊息
+        function showAlert(title, message) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            document.getElementById('confirmBtn').textContent = '確定';
+            document.getElementById('confirmBtn').onclick = closeConfirmModal;
+            document.getElementById('confirmModal').style.display = 'block';
+        }
+
+        // 關閉確認模態框
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        // 確認操作
+        function confirmAction() {
+            closeConfirmModal();
         }
 
         // 顯示錯誤訊息
         function showError(message) {
             const errorDiv = document.getElementById('error');
             errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            document.getElementById('loading').style.display = 'none';
+            errorDiv.classList.remove('hidden');
+            document.getElementById('loading').classList.add('hidden');
         }
 
         // 關閉視窗
@@ -315,16 +651,34 @@
             }
         }
 
-        // 事件監聽器
+        // 點擊模態框背景關閉
+        window.onclick = function(event) {
+            const noteModal = document.getElementById('noteModal');
+            const confirmModal = document.getElementById('confirmModal');
+
+            if (event.target == noteModal) {
+                closeNoteModal();
+            }
+            if (event.target == confirmModal) {
+                closeConfirmModal();
+            }
+        }
+
+        // 自動儲存任務標題
         document.addEventListener('DOMContentLoaded', function() {
-            // 字數統計
-            document.getElementById('noteTextarea').addEventListener('input', updateCharCounter);
-            
-            // Enter 鍵儲存 (Ctrl/Cmd + Enter)
-            document.getElementById('noteTextarea').addEventListener('keydown', function(e) {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    saveNote();
-                }
+            const titleInput = document.getElementById('taskTitle');
+            let saveTimeout;
+
+            titleInput.addEventListener('input', function() {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(async () => {
+                    const newTitle = titleInput.value.trim();
+                    if (newTitle && newTitle !== currentTaskData.text) {
+                        // 這裡可以加入自動儲存邏輯
+                        currentTaskData.text = newTitle;
+                        console.log('任務標題已更新:', newTitle);
+                    }
+                }, 1000);
             });
         });
 
