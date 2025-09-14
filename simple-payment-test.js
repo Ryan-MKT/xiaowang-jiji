@@ -14,7 +14,7 @@ async function testStep1_CreateOrder() {
     
     try {
         const response = await axios.post(
-            'https://a4cc9d907f15.ngrok-free.app/api/payment/create',
+            'https://128bc9123177.ngrok-free.app/api/payment/create',
             orderData,
             { timeout: 10000 }
         );
@@ -49,7 +49,7 @@ async function testStep2_PaymentCallback(orderId) {
         console.log('📞 發送回調數據:', callbackData);
         
         const response = await axios.post(
-            'https://a4cc9d907f15.ngrok-free.app/payment/callback',
+            'https://128bc9123177.ngrok-free.app/payment/callback',
             callbackData,
             { 
                 timeout: 10000,

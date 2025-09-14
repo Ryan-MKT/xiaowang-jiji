@@ -6,7 +6,7 @@ const { supabase } = require('./supabase-client');
 
 class PaymentFlowTester {
     constructor() {
-        this.baseUrl = 'https://a4cc9d907f15.ngrok-free.app';
+        this.baseUrl = 'https://128bc9123177.ngrok-free.app';
         this.testUser = {
             userId: 'test_user_payment_' + Date.now(),
             userName: '測試用戶'

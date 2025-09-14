@@ -15,7 +15,7 @@
     
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: white;
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
@@ -84,7 +84,7 @@
 
         /* 便利貼風格卡片 */
         .sticky-note-card {
-            background: linear-gradient(135deg, #FFE066 0%, #FFD700 100%);
+            background: white;
             border-radius: 12px;
             padding: 20px;
             min-height: 200px;
@@ -93,27 +93,27 @@
             transition: all 0.3s ease;
             transform: rotate(-1deg);
             cursor: pointer;
-            border: 1px solid #FFD700;
+            border: 1px solid black;
         }
 
         .sticky-note-card:nth-child(2n) {
             transform: rotate(1deg);
-            background: linear-gradient(135deg, #87CEEB 0%, #4169E1 100%);
+            background: white;
         }
 
         .sticky-note-card:nth-child(3n) {
             transform: rotate(-0.5deg);
-            background: linear-gradient(135deg, #FFB6C1 0%, #FF69B4 100%);
+            background: white;
         }
 
         .sticky-note-card:nth-child(4n) {
             transform: rotate(0.8deg);
-            background: linear-gradient(135deg, #98FB98 0%, #32CD32 100%);
+            background: white;
         }
 
         .sticky-note-card:nth-child(5n) {
             transform: rotate(-0.3deg);
-            background: linear-gradient(135deg, #FFA07A 0%, #FF6347 100%);
+            background: white;
         }
 
         .sticky-note-card:hover {
@@ -198,12 +198,12 @@
 
         .sticky-note-btn.use {
             background: rgba(255, 255, 255, 0.9);
-            color: #28a745;
+            color: black;
         }
 
         .sticky-note-btn.delete {
             background: rgba(255, 255, 255, 0.9);
-            color: #dc3545;
+            color: black;
         }
 
         .sticky-note-btn:hover {
@@ -220,7 +220,7 @@
             transform: translateX(-50%);
             width: 20px;
             height: 20px;
-            background: radial-gradient(circle, #C0C0C0 0%, #808080 100%);
+            background: white;
             border-radius: 50%;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             z-index: 5;
@@ -241,7 +241,7 @@
         }
         
         .btn-gradient-primary {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: black;
             border: none;
             border-radius: 25px;
             color: white;
@@ -250,14 +250,14 @@
         }
         
         .btn-gradient-primary:hover {
-            background: linear-gradient(45deg, #764ba2, #667eea);
+            background: black;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
             color: white;
         }
         
         .btn-gradient-danger {
-            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            background: black;
             border: none;
             border-radius: 20px;
             color: white;
@@ -265,12 +265,12 @@
         }
         
         .btn-gradient-danger:hover {
-            background: linear-gradient(45deg, #ffa500, #ff6b6b);
+            background: black;
             color: white;
         }
         
         .btn-gradient-success {
-            background: linear-gradient(45deg, #28a745, #20c997);
+            background: black;
             border: none;
             border-radius: 20px;
             color: white;
@@ -278,7 +278,7 @@
         }
         
         .btn-gradient-success:hover {
-            background: linear-gradient(45deg, #20c997, #28a745);
+            background: black;
             color: white;
         }
         
@@ -289,7 +289,7 @@
         }
         
         .form-control:focus {
-            border-color: #667eea;
+            border-color: black;
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
             background: white;
         }
@@ -322,7 +322,7 @@
             margin-bottom: 20px;
             border-radius: 15px;
             box-shadow: 0 4px 16px rgba(31, 38, 135, 0.2);
-            border-left: 4px solid #4169E1;
+            border-left: 4px solid black;
         }
 
         .tag-filter-buttons {
@@ -334,8 +334,8 @@
 
         .tag-filter-btn {
             background: rgba(255, 255, 255, 0.8);
-            border: 2px solid #4169E1;
-            color: #4169E1;
+            border: 2px solid black;
+            color: black;
             padding: 8px 16px;
             border-radius: 20px;
             font-size: 14px;
@@ -346,14 +346,14 @@
         }
 
         .tag-filter-btn:hover {
-            background: #4169E1;
+            background: black;
             color: white;
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(65, 105, 225, 0.3);
         }
 
         .tag-filter-btn.active {
-            background: #4169E1;
+            background: black;
             color: white;
         }
 
@@ -364,7 +364,7 @@
             margin: 15px;
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            border-left: 4px solid #4169E1;
+            border-left: 4px solid black;
         }
 
         .tag-header {
@@ -376,12 +376,12 @@
 
         .tag-title {
             font-weight: bold;
-            color: #4169E1;
+            color: black;
             font-size: 16px;
         }
 
         .tag-count {
-            background: #4169E1;
+            background: black;
             color: white;
             padding: 4px 8px;
             border-radius: 12px;
@@ -396,23 +396,23 @@
         }
 
         .tag-item {
-            background: #F0F8FF;
-            color: #4169E1;
+            background: white;
+            color: black;
             padding: 6px 12px;
             border-radius: 15px;
             font-size: 12px;
-            border: 1px solid #4169E1;
+            border: 1px solid black;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .tag-item:hover {
-            background: #4169E1;
+            background: black;
             color: white;
         }
 
         .tag-item.selected {
-            background: #4169E1;
+            background: black;
             color: white;
         }
 
@@ -424,9 +424,9 @@
         .tagged-task-item {
             padding: 10px;
             margin-bottom: 8px;
-            background: #F8F9FF;
+            background: white;
             border-radius: 6px;
-            border-left: 3px solid #4169E1;
+            border-left: 3px solid black;
             font-size: 13px;
         }
 
@@ -486,7 +486,7 @@
         .modal-title {
             font-size: 18px;
             font-weight: bold;
-            color: #4169E1;
+            color: black;
         }
 
         .modal-close {
@@ -530,7 +530,7 @@
 
         .form-input:focus {
             outline: none;
-            border-color: #4169E1;
+            border-color: black;
         }
 
         .color-picker-group {
@@ -575,8 +575,8 @@
         }
 
         .emoji-option.selected {
-            border-color: #4169E1;
-            background: #F0F8FF;
+            border-color: black;
+            background: white;
         }
 
         .btn {
@@ -590,25 +590,25 @@
         }
 
         .btn-primary {
-            background: #4169E1;
+            background: black;
             color: white;
         }
 
         .btn-primary:hover {
-            background: #365AC7;
+            background: black;
         }
 
         .btn-danger {
-            background: #DC3545;
+            background: black;
             color: white;
         }
 
         .btn-danger:hover {
-            background: #C82333;
+            background: black;
         }
 
         .tag-settings-btn {
-            background: #4169E1;
+            background: black;
             color: white;
             border: none;
             padding: 6px 12px;
@@ -628,9 +628,9 @@
             justify-content: space-between;
             padding: 8px 12px;
             margin: 5px 0;
-            background: #F8F9FA;
+            background: white;
             border-radius: 8px;
-            border-left: 3px solid #4169E1;
+            border-left: 3px solid black;
         }
 
         .existing-tag-info {
@@ -771,16 +771,16 @@
                 <div class="form-group">
                     <label class="form-label">選擇顏色</label>
                     <div class="color-picker-group">
-                        <div class="color-option selected" style="background-color: #4169E1;" data-color="#4169E1"></div>
-                        <div class="color-option" style="background-color: #FF6B6B;" data-color="#FF6B6B"></div>
-                        <div class="color-option" style="background-color: #4ECDC4;" data-color="#4ECDC4"></div>
-                        <div class="color-option" style="background-color: #45B7D1;" data-color="#45B7D1"></div>
-                        <div class="color-option" style="background-color: #96CEB4;" data-color="#96CEB4"></div>
-                        <div class="color-option" style="background-color: #FFEAA7;" data-color="#FFEAA7"></div>
-                        <div class="color-option" style="background-color: #DDA0DD;" data-color="#DDA0DD"></div>
-                        <div class="color-option" style="background-color: #98D8C8;" data-color="#98D8C8"></div>
-                        <div class="color-option" style="background-color: #F7DC6F;" data-color="#F7DC6F"></div>
-                        <div class="color-option" style="background-color: #BB8FCE;" data-color="#BB8FCE"></div>
+                        <div class="color-option selected" style="background-color: black;" data-color="black"></div>
+                        <div class="color-option" style="background-color: white; border: 1px solid black;" data-color="white"></div>
+                        <div class="color-option" style="background-color: #888;" data-color="#888"></div>
+                        <div class="color-option" style="background-color: #666;" data-color="#666"></div>
+                        <div class="color-option" style="background-color: #444;" data-color="#444"></div>
+                        <div class="color-option" style="background-color: #222;" data-color="#222"></div>
+                        <div class="color-option" style="background-color: #AAA;" data-color="#AAA"></div>
+                        <div class="color-option" style="background-color: #555;" data-color="#555"></div>
+                        <div class="color-option" style="background-color: #777;" data-color="#777"></div>
+                        <div class="color-option" style="background-color: #999;" data-color="#999"></div>
                     </div>
                 </div>
 
@@ -804,7 +804,7 @@
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button class="btn btn-primary" onclick="saveTag()">💾 儲存標籤</button>
-                    <button class="btn" onclick="closeTagSettings()" style="background: #6c757d; color: white;">取消</button>
+                    <button class="btn" onclick="closeTagSettings()" style="background: black; color: white;">取消</button>
                 </div>
             </div>
 
@@ -834,7 +834,7 @@
         
         console.log('🚀 [FAVORITES] 變數初始化完成');
         let userTags = [];
-        let selectedColor = '#4169E1';
+        let selectedColor = 'black';
         let selectedEmoji = '🏷️';
         
         // 立即檢查函數
@@ -1379,7 +1379,7 @@
             container.innerHTML = tasksWithTag.map((task, index) => `
                 <div class="tagged-task-item">
                     <div class="tagged-task-text">
-                        ${index + 1}. ${task.text} ${task.completed ? '✓' : ''}
+                        ${index + 1}. ${task.text} ${task.completed ? '🅥' : ''}
                     </div>
                     <div class="tagged-task-meta">
                         標籤: ${task.tag} | ${new Date(task.timestamp).toLocaleString('zh-TW')}
@@ -1529,7 +1529,7 @@
 
         function resetTagForm() {
             document.getElementById('tagNameInput').value = '';
-            selectedColor = '#4169E1';
+            selectedColor = 'black';
             selectedEmoji = '🏷️';
             
             // 重置顏色選擇
@@ -1592,9 +1592,9 @@
         // 獲取預設標籤
         function getDefaultTags() {
             return [
-                { id: 1, name: '工作', color: '#FF6B6B', icon: '💼', orderIndex: 1 },
-                { id: 2, name: '學習', color: '#4ECDC4', icon: '📚', orderIndex: 2 },
-                { id: 3, name: '運動', color: '#45B7D1', icon: '🏃‍♂️', orderIndex: 3 }
+                { id: 1, name: '工作', color: 'black', icon: '💼', orderIndex: 1 },
+                { id: 2, name: '學習', color: '#666', icon: '📚', orderIndex: 2 },
+                { id: 3, name: '運動', color: '#333', icon: '🏃‍♂️', orderIndex: 3 }
             ];
         }
 

@@ -4,7 +4,7 @@ const axios = require('axios');
 console.log('🔍 診斷 Token Webhook 問題...\n');
 
 async function diagnoseWebhookIssue() {
-  const ngrokUrl = 'https://a4cc9d907f15.ngrok-free.app';
+  const ngrokUrl = 'https://128bc9123177.ngrok-free.app';
   const webhookEndpoint = '/api/payment/token-webhook';
   
   console.log('📋 診斷清單:');

@@ -15,7 +15,7 @@ class OenPaymentOfficial {
                 'https://api.payment.oen.tw' :  // 生產環境 (推測)
                 (isOfficialTest ? 
                     'https://XXXXXX.testing.oen.tw' :  // 官方測試環境 (待確認)
-                    'https://a4cc9d907f15.ngrok-free.app'  // 暫時的模擬環境
+                    'https://128bc9123177.ngrok-free.app'  // 暫時的模擬環境
                 ),
             
             // 商戶配置
@@ -34,11 +34,11 @@ class OenPaymentOfficial {
             // 回調配置
             callbackUrl: isProduction ?
                 `${process.env.WEBHOOK_BASE_URL}/payment/callback` :
-                'https://a4cc9d907f15.ngrok-free.app/payment/callback',
+                'https://128bc9123177.ngrok-free.app/payment/callback',
                 
             returnUrl: isProduction ?
                 `${process.env.WEBHOOK_BASE_URL}/payment/success` :
-                'https://a4cc9d907f15.ngrok-free.app/payment/success',
+                'https://128bc9123177.ngrok-free.app/payment/success',
             
             // 官方測試卡號
             testCards: {

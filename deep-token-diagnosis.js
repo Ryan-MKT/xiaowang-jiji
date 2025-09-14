@@ -6,7 +6,7 @@ console.log('🔍 深度診斷 Token 綁卡流程問題...\n');
 
 class DeepTokenDiagnosis {
     constructor() {
-        this.ngrokUrl = 'https://a4cc9d907f15.ngrok-free.app';
+        this.ngrokUrl = 'https://128bc9123177.ngrok-free.app';
         this.tokenPayment = new OenTokenPayment();
         this.diagnosticResults = {
             apiConfiguration: null,

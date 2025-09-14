@@ -10,8 +10,8 @@ async function createRealTokenCheckout() {
         // 建立真實的 Token 綁卡連結
         const result = await tokenPayment.createTokenCheckoutLink({
             userId: 'wangji_real_test_' + Date.now(),
-            successUrl: 'https://a4cc9d907f15.ngrok-free.app/payment/token-success',
-            failureUrl: 'https://a4cc9d907f15.ngrok-free.app/payment/token-failure',
+            successUrl: 'https://128bc9123177.ngrok-free.app/payment/token-success',
+            failureUrl: 'https://128bc9123177.ngrok-free.app/payment/token-failure',
             customId: JSON.stringify({
                 userId: 'wangji_real_test_' + Date.now(),
                 purpose: 'premium_subscription',

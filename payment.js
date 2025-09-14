@@ -11,7 +11,7 @@ class OenPayment {
             // 根據環境選擇 API 端點
             apiUrl: isProduction ? 
                 (process.env.OEN_PAYMENT_API_URL || 'https://payment.oen.tw') : 
-                'https://a4cc9d907f15.ngrok-free.app',
+                'https://128bc9123177.ngrok-free.app',
             
             // 商店配置 - 從環境變數取得
             storeId: isProduction ? 
@@ -24,10 +24,10 @@ class OenPayment {
             // 回調 URL - 根據環境配置
             callbackUrl: isProduction ?
                 (process.env.PAYMENT_CALLBACK_URL || `${process.env.WEBHOOK_BASE_URL}/api/payment/callback`) :
-                'https://a4cc9d907f15.ngrok-free.app/payment/callback',
+                'https://128bc9123177.ngrok-free.app/payment/callback',
             returnUrl: isProduction ?
                 (process.env.PAYMENT_SUCCESS_URL || `${process.env.WEBHOOK_BASE_URL}/payment/success`) :
-                'https://a4cc9d907f15.ngrok-free.app/payment/success',
+                'https://128bc9123177.ngrok-free.app/payment/success',
             
             // 測試卡號配置（僅測試環境）
             testCards: {

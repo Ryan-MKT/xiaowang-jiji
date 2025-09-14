@@ -25,8 +25,8 @@ async function createPaymentLink(orderData) {
             userEmail: orderData.userEmail || '',
             note: orderData.note || '小汪記記 Premium 訂閱',
             // 成功/失敗 URL - 如果沒提供會用預設
-            successUrl: orderData.successUrl || `https://a4cc9d907f15.ngrok-free.app/payment/success`,
-            failureUrl: orderData.failureUrl || `https://a4cc9d907f15.ngrok-free.app/payment/cancel`
+            successUrl: orderData.successUrl || `https://128bc9123177.ngrok-free.app/payment/success`,
+            failureUrl: orderData.failureUrl || `https://128bc9123177.ngrok-free.app/payment/cancel`
         };
         
         console.log('🌐 [Payment Link] 調用 API:', config.apiUrl);

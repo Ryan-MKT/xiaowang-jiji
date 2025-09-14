@@ -57,8 +57,8 @@ async function testDifferentRequests() {
     try {
         const fullResponse = await axios.post(`${config.apiUrl}/checkout-token`, {
             merchantId: config.merchantId,
-            successUrl: 'https://a4cc9d907f15.ngrok-free.app/payment/token-success',
-            failureUrl: 'https://a4cc9d907f15.ngrok-free.app/payment/token-failure',
+            successUrl: 'https://128bc9123177.ngrok-free.app/payment/token-success',
+            failureUrl: 'https://128bc9123177.ngrok-free.app/payment/token-failure',
             customId: 'simple_test_123'
         }, {
             headers: {

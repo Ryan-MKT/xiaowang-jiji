@@ -1912,6 +1912,12 @@ app.post('/admin/create-tags-table', async (req, res) => {
 
 // ==================== WEBHOOK 路由 ====================
 
+// Webhook GET 端點 - 供 LINE 驗證使用
+app.get('/webhook', (req, res) => {
+  console.log('🔍 [Webhook GET] LINE 驗證請求');
+  res.status(200).send('OK');
+});
+
 app.post('/webhook', (req, res) => {
   // 簡化版本：跳過 LINE signature 驗證用於測試
   const timestamp = new Date().toISOString();

@@ -17,13 +17,13 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', sans-serif;
-            background: linear-gradient(135deg, #FFF8DC 0%, #F5DEB3 100%);
+            background: white;
             min-height: 100vh;
             padding-bottom: 60px;
         }
 
         .header {
-            background: #CD853F;
+            background: black;
             color: white;
             padding: 20px;
             text-align: center;
@@ -48,7 +48,7 @@
         }
 
         .month-selector {
-            background: #CD853F;
+            background: black;
             color: white;
             padding: 15px;
             display: flex;
@@ -91,7 +91,7 @@
             text-align: center;
             font-size: 14px;
             font-weight: bold;
-            color: #8B4513;
+            color: black;
             padding: 8px 0;
         }
 
@@ -118,13 +118,13 @@
         }
 
         .calendar-day.today {
-            background: #4285F4;
+            background: black;
             color: white;
             font-weight: bold;
         }
 
         .calendar-day.selected {
-            background: #CD853F;
+            background: black;
             color: white;
             font-weight: bold;
         }
@@ -139,7 +139,7 @@
             bottom: 2px;
             left: 50%;
             transform: translateX(-50%);
-            color: #FF6B6B;
+            color: black;
             font-size: 12px;
         }
 
@@ -158,7 +158,7 @@
         }
 
         .day-header {
-            background: #8B4513;
+            background: black;
             color: white;
             padding: 15px;
             font-weight: bold;
@@ -185,9 +185,9 @@
         .task-item {
             padding: 12px;
             margin-bottom: 10px;
-            background: #FFF8DC;
+            background: white;
             border-radius: 8px;
-            border-left: 4px solid #CD853F;
+            border-left: 4px solid black;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -219,34 +219,34 @@
         .loading {
             text-align: center;
             padding: 40px;
-            color: #8B4513;
+            color: black;
         }
 
         .error {
-            background: #FFE4E1;
-            color: #8B0000;
+            background: white;
+            color: black;
             padding: 15px;
             margin: 15px;
             border-radius: 8px;
-            border-left: 4px solid #CD5C5C;
+            border-left: 4px solid black;
         }
 
         .no-tasks {
             text-align: center;
             padding: 40px;
-            color: #8B4513;
+            color: black;
             font-size: 16px;
-            background: #FFF8DC;
+            background: white;
             margin: 15px;
             border-radius: 10px;
-            border: 2px dashed #CD853F;
+            border: 2px dashed black;
         }
 
         .floating-button {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: #CD853F;
+            background: black;
             color: white;
             width: 56px;
             height: 56px;
@@ -634,9 +634,9 @@
 
             const container = document.getElementById('recordsContainer');
             container.innerHTML = `
-                <div style="text-align: center; padding: 60px 20px; color: #8B4513;">
+                <div style="text-align: center; padding: 60px 20px; color: black;">
                     <div style="font-size: 48px; margin-bottom: 20px;">📅</div>
-                    <h2 style="margin-bottom: 15px; color: #8B4513;">選擇日期查看記錄</h2>
+                    <h2 style="margin-bottom: 15px; color: black;">選擇日期查看記錄</h2>
                     <p style="color: #999; font-size: 14px;">請在上方日曆中點擊您要查看的日期</p>
                 </div>
             `;
