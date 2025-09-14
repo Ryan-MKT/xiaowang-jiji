@@ -1891,21 +1891,114 @@ app.post('/api/task-note', async (req, res) => {
     // 從記憶體中的任務堆疊尋找對應的任務並更新備註
     const userTasks = userTaskStacks.get(userId) || [];
     const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
-    
+
     if (taskIndex !== -1) {
       // 更新現有任務的備註
       userTasks[taskIndex].note = note.trim();
       userTaskStacks.set(userId, userTasks);
       console.log(`✅ [儲存備註] 任務 ${taskId} 備註已更新`);
     } else {
-      console.log(`❌ [儲存備註] 找不到任務 ${taskId}`);
-      return res.status(404).json({ error: 'Task not found' });
+      // 任務不存在，自動創建新任務
+      console.log(`⚠️ [儲存備註] 任務 ${taskId} 不存在，自動創建新任務`);
+
+      const newTask = {
+        id: parseInt(taskId),
+        text: taskText || '未命名任務',
+        note: note.trim(),
+        completed: false,
+        favorited: false,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      userTasks.push(newTask);
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [儲存備註] 已自動創建並儲存任務 ${taskId} 的備註`);
     }
     
     res.json({ success: true, note: note.trim() });
     
   } catch (err) {
     console.error('❌ [儲存備註] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 儲存任務完整資料
+app.post('/api/save-task', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const { taskId, title, note, tag, date, reminder, repeat } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    if (!taskId || !title) {
+      return res.status(400).json({ error: 'Missing required fields: taskId and title' });
+    }
+
+    console.log(`💾 [儲存任務] 用戶 ${userId} 儲存任務 ${taskId}:`, { title, note, tag, date, reminder, repeat });
+
+    // 從記憶體中的任務堆疊尋找對應的任務並更新
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
+
+    if (taskIndex !== -1) {
+      // 更新現有任務的所有資料
+      userTasks[taskIndex] = {
+        ...userTasks[taskIndex],
+        text: title,
+        note: note || '',
+        tag: tag || null,
+        date: date || null,
+        reminder: reminder || null,
+        repeat: repeat || null,
+        updated_at: new Date().toISOString()
+      };
+
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [儲存任務] 任務 ${taskId} 已成功更新`);
+
+      res.json({
+        success: true,
+        task: userTasks[taskIndex],
+        message: '任務已成功儲存並同步更新到 TODO LIST'
+      });
+    } else {
+      // 任務不存在，自動創建新任務
+      console.log(`⚠️ [儲存任務] 任務 ${taskId} 不存在，自動創建新任務`);
+
+      const newTask = {
+        id: parseInt(taskId),
+        text: title,
+        note: note || '',
+        tag: tag || null,
+        date: date || null,
+        reminder: reminder || null,
+        repeat: repeat || null,
+        completed: false,
+        favorited: false,
+        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      userTasks.push(newTask);
+      userTaskStacks.set(userId, userTasks);
+
+      console.log(`✅ [儲存任務] 已自動創建並儲存任務 ${taskId}: "${title}"`);
+
+      res.json({
+        success: true,
+        task: newTask,
+        message: '任務已成功創建並儲存到 TODO LIST'
+      });
+    }
+
+  } catch (err) {
+    console.error('❌ [儲存任務] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
