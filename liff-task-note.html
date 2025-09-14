@@ -695,11 +695,59 @@
             document.getElementById('confirmTitle').textContent = '確認刪除';
             document.getElementById('confirmMessage').textContent = '確定要刪除此任務嗎？此操作無法復原。';
             document.getElementById('confirmBtn').textContent = '刪除';
-            document.getElementById('confirmBtn').onclick = function() {
-                // 實際刪除邏輯
-                showAlert('刪除成功', '任務已成功刪除！');
+            document.getElementById('confirmBtn').onclick = async function() {
+                await performDeleteTask();
             };
             document.getElementById('confirmModal').style.display = 'block';
+        }
+
+        // 執行刪除任務操作
+        async function performDeleteTask() {
+            try {
+                console.log('🗑️ [刪除任務] 開始刪除任務:', currentTaskId);
+
+                // 發送刪除請求
+                const response = await fetch(`/api/delete-task/${currentTaskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-User-ID': liffProfile.userId
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    console.log('✅ [刪除任務] 刪除成功:', result);
+
+                    // 關閉確認對話框
+                    document.getElementById('confirmModal').style.display = 'none';
+
+                    // 顯示成功訊息
+                    showAlert('刪除成功', '任務已成功刪除並同步更新到 TODO LIST！');
+
+                    // 延遲關閉視窗，讓用戶看到成功訊息
+                    setTimeout(() => {
+                        closeWindow();
+                    }, 1500);
+
+                } else {
+                    const error = await response.text();
+                    console.error('❌ [刪除任務] 刪除失敗:', error);
+
+                    // 關閉確認對話框
+                    document.getElementById('confirmModal').style.display = 'none';
+
+                    showAlert('刪除失敗', '刪除時發生錯誤: ' + error);
+                }
+
+            } catch (error) {
+                console.error('❌ [刪除任務] 發生錯誤:', error);
+
+                // 關閉確認對話框
+                document.getElementById('confirmModal').style.display = 'none';
+
+                showAlert('刪除失敗', '刪除時發生錯誤: ' + error.message);
+            }
         }
 
         // 自動儲存備註

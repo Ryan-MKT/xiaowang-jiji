@@ -2003,6 +2003,68 @@ app.post('/api/save-task', async (req, res) => {
   }
 });
 
+// 刪除任務
+app.delete('/api/delete-task/:taskId', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const taskId = req.params.taskId;
+
+    if (!userId || !taskId) {
+      return res.status(400).json({ error: 'Missing required fields: userId and taskId' });
+    }
+
+    console.log(`🗑️ [刪除任務] 用戶 ${userId} 刪除任務 ${taskId}`);
+
+    // 1. 從記憶體中的任務堆疊中移除任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
+
+    let deletedTask = null;
+    if (taskIndex !== -1) {
+      deletedTask = userTasks[taskIndex];
+      userTasks.splice(taskIndex, 1);
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [刪除任務] 已從記憶體中刪除任務 ${taskId}: "${deletedTask.text}"`);
+    } else {
+      console.log(`⚠️ [刪除任務] 任務 ${taskId} 在記憶體中不存在`);
+    }
+
+    // 2. 從 Supabase 資料庫中刪除任務（如果存在的話）
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const { error: deleteError } = await supabase
+          .from(`${tablePrefix}tasks`)
+          .delete()
+          .eq('id', parseInt(taskId))
+          .eq('user_id', userId);
+
+        if (deleteError) {
+          console.error('⚠️ [刪除任務] Supabase 刪除錯誤:', deleteError);
+          // 不阻止操作，因為記憶體已經刪除成功
+        } else {
+          console.log(`✅ [刪除任務] 已從 Supabase 刪除任務 ${taskId}`);
+        }
+      } catch (supabaseError) {
+        console.error('⚠️ [刪除任務] Supabase 操作失敗:', supabaseError);
+        // 不阻止操作，因為記憶體已經刪除成功
+      }
+    }
+
+    // 3. 返回成功響應
+    res.json({
+      success: true,
+      message: '任務已成功刪除並同步更新到 TODO LIST',
+      deletedTask: deletedTask,
+      remainingTasksCount: userTasks.length
+    });
+
+  } catch (err) {
+    console.error('❌ [刪除任務] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== 管理員 API ====================
 
 app.post('/admin/create-tags-table', async (req, res) => {
