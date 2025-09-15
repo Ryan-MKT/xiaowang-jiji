@@ -315,6 +315,32 @@
             background-color: rgba(0,0,0,0.4);
         }
 
+        /* 強制顯示modal的類別 */
+        .modal.force-show {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 9999 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* 防止LIFF或其他樣式覆蓋 modal */
+        .modal.force-show .modal-content {
+            position: relative !important;
+            background-color: white !important;
+            margin: 15% auto !important;
+            padding: 20px !important;
+            border: 1px solid #888 !important;
+            width: 80% !important;
+            max-width: 400px !important;
+            border-radius: 8px !important;
+        }
+
         .modal-content {
             background-color: white;
             margin: 50% auto;
@@ -518,6 +544,9 @@
             };
         }
 
+        // LIFF 狀態追蹤
+        let liffReady = false;
+
         // LIFF 初始化
         async function initializeLiff() {
             try {
@@ -528,6 +557,10 @@
                 });
 
                 console.log('✅ [LIFF 初始化] LIFF 初始化成功');
+
+                // 設置 LIFF 準備完成
+                liffReady = true;
+                console.log('🎉 [LIFF 狀態] LIFF 現在準備就緒，可以安全顯示 modal');
 
                 if (liff.isLoggedIn()) {
                     console.log('✅ [使用者驗證] 使用者已登入');
@@ -540,7 +573,37 @@
             } catch (error) {
                 console.error('❌ [LIFF 初始化] 初始化失敗:', error);
                 showError('LIFF 初始化失敗: ' + error.message);
+                // 即使失敗也設置為 ready，避免永久阻塞
+                liffReady = true;
             }
+        }
+
+        // 等待 LIFF 準備就緒
+        async function waitForLiffReady() {
+            return new Promise((resolve) => {
+                if (liffReady) {
+                    console.log('✅ [LIFF 狀態] LIFF 已準備就緒');
+                    resolve();
+                    return;
+                }
+
+                console.log('⏳ [LIFF 狀態] 等待 LIFF 初始化完成...');
+                const checkInterval = setInterval(() => {
+                    if (liffReady) {
+                        clearInterval(checkInterval);
+                        console.log('✅ [LIFF 狀態] LIFF 初始化完成，可以繼續');
+                        resolve();
+                    }
+                }, 100);
+
+                // 最多等待 10 秒
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    console.log('⚠️ [LIFF 狀態] LIFF 初始化超時，強制繼續');
+                    liffReady = true;
+                    resolve();
+                }, 10000);
+            });
         }
 
         // 載入任務資料
@@ -600,28 +663,28 @@
         }
 
         // 顯示標籤選擇器
-        function showTagPicker() {
-            showAlert('標籤設定', '標籤選擇功能開發中');
+        async function showTagPicker() {
+            await showAlert('標籤設定', '標籤選擇功能開發中');
         }
 
         // 顯示日期選擇器
-        function showDatePicker() {
-            showAlert('日期設定', '日期選擇功能開發中');
+        async function showDatePicker() {
+            await showAlert('日期設定', '日期選擇功能開發中');
         }
 
         // 顯示時間選擇器
-        function showTimePicker() {
-            showAlert('時間設定', '時間選擇功能開發中');
+        async function showTimePicker() {
+            await showAlert('時間設定', '時間選擇功能開發中');
         }
 
         // 顯示提醒選擇器
-        function showReminderPicker() {
-            showAlert('提醒設定', '提醒功能開發中');
+        async function showReminderPicker() {
+            await showAlert('提醒設定', '提醒功能開發中');
         }
 
         // 顯示重複選擇器
-        function showRepeatPicker() {
-            showAlert('重複設定', '重複任務功能開發中');
+        async function showRepeatPicker() {
+            await showAlert('重複設定', '重複任務功能開發中');
         }
 
         // 儲存任務
@@ -636,7 +699,7 @@
                 const taskRepeat = document.getElementById('taskRepeat').textContent;
 
                 if (!taskTitle) {
-                    showAlert('儲存失敗', '請輸入任務標題');
+                    await showAlert('儲存失敗', '請輸入任務標題');
                     return;
                 }
 
@@ -671,7 +734,7 @@
                     currentTaskData.note = taskNote;
 
                     console.log('✅ [儲存任務] 儲存成功:', result);
-                    showAlert('儲存成功', '任務已成功儲存，TODO LIST 將同步更新！');
+                    await showAlert('儲存成功', '任務已成功儲存，TODO LIST 將同步更新！');
 
                     // 延遲關閉視窗，讓用戶看到成功訊息
                     setTimeout(() => {
@@ -681,24 +744,93 @@
                 } else {
                     const error = await response.text();
                     console.error('❌ [儲存任務] 儲存失敗:', error);
-                    showAlert('儲存失敗', error);
+                    await showAlert('儲存失敗', error);
                 }
 
             } catch (error) {
                 console.error('❌ [儲存任務] 發生錯誤:', error);
-                showAlert('儲存失敗', '儲存時發生錯誤: ' + error.message);
+                await showAlert('儲存失敗', '儲存時發生錯誤: ' + error.message);
             }
         }
 
         // 刪除任務
-        function deleteTask() {
+        async function deleteTask() {
+            // 等待 LIFF 準備就緒
+            await waitForLiffReady();
+
             document.getElementById('confirmTitle').textContent = '確認刪除';
             document.getElementById('confirmMessage').textContent = '確定要刪除此任務嗎？此操作無法復原。';
             document.getElementById('confirmBtn').textContent = '刪除';
             document.getElementById('confirmBtn').onclick = async function() {
                 await performDeleteTask();
             };
-            document.getElementById('confirmModal').style.display = 'block';
+
+            console.log('🔧 [Modal 顯示] LIFF 準備就緒，開始顯示 modal');
+
+            // 強制顯示modal - 使用多種方法確保顯示
+            const modal = document.getElementById('confirmModal');
+
+            // 方法1: 直接設置樣式
+            modal.style.display = 'block';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+
+            // 方法2: 添加強制顯示的CSS類別
+            modal.classList.add('force-show');
+
+            // 強制瀏覽器重新計算樣式
+            modal.offsetHeight;
+
+            // 使用requestAnimationFrame確保在下一個渲染循環中顯示
+            requestAnimationFrame(() => {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.classList.add('force-show');
+
+                // 強制觸發重新繪製的多種方法
+                window.dispatchEvent(new Event('resize'));
+                document.body.style.transform = 'translateZ(0)';
+                setTimeout(() => {
+                    document.body.style.transform = '';
+                }, 1);
+
+                // 嘗試滾動觸發重新繪製
+                const currentScroll = window.pageYOffset;
+                window.scrollTo(0, currentScroll + 1);
+                window.scrollTo(0, currentScroll);
+            });
+
+            // 額外的延遲確保顯示，加強版
+            setTimeout(() => {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.classList.add('force-show');
+                console.log('🔍 [Debug] Modal forced display after timeout');
+
+                // 額外的DOM查詢確保元素存在
+                const confirmElement = document.getElementById('confirmModal');
+                if (confirmElement) {
+                    confirmElement.style.display = 'block';
+                    confirmElement.style.visibility = 'visible';
+                    confirmElement.style.opacity = '1';
+                    confirmElement.style.zIndex = '9999';
+                    confirmElement.classList.add('force-show');
+                }
+            }, 50);
+
+            // 額外保險機制 - 如果還是沒顯示，再試一次
+            setTimeout(() => {
+                const finalCheck = document.getElementById('confirmModal');
+                if (finalCheck && (finalCheck.style.display === 'none' || finalCheck.offsetParent === null)) {
+                    console.log('⚠️ [Modal 修復] 檢測到 modal 仍未顯示，執行最終修復');
+                    finalCheck.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important;';
+                    finalCheck.classList.add('force-show');
+                }
+            }, 200);
+
+            console.log('🔍 [Debug] Modal display set to:', modal.style.display, 'Classes:', modal.className);
         }
 
         // 執行刪除任務操作
@@ -723,7 +855,7 @@
                     document.getElementById('confirmModal').style.display = 'none';
 
                     // 顯示成功訊息
-                    showAlert('刪除成功', '任務已成功刪除並同步更新到 TODO LIST！');
+                    await showAlert('刪除成功', '任務已成功刪除並同步更新到 TODO LIST！');
 
                     // 延遲關閉視窗，讓用戶看到成功訊息
                     setTimeout(() => {
@@ -737,7 +869,7 @@
                     // 關閉確認對話框
                     document.getElementById('confirmModal').style.display = 'none';
 
-                    showAlert('刪除失敗', '刪除時發生錯誤: ' + error);
+                    await showAlert('刪除失敗', '刪除時發生錯誤: ' + error);
                 }
 
             } catch (error) {
@@ -746,7 +878,7 @@
                 // 關閉確認對話框
                 document.getElementById('confirmModal').style.display = 'none';
 
-                showAlert('刪除失敗', '刪除時發生錯誤: ' + error.message);
+                await showAlert('刪除失敗', '刪除時發生錯誤: ' + error.message);
             }
         }
 
@@ -780,17 +912,50 @@
         }
 
         // 顯示提示訊息
-        function showAlert(title, message) {
+        async function showAlert(title, message) {
+            // 等待 LIFF 準備就緒
+            await waitForLiffReady();
+
             document.getElementById('confirmTitle').textContent = title;
             document.getElementById('confirmMessage').textContent = message;
             document.getElementById('confirmBtn').textContent = '確定';
             document.getElementById('confirmBtn').onclick = closeConfirmModal;
-            document.getElementById('confirmModal').style.display = 'block';
+
+            console.log('🔧 [Alert Modal] LIFF 準備就緒，開始顯示 alert modal');
+
+            // 強制顯示modal - 和deleteTask使用相同的邏輯
+            const modal = document.getElementById('confirmModal');
+
+            // 方法1: 直接設置樣式
+            modal.style.display = 'block';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+
+            // 方法2: 添加強制顯示的CSS類別
+            modal.classList.add('force-show');
+
+            // 強制瀏覽器重新計算樣式
+            modal.offsetHeight;
+
+            // 使用requestAnimationFrame確保在下一個渲染循環中顯示
+            requestAnimationFrame(() => {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.classList.add('force-show');
+            });
+
+            console.log('🔍 [Debug] Alert modal display set to:', modal.style.display, 'Classes:', modal.className);
         }
 
         // 關閉確認模態框
         function closeConfirmModal() {
-            document.getElementById('confirmModal').style.display = 'none';
+            const modal = document.getElementById('confirmModal');
+            modal.style.display = 'none';
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.classList.remove('force-show');
+            console.log('🔍 [Debug] Modal closed');
         }
 
         // 確認操作

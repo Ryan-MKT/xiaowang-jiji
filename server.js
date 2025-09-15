@@ -1600,8 +1600,7 @@ app.get('/api/tasks', async (req, res) => {
               completed: false, // 預設為未完成
               timestamp: msg.created_at,
               userId: userId,
-              favorited: false,
-              tag: msg.tag || null
+              favorited: false
             }));
 
             // 載入到記憶體中
