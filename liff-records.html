@@ -208,17 +208,32 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 10px;
+            margin-right: 12px;
             cursor: pointer;
             font-size: 12px;
             background: transparent;
             transition: all 0.2s ease;
+            /* 增加可點擊區域但不改變視覺大小 */
+            padding: 6px;
+            margin-left: -6px;
+            margin-top: -6px;
+            margin-bottom: -6px;
+        }
+
+        .task-checkbox:hover {
+            border-color: #007AFF;
+            background-color: rgba(0, 122, 255, 0.1);
         }
 
         .task-checkbox.completed {
             background: #9e9e9e;
             color: white;
             border-color: #9e9e9e;
+        }
+
+        .task-checkbox.completed:hover {
+            background: #757575;
+            border-color: #757575;
         }
 
         .task-text {
@@ -551,14 +566,14 @@
                     </div>
                     <div class="task-list">
                         ${dayTasks.map((task, index) => `
-                            <div class="task-item ${task.completed ? 'task-completed' : ''}" onclick="toggleTask('${task.id}')">
+                            <div class="task-item ${task.completed ? 'task-completed' : ''}">
                                 <div style="display: flex; align-items: center; flex: 1;">
-                                    <div class="task-checkbox ${task.completed ? 'completed' : ''}">
+                                    <div class="task-checkbox ${task.completed ? 'completed' : ''}" onclick="toggleTask('${task.id}')">
                                         ${task.completed ? '✓' : ''}
                                     </div>
-                                    <span class="task-text">${task.text || '未命名任務'}</span>
+                                    <span class="task-text" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer; flex: 1;">${task.text || '未命名任務'}</span>
                                 </div>
-                                <span class="task-time">
+                                <span class="task-time" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer;">
                                     ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
                                         hour: '2-digit',
                                         minute: '2-digit'
@@ -756,6 +771,23 @@
             setTimeout(() => {
                 document.body.removeChild(notification);
             }, 3000);
+        }
+
+        // 編輯任務功能
+        function editTask(taskId, taskText) {
+            try {
+                console.log('📝 [Edit Task] 編輯任務:', taskId, taskText);
+
+                // 建立編輯頁面 URL
+                const editUrl = `liff-task-note.html?taskId=${taskId}&taskText=${taskText}`;
+
+                // 跳轉到編輯頁面
+                window.location.href = editUrl;
+
+            } catch (error) {
+                console.error('❌ [Edit Task] 跳轉編輯頁面失敗:', error);
+                showNotification('無法開啟編輯頁面');
+            }
         }
 
         // 關閉應用程式

@@ -82,6 +82,13 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   displayTasks.forEach((task, index) => {
     const isCompleted = task.completed || false;
 
+    // 調試：檢查每個任務的備註資料
+    console.log(`🔍 [FLEX 調試] 任務 ${task.id} (${task.text}):`, {
+      hasNote: !!task.note,
+      noteContent: task.note,
+      noteLength: task.note ? task.note.length : 0
+    });
+
     // 添加任務項目 - 支援備註顯示
     const taskBoxContents = [
       {
@@ -102,6 +109,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
 
     // 如果有備註，在任務下方顯示
     if (task.note && task.note.trim()) {
+      console.log(`💬 [FLEX 備註] 任務 ${task.id} 正在顯示備註: "${task.note}"`);
       taskBoxContents.push({
         type: 'text',
         text: `💬 ${task.note}`,
@@ -111,6 +119,8 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         wrap: true,
         margin: 'xs'
       });
+    } else {
+      console.log(`❌ [FLEX 備註] 任務 ${task.id} 沒有備註或備註為空: "${task.note}"`);
     }
 
     taskContents.push({
@@ -771,6 +781,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
 
       // 如果有備註，在任務下方顯示
       if (task.note && task.note.trim()) {
+        console.log(`💬 [MAIN TASK LIST 備註] 任務 ${task.id} 正在顯示備註: "${task.note}"`);
         taskBoxContents.push({
           type: 'text',
           text: `💬 ${task.note}`,
@@ -780,6 +791,8 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           wrap: true,
           margin: 'xs'
         });
+      } else {
+        console.log(`❌ [MAIN TASK LIST 備註] 任務 ${task.id} 沒有備註或備註為空: "${task.note}"`);
       }
 
       taskContents.push({

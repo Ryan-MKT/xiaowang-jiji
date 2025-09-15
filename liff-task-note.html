@@ -882,10 +882,10 @@
             }
         }
 
-        // 自動儲存備註
-        async function autoSaveNote(noteText) {
+        // 自動儲存標題
+        async function autoSaveTitle(newTitle) {
             try {
-                const response = await fetch('/api/task-note', {
+                const response = await fetch('/api/save-task', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -893,8 +893,45 @@
                     },
                     body: JSON.stringify({
                         taskId: currentTaskId,
-                        taskText: currentTaskData.text,
-                        note: noteText
+                        title: newTitle,
+                        note: currentTaskData.note || '',
+                        tag: currentTaskData.tag || null,
+                        date: currentTaskData.date || null,
+                        reminder: currentTaskData.reminder || null,
+                        repeat: currentTaskData.repeat || null
+                    })
+                });
+
+                if (response.ok) {
+                    currentTaskData.text = newTitle;
+                    console.log('標題已自動儲存:', newTitle);
+                } else {
+                    const error = await response.text();
+                    console.error('❌ [自動儲存標題] 儲存失敗:', error);
+                }
+
+            } catch (error) {
+                console.error('❌ [自動儲存標題] 儲存失敗:', error);
+            }
+        }
+
+        // 自動儲存備註
+        async function autoSaveNote(noteText) {
+            try {
+                const response = await fetch('/api/save-task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify({
+                        taskId: currentTaskId,
+                        title: currentTaskData.text || '',
+                        note: noteText,
+                        tag: currentTaskData.tag || null,
+                        date: currentTaskData.date || null,
+                        reminder: currentTaskData.reminder || null,
+                        repeat: currentTaskData.repeat || null
                     })
                 });
 
@@ -1002,9 +1039,7 @@
                 titleSaveTimeout = setTimeout(async () => {
                     const newTitle = titleInput.value.trim();
                     if (newTitle && newTitle !== currentTaskData.text) {
-                        // 這裡可以加入自動儲存邏輯
-                        currentTaskData.text = newTitle;
-                        console.log('任務標題已更新:', newTitle);
+                        await autoSaveTitle(newTitle);
                     }
                 }, 1000);
             });

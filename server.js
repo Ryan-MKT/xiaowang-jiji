@@ -2079,6 +2079,30 @@ app.post('/api/save-task', async (req, res) => {
       };
 
       userTaskStacks.set(userId, userTasks);
+
+      // 同步更新到 Supabase
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const { error: updateError } = await supabase
+            .from(`${tablePrefix}messages`)
+            .update({
+              message_text: title,
+              note: note || null
+            })
+            .eq('id', parseInt(taskId))
+            .eq('user_id', userId);
+
+          if (updateError) {
+            console.error('❌ [儲存任務] Supabase 更新失敗:', updateError);
+          } else {
+            console.log(`✅ [儲存任務] 任務 ${taskId} 已成功同步到 Supabase`);
+          }
+        } catch (dbError) {
+          console.error('❌ [儲存任務] Supabase 連線錯誤:', dbError);
+        }
+      }
+
       console.log(`✅ [儲存任務] 任務 ${taskId} 已成功更新`);
 
       res.json({
@@ -2107,6 +2131,29 @@ app.post('/api/save-task', async (req, res) => {
 
       userTasks.push(newTask);
       userTaskStacks.set(userId, userTasks);
+
+      // 同步新任務到 Supabase
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const { error: insertError } = await supabase
+            .from(`${tablePrefix}messages`)
+            .insert([{
+              id: parseInt(taskId),
+              user_id: userId,
+              message_text: title,
+              note: note || null
+            }]);
+
+          if (insertError) {
+            console.error('❌ [儲存任務] Supabase 新增失敗:', insertError);
+          } else {
+            console.log(`✅ [儲存任務] 新任務 ${taskId} 已成功同步到 Supabase`);
+          }
+        } catch (dbError) {
+          console.error('❌ [儲存任務] Supabase 連線錯誤:', dbError);
+        }
+      }
 
       console.log(`✅ [儲存任務] 已自動創建並儲存任務 ${taskId}: "${title}"`);
 
@@ -3140,6 +3187,45 @@ app.get('/payment/success', (req, res) => {
     </body>
     </html>
   `);
+});
+
+// 測試 API：檢查用戶任務
+app.get('/api/debug/user-tasks/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const userTasks = userTaskStacks.get(userId) || [];
+  res.json({
+    userId,
+    taskCount: userTasks.length,
+    tasks: userTasks.slice(0, 5).map(task => ({
+      id: task.id,
+      text: task.text,
+      note: task.note,
+      hasNote: !!task.note
+    }))
+  });
+});
+
+// 測試 API：生成 FLEX MESSAGE
+app.get('/api/debug/flex-message/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const userTasks = userTaskStacks.get(userId) || [];
+    const userTags = await getUserTags(userId);
+    const { createMainTaskList } = getTaskFlexModule();
+    const completedCount = userTasks.filter(task => task.completed).length;
+    const favoriteCount = userTasks.filter(task => task.favorited).length;
+    const flexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+
+    res.json({
+      userId,
+      taskCount: userTasks.length,
+      completedCount,
+      favoriteCount,
+      flexMessage
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 啟動伺服器
