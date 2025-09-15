@@ -269,13 +269,18 @@ async function handlePostback(event) {
 
     // 取得用戶任務和標籤資料
     const userTasks = userTaskStacks.get(userId) || [];
-    const userTags = await getUserTags(userId);
-    const completedCount = userTasks.filter(task => task.completed).length;
-    const favoriteCount = userTasks.filter(task => task.favorited).length;
 
-    // 使用動態標籤輪播 FLEX Message
+    // 篩選今天的任務，保持與主 FLEX MESSAGE 一致
+    const todayTasks = filterTodayTasks(userTasks);
+    console.log(`📅 [展開標籤] 今天任務數量: ${todayTasks.length}, 全部任務數量: ${userTasks.length}`);
+
+    const userTags = await getUserTags(userId);
+    const completedCount = todayTasks.filter(task => task.completed).length;
+    const favoriteCount = todayTasks.filter(task => task.favorited).length;
+
+    // 使用動態標籤輪播 FLEX Message（只顯示今天的任務）
     const { createDynamicTagCarousel } = getTaskFlexModule();
-    const tagCarouselMessage = createDynamicTagCarousel(userTasks, userTags, completedCount, favoriteCount);
+    const tagCarouselMessage = createDynamicTagCarousel(todayTasks, userTags, completedCount, favoriteCount);
 
     if (client) {
       return client.replyMessage(event.replyToken, tagCarouselMessage);
