@@ -409,6 +409,145 @@
         .note-textarea::placeholder {
             color: #C7C7CC;
         }
+
+        /* 標籤下拉選單樣式 */
+        .tag-setting {
+            position: relative;
+        }
+
+        .tag-setting.expanded .setting-arrow {
+            transform: rotate(90deg);
+            transition: transform 0.3s ease;
+        }
+
+        .tag-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            background: white;
+            margin: 0 -20px;
+            transition: max-height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-left: 3px solid transparent;
+        }
+
+        .tag-dropdown.show {
+            max-height: 400px;
+            border-left: 3px solid #007AFF;
+        }
+
+        .tag-dropdown-content {
+            padding: 8px 20px 16px;
+            background: #FAFAFA;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag-option {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            margin: 4px 0;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            background: white;
+            border: 1px solid #E5E5E7;
+        }
+
+        .tag-option:hover {
+            background-color: #F0F8FF;
+            border-color: #007AFF;
+            transform: translateX(4px);
+        }
+
+        .tag-option:active {
+            transform: scale(0.98) translateX(4px);
+        }
+
+        .tag-option-icon {
+            font-size: 18px;
+            margin-right: 12px;
+            min-width: 22px;
+        }
+
+        .tag-option-text {
+            font-size: 16px;
+            color: #1C1C1E;
+            font-weight: 400;
+            flex: 1;
+        }
+
+        .tag-option.selected {
+            background: linear-gradient(135deg, #007AFF, #0051D5);
+            color: white;
+            border-color: #007AFF;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+        }
+
+        .tag-option.selected .tag-option-text {
+            color: white;
+            font-weight: 500;
+        }
+
+        .tag-option.selected .tag-option-icon {
+            filter: brightness(0) invert(1);
+        }
+
+        .setting-arrow {
+            transition: transform 0.3s ease;
+        }
+
+        /* 標籤下拉選單選項樣式 - 橫向膠囊樣式 */
+        .tag-dropdown-option {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: all 0.2s ease;
+            background: white;
+            border: 1px solid #E1E1E1;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .tag-dropdown-option:hover {
+            background-color: #F0F8FF;
+            border-color: #007AFF;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .tag-dropdown-option:active {
+            transform: scale(0.95) translateY(-1px);
+        }
+
+        .tag-dropdown-icon {
+            font-size: 14px;
+            margin-right: 6px;
+        }
+
+        .tag-dropdown-text {
+            font-size: 13px;
+            color: #1C1C1E;
+            font-weight: 400;
+        }
+
+        .tag-dropdown-option.selected {
+            background: linear-gradient(135deg, #007AFF, #0051D5);
+            color: white;
+            border-color: #007AFF;
+            box-shadow: 0 2px 6px rgba(0, 122, 255, 0.3);
+        }
+
+        .tag-dropdown-option.selected .tag-dropdown-text {
+            color: white;
+            font-weight: 500;
+        }
+
+        .tag-setting.expanded .setting-arrow {
+            transform: rotate(90deg);
+        }
     </style>
 </head>
 <body>
@@ -458,14 +597,21 @@
 
         <!-- 設定項目 - 第二個白色區塊 -->
         <div class="settings-list">
-            <div class="setting-item" onclick="showTagPicker()">
+            <div class="setting-item tag-setting" onclick="toggleTagDropdown()">
                 <div class="setting-icon">🏷️</div>
                 <div class="setting-content">
                     <span class="setting-label">任務標籤</span>
                     <div>
                         <span class="setting-value" id="taskTag">無</span>
-                        <span class="setting-arrow">›</span>
+                        <span class="setting-arrow" id="tagArrow">›</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- 標籤下拉選單 -->
+            <div class="tag-dropdown" id="tagDropdown">
+                <div class="tag-dropdown-content" id="tagDropdownContent">
+                    <!-- 標籤選項將動態載入 -->
                 </div>
             </div>
 
@@ -519,6 +665,19 @@
             <div class="modal-buttons">
                 <button class="modal-btn" onclick="closeConfirmModal()">取消</button>
                 <button class="modal-btn" id="confirmBtn" onclick="confirmAction()">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 標籤選擇器 -->
+    <div id="tagPickerModal" class="tag-picker-overlay">
+        <div class="tag-picker-container">
+            <div class="tag-picker-header">
+                <h3>選擇任務標籤</h3>
+                <button class="tag-picker-close" onclick="closeTagPicker()">×</button>
+            </div>
+            <div class="tag-picker-content" id="tagPickerContent">
+                <!-- 標籤選項將動態載入 -->
             </div>
         </div>
     </div>
@@ -639,6 +798,11 @@
                             // 載入備註到直接編輯的 textarea
                             document.getElementById('noteTextarea').value = data.note;
                         }
+                        // 載入標籤資訊
+                        if (data.tag) {
+                            currentTaskData.tag = data.tag;
+                            document.getElementById('taskTag').textContent = data.tag;
+                        }
                     }
                 } catch (noteError) {
                     console.log('備註載入失敗，使用預設值');
@@ -662,9 +826,118 @@
             document.getElementById('taskDate').textContent = dateStr;
         }
 
-        // 顯示標籤選擇器
-        async function showTagPicker() {
-            await showAlert('標籤設定', '標籤選擇功能開發中');
+        // 切換標籤下拉選單
+        async function toggleTagDropdown() {
+            const dropdown = document.getElementById('tagDropdown');
+            const tagSetting = document.querySelector('.tag-setting');
+            const arrow = document.getElementById('tagArrow');
+
+            if (dropdown.classList.contains('show')) {
+                // 關閉下拉選單
+                dropdown.classList.remove('show');
+                tagSetting.classList.remove('expanded');
+                return;
+            }
+
+            // 載入標籤並顯示
+            try {
+                if (!liffProfile || !liffProfile.userId) {
+                    await showAlert('錯誤', '無法獲取用戶ID，請重新載入頁面');
+                    return;
+                }
+
+                const userId = liffProfile.userId;
+
+                // 獲取用戶標籤
+                const response = await fetch('/api/tags', {
+                    method: 'GET',
+                    headers: {
+                        'X-User-ID': userId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('無法載入標籤');
+                }
+
+                const tags = await response.json();
+                console.log('🏷️ 載入標籤:', tags);
+
+                // 顯示標籤下拉選單
+                showTagDropdown(tags);
+
+            } catch (error) {
+                console.error('標籤載入錯誤:', error);
+                await showAlert('錯誤', '載入標籤失敗，請稍後再試');
+            }
+        }
+
+        // 顯示標籤下拉選單
+        function showTagDropdown(tags) {
+            const dropdown = document.getElementById('tagDropdown');
+            const dropdownContent = document.getElementById('tagDropdownContent');
+            const tagSetting = document.querySelector('.tag-setting');
+            const arrow = document.getElementById('tagArrow');
+
+            // 清空內容
+            dropdownContent.innerHTML = '';
+
+            // 取得當前選擇的標籤
+            const currentTag = document.getElementById('taskTag').textContent;
+
+            // 創建標籤選項
+            const tagOptions = [
+                { value: '', text: '無', icon: '🏷️' }, // 無標籤選項
+                ...tags.map(tag => ({
+                    value: tag.name,
+                    text: tag.name,
+                    icon: tag.icon || '🏷️'
+                }))
+            ];
+
+            tagOptions.forEach(option => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag-dropdown-option';
+                if ((option.value === '' && currentTag === '無') || option.value === currentTag) {
+                    tagElement.classList.add('selected');
+                }
+
+                tagElement.innerHTML = `
+                    <div class="tag-dropdown-icon">${option.icon}</div>
+                    <div class="tag-dropdown-text">${option.text}</div>
+                `;
+
+                tagElement.onclick = () => selectTagFromDropdown(option.value, option.text);
+                dropdownContent.appendChild(tagElement);
+            });
+
+            // 顯示下拉選單
+            dropdown.classList.add('show');
+            tagSetting.classList.add('expanded');
+            arrow.textContent = '⌄';
+        }
+
+        // 從下拉選單選擇標籤
+        function selectTagFromDropdown(value, text) {
+            // 更新顯示
+            const taskTagElement = document.getElementById('taskTag');
+            taskTagElement.textContent = value || '無';
+
+            console.log('🏷️ 用戶選擇標籤:', value);
+
+            // 關閉下拉選單
+            closeTagDropdown();
+        }
+
+        // 關閉標籤下拉選單
+        function closeTagDropdown() {
+            const dropdown = document.getElementById('tagDropdown');
+            const tagSetting = document.querySelector('.tag-setting');
+            const arrow = document.getElementById('tagArrow');
+
+            dropdown.classList.remove('show');
+            tagSetting.classList.remove('expanded');
+            arrow.textContent = '›';
         }
 
         // 顯示日期選擇器
@@ -999,6 +1272,81 @@
         function confirmAction() {
             closeConfirmModal();
         }
+
+        // 標籤選擇器相關函數
+        function showTagPickerModal(tags) {
+            const modal = document.getElementById('tagPickerModal');
+            const content = document.getElementById('tagPickerContent');
+
+            // 清空內容
+            content.innerHTML = '';
+
+            // 獲取當前選中的標籤
+            const currentTag = document.getElementById('taskTag').textContent;
+
+            // 建立標籤選項
+            const tagOptions = [
+                { text: '無標籤', value: '', icon: '🚫' }
+            ];
+
+            tags.forEach(tag => {
+                tagOptions.push({
+                    text: tag.name,
+                    value: tag.name,
+                    icon: tag.icon || '🏷️'
+                });
+            });
+
+            // 建立標籤選項 HTML
+            tagOptions.forEach(option => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag-option';
+                if ((option.value === '' && currentTag === '無') || option.value === currentTag) {
+                    tagElement.classList.add('selected');
+                }
+
+                tagElement.innerHTML = `
+                    <div class="tag-option-icon">${option.icon}</div>
+                    <div class="tag-option-text">${option.text}</div>
+                `;
+
+                tagElement.onclick = () => selectTag(option.value, option.text);
+                content.appendChild(tagElement);
+            });
+
+            // 顯示 modal
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        }
+
+        function closeTagPicker() {
+            const modal = document.getElementById('tagPickerModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        function selectTag(value, text) {
+            // 更新顯示
+            const taskTagElement = document.getElementById('taskTag');
+            taskTagElement.textContent = value || '無';
+
+            console.log('🏷️ 用戶選擇標籤:', value);
+
+            // 關閉選擇器
+            closeTagPicker();
+        }
+
+        // 點擊背景關閉標籤選擇器
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('tagPickerModal');
+            if (event.target === modal) {
+                closeTagPicker();
+            }
+        });
 
         // 顯示錯誤訊息
         function showError(message) {
