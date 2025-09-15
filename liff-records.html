@@ -216,8 +216,9 @@
         }
 
         .task-checkbox.completed {
-            background: black;
+            background: #9e9e9e;
             color: white;
+            border-color: #9e9e9e;
         }
 
         .task-text {
@@ -553,7 +554,7 @@
                             <div class="task-item ${task.completed ? 'task-completed' : ''}" onclick="toggleTask('${task.id}')">
                                 <div style="display: flex; align-items: center; flex: 1;">
                                     <div class="task-checkbox ${task.completed ? 'completed' : ''}">
-                                        ${task.completed ? '🅥' : '○'}
+                                        ${task.completed ? '✓' : '○'}
                                     </div>
                                     <span class="task-text">${task.text || '未命名任務'}</span>
                                 </div>
