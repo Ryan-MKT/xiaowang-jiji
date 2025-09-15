@@ -43,9 +43,9 @@ class OenTokenPayment {
             
             const requestData = {
                 merchantId: this.config.merchantId,
-                successUrl: options.successUrl || `https://ae4bee7dc026.ngrok-free.app/payment/token-success`,
-                failureUrl: options.failureUrl || `https://ae4bee7dc026.ngrok-free.app/payment/token-failure`,
-                webhookUrl: options.webhookUrl || `https://ae4bee7dc026.ngrok-free.app/api/payment/token-webhook`,
+                successUrl: options.successUrl || `https://3447337587ec.ngrok-free.app/payment/token-success`,
+                failureUrl: options.failureUrl || `https://3447337587ec.ngrok-free.app/payment/token-failure`,
+                webhookUrl: options.webhookUrl || `https://3447337587ec.ngrok-free.app/api/payment/token-webhook`,
                 customId: options.customId || JSON.stringify({
                     userId: options.userId || 'test_user',
                     purpose: 'subscription',

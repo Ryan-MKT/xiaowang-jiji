@@ -27,11 +27,11 @@ class OenPaymentCorrect {
             // 回調 URL 配置
             successUrl: isProduction ?
                 `${process.env.WEBHOOK_BASE_URL}/payment/success` :
-                'https://ae4bee7dc026.ngrok-free.app/payment/success',
+                'https://3447337587ec.ngrok-free.app/payment/success',
                 
             failureUrl: isProduction ?
                 `${process.env.WEBHOOK_BASE_URL}/payment/cancel` :
-                'https://ae4bee7dc026.ngrok-free.app/payment/cancel',
+                'https://3447337587ec.ngrok-free.app/payment/cancel',
             
             // 官方測試卡號
             testCards: {

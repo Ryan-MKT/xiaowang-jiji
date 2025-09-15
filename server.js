@@ -527,7 +527,6 @@ async function handleEvent(event) {
           {
             user_id: userId,
             message_text: cleanedMessage,
-            tag: detectedTag,
             created_at: new Date().toISOString()
           }
         ]);
@@ -1503,12 +1502,13 @@ app.delete('/api/tags/:tagId', async (req, res) => {
 app.get('/api/tasks', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
+    const dateFilter = req.query.date; // 新增：取得日期查詢參數
 
     if (!userId) {
       return res.status(400).json({ error: 'Missing user ID' });
     }
 
-    console.log(`🔍 [任務API] 取得使用者 ${userId} 的任務列表`);
+    console.log(`🔍 [任務API] 取得使用者 ${userId} 的任務列表${dateFilter ? ` (日期: ${dateFilter})` : ''}`);
 
     // 從記憶體獲取用戶任務
     let userTasks = userTaskStacks.get(userId) || [];
@@ -1545,8 +1545,34 @@ app.get('/api/tasks', async (req, res) => {
       }
     }
 
+    // 新增：如果有日期篩選參數，過濾任務
+    if (dateFilter) {
+      const filterDate = new Date(dateFilter);
+      const filterDateString = filterDate.toISOString().split('T')[0]; // YYYY-MM-DD 格式
+
+      userTasks = userTasks.filter(task => {
+        if (!task.timestamp) return false;
+
+        // 處理時間戳格式，確保比較的是同一天
+        const taskDate = new Date(task.timestamp);
+        const taskDateString = taskDate.toISOString().split('T')[0];
+
+        const isMatch = taskDateString === filterDateString;
+
+        if (isMatch) {
+          console.log(`📅 [日期篩選] 匹配任務: ${task.text} (${taskDateString})`);
+        }
+
+        return isMatch;
+      });
+
+      console.log(`📅 [日期篩選] 篩選日期 ${dateFilter}: 找到 ${userTasks.length} 個任務`);
+    }
+
     console.log(`✅ [任務API] 成功回傳 ${userTasks.length} 個任務`);
-    console.log(`📝 [任務API] 任務預覽:`, userTasks.slice(0, 3).map(task => task.text));
+    if (userTasks.length > 0) {
+      console.log(`📝 [任務API] 任務預覽:`, userTasks.slice(0, 3).map(task => task.text));
+    }
 
     res.json(userTasks);
   } catch (err) {
