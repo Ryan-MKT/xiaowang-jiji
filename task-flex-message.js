@@ -65,15 +65,9 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
 
-  // 限制顯示的任務數量，避免FLEX message過大
-  const MAX_TASKS = 15;
+  // 顯示所有任務，讓 LINE 的大小限制自然生效
   let displayTasks = tasks || [];
-
-  if (displayTasks.length > MAX_TASKS) {
-    console.log(`⚠️ [FLEX MESSAGE] 任務數量過多 (${displayTasks.length}個)，限制為 ${MAX_TASKS} 個最新任務`);
-    // 直接取最新的 15 個任務，保持原始順序
-    displayTasks = displayTasks.slice(-MAX_TASKS);
-  }
+  console.log(`📋 [FLEX MESSAGE] 顯示全部 ${displayTasks.length} 個任務`);
 
   // 使用顯示的任務數量（而非全部任務數量）
   const displayedTotal = displayTasks.length;
@@ -739,15 +733,9 @@ function createTagBubble(tagName, tasks, userTags = null) {
 function createMainTaskList(tasks, userTags = null, completedCount = 0, favoriteCount = 0) {
   console.log('🚨 [MAIN TASK LIST] createMainTaskList 函數被調用 - 單一 BUBBLE 版本');
 
-  // 限制顯示的任務數量，避免FLEX message過大
-  const MAX_TASKS = 15;
+  // 顯示所有今天的任務，讓 LINE 的大小限制自然生效
   let displayTasks = tasks || [];
-
-  if (displayTasks.length > MAX_TASKS) {
-    console.log(`⚠️ [MAIN TASK LIST] 任務數量過多 (${displayTasks.length}個)，限制為 ${MAX_TASKS} 個最新任務`);
-    // 直接取最新的 15 個任務，保持原始順序
-    displayTasks = displayTasks.slice(-MAX_TASKS);
-  }
+  console.log(`📋 [MAIN TASK LIST] 顯示全部 ${displayTasks.length} 個今天任務`);
 
   // 使用顯示的任務數量為統計基礎
   const displayedTotal = displayTasks.length;
