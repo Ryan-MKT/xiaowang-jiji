@@ -1967,25 +1967,45 @@ app.get('/api/task-note/:taskId', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     const taskId = req.params.taskId;
-    
+
     if (!userId) {
       return res.status(400).json({ error: 'Missing user ID' });
     }
-    
+
     console.log(`📝 [取得備註] 用戶 ${userId} 取得任務 ${taskId} 的備註`);
-    
-    // 從記憶體中的任務堆疊尋找對應的任務並取得備註
+
+    // 優先從 Supabase 讀取備註
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const { data, error } = await supabase
+          .from(`${tablePrefix}messages`)
+          .select('note')
+          .eq('id', parseInt(taskId))
+          .eq('user_id', userId)
+          .single();
+
+        if (!error && data && data.note) {
+          console.log(`✅ [取得備註] 從 Supabase 找到備註: ${data.note}`);
+          return res.json({ note: data.note });
+        }
+      } catch (dbError) {
+        console.error('❌ [取得備註] Supabase 讀取失敗:', dbError);
+      }
+    }
+
+    // 如果 Supabase 沒有或失敗，從記憶體中的任務堆疊尋找對應的任務並取得備註
     const userTasks = userTaskStacks.get(userId) || [];
     const task = userTasks.find(t => t.id.toString() === taskId.toString());
-    
+
     if (task && task.note) {
-      console.log(`✅ [取得備註] 找到備註: ${task.note}`);
+      console.log(`✅ [取得備註] 從記憶體找到備註: ${task.note}`);
       res.json({ note: task.note });
     } else {
       console.log(`📝 [取得備註] 任務 ${taskId} 沒有備註`);
       res.json({ note: '' });
     }
-    
+
   } catch (err) {
     console.error('❌ [取得備註] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
