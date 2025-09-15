@@ -2352,6 +2352,78 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
   }
 });
 
+// 連結預覽 API
+app.post('/api/link-preview', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const { url } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    if (!url) {
+      return res.status(400).json({ error: 'Missing URL' });
+    }
+
+    console.log(`🔗 [連結預覽] 用戶 ${userId} 請求預覽: ${url}`);
+
+    try {
+      // 使用 axios 獲取網頁內容
+      const response = await axios.get(url, {
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+
+      const html = response.data;
+
+      // 簡單的HTML解析來提取meta資訊
+      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+      const descriptionMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
+                              html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["'][^>]*>/i);
+      const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
+                        html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["'][^>]*>/i);
+
+      const title = titleMatch ? titleMatch[1].trim() : '';
+      const description = descriptionMatch ? descriptionMatch[1].trim() : '';
+      const image = imageMatch ? imageMatch[1].trim() : null;
+
+      // 提取域名
+      const domain = new URL(url).hostname;
+
+      const preview = {
+        title: title || domain,
+        description: description.substring(0, 200) + (description.length > 200 ? '...' : ''),
+        image: image,
+        domain: domain,
+        url: url
+      };
+
+      console.log(`✅ [連結預覽] 成功解析:`, preview);
+      res.json(preview);
+
+    } catch (fetchError) {
+      console.error(`❌ [連結預覽] 獲取網頁失敗:`, fetchError.message);
+
+      // 回傳基本資訊
+      const domain = new URL(url).hostname;
+      res.json({
+        title: domain,
+        description: '無法獲取網頁描述',
+        image: null,
+        domain: domain,
+        url: url
+      });
+    }
+
+  } catch (err) {
+    console.error('❌ [連結預覽] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== 管理員 API ====================
 
 app.post('/admin/create-tags-table', async (req, res) => {

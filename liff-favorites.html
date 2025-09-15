@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小汪記記 - 任務收藏</title>
+    <title>小汪記記 - 收藏卡</title>
     
     <!-- LINE LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -82,51 +82,88 @@
             }
         }
 
-        /* 便利貼風格卡片 */
+        /* 現代卡片風格 */
         .sticky-note-card {
             background: white;
             border-radius: 12px;
-            padding: 20px;
+            padding: 0;
             min-height: 200px;
             position: relative;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
-            transform: rotate(-1deg);
             cursor: pointer;
-            border: 1px solid black;
+            border: 1px solid #e8e8e8;
+            overflow: hidden;
         }
 
-        .sticky-note-card:nth-child(2n) {
-            transform: rotate(1deg);
-            background: white;
+        /* 連結卡片樣式 */
+        .sticky-note-card.has-link {
+            min-height: 280px;
         }
 
-        .sticky-note-card:nth-child(3n) {
-            transform: rotate(-0.5deg);
-            background: white;
+        .link-preview {
+            width: 100%;
+            height: 120px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #e9ecef;
         }
 
-        .sticky-note-card:nth-child(4n) {
-            transform: rotate(0.8deg);
-            background: white;
+        .link-preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
-        .sticky-note-card:nth-child(5n) {
-            transform: rotate(-0.3deg);
-            background: white;
+        .link-preview-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 24px;
+        }
+
+        .link-preview-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            color: white;
+            padding: 8px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* 頂部橙色條紋 */
+        .sticky-note-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff6b35, #f7931e);
+            z-index: 1;
         }
 
         .sticky-note-card:hover {
-            transform: rotate(0deg) scale(1.05);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.15);
-            z-index: 10;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
 
         .sticky-note-content {
             display: flex;
             flex-direction: column;
             height: 100%;
-            color: rgba(0, 0, 0, 0.8);
+            color: #333;
+            padding: 16px;
+            padding-top: 20px; /* 為頂部橙色條紋留出空間 */
         }
 
         .sticky-note-header {
@@ -137,12 +174,13 @@
         }
 
         .sticky-note-tag {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: bold;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            background: #f8f9fa;
+            color: #6c757d;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid #e9ecef;
             max-width: 120px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -150,23 +188,23 @@
         }
 
         .sticky-note-title {
-            font-size: 16px;
-            font-weight: bold;
-            line-height: 1.3;
-            margin-bottom: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: 12px;
             word-wrap: break-word;
-            color: rgba(0, 0, 0, 0.9);
+            color: #212529;
             flex-grow: 1;
         }
 
         .sticky-note-description {
             font-size: 13px;
-            color: rgba(0, 0, 0, 0.7);
-            line-height: 1.4;
-            margin-bottom: 15px;
+            color: #6c757d;
+            line-height: 1.5;
+            margin-bottom: 16px;
             overflow: hidden;
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
 
@@ -176,55 +214,46 @@
             justify-content: space-between;
             align-items: center;
             font-size: 11px;
-            color: rgba(0, 0, 0, 0.6);
+            color: #868e96;
+            padding-top: 8px;
+            border-top: 1px solid #f1f3f4;
         }
 
         .sticky-note-actions {
             display: flex;
-            gap: 5px;
-            margin-top: 10px;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .sticky-note-btn {
-            padding: 6px 12px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 15px;
-            font-size: 11px;
-            font-weight: bold;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex: 1;
         }
 
         .sticky-note-btn.use {
-            background: rgba(255, 255, 255, 0.9);
-            color: black;
+            background: #28a745;
+            color: white;
+        }
+
+        .sticky-note-btn.use:hover {
+            background: #218838;
         }
 
         .sticky-note-btn.delete {
-            background: rgba(255, 255, 255, 0.9);
-            color: black;
+            background: #6c757d;
+            color: white;
         }
 
-        .sticky-note-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        .sticky-note-btn.delete:hover {
+            background: #5a6268;
         }
 
-        /* 釘子效果 */
-        .sticky-note-card::before {
-            content: '';
-            position: absolute;
-            top: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            z-index: 5;
-        }
 
         .favorite-item {
             background: rgba(255, 255, 255, 0.8);
@@ -665,9 +694,8 @@
             <div class="card-body text-center py-4">
                 <h1 class="card-title mb-3">
                     <i class="bi bi-star-fill text-warning"></i>
-                    任務收藏
+                    收藏卡
                 </h1>
-                <p class="card-text text-muted mb-0">儲存您的常用任務，快速創建重複任務</p>
             </div>
         </div>
 
@@ -1099,13 +1127,50 @@
             displayFavoriteTasks();
         }
 
+        // 檢測任務中是否包含連結
+        function detectLinks(text) {
+            if (!text) return null;
+
+            const urlRegex = /(https?:\/\/[^\s]+)/gi;
+            const matches = text.match(urlRegex);
+            return matches ? matches[0] : null;
+        }
+
+        // 獲取連結預覽資訊
+        async function getLinkPreview(url) {
+            try {
+                console.log('🔗 [連結預覽] 獲取連結預覽:', url);
+
+                const response = await fetch('/api/link-preview', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': liffProfile.userId
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (response.ok) {
+                    const preview = await response.json();
+                    console.log('✅ [連結預覽] 獲取成功:', preview);
+                    return preview;
+                } else {
+                    console.error('❌ [連結預覽] API 失敗:', response.status);
+                    return null;
+                }
+            } catch (error) {
+                console.error('❌ [連結預覽] 錯誤:', error);
+                return null;
+            }
+        }
+
         // 獲取標籤對應的圖示
         function getTagIcon(tagName) {
             if (!tagName) return '🏷️';
-            
+
             const tagIcons = {
                 '工作': '💼',
-                '學習': '📚', 
+                '學習': '📚',
                 '運動': '🏃‍♂️',
                 'AI': '🤖',
                 'AIII': '🤖',
@@ -1118,13 +1183,13 @@
                 '健康': '💪',
                 '旅行': '✈️'
             };
-            
+
             // 如果找到對應的圖示就回傳，否則回傳預設圖示
             return tagIcons[tagName] || '🏷️';
         }
 
-        // 顯示收藏任務(便利貼風格)
-        function displayFavoriteTasks() {
+        // 顯示收藏任務(現代卡片風格)
+        async function displayFavoriteTasks() {
             const favoritesList = document.getElementById('favoritesList');
             const emptyState = document.getElementById('emptyState');
 
@@ -1158,16 +1223,24 @@
 
             emptyState.style.display = 'none';
 
-            // 便利貼風格卡片
-            favoritesList.innerHTML = filteredTasks.map((task, index) => {
+            // 現代卡片風格，支援連結預覽
+            const cardsHtml = await Promise.all(filteredTasks.map(async (task, index) => {
                 const tagInfo = extractTagInfo(task);
+                const linkUrl = detectLinks(task.name);
+                let linkPreview = null;
+
+                // 如果有連結，獲取預覽
+                if (linkUrl) {
+                    linkPreview = await getLinkPreview(linkUrl);
+                }
+
                 const truncatedTitle = tagInfo.displayName.length > 50 ?
                     tagInfo.displayName.substring(0, 50) + '...' : tagInfo.displayName;
                 const truncatedDesc = task.description && task.description.length > 80 ?
                     task.description.substring(0, 80) + '...' : (task.description || '');
 
                 return `
-                    <div class="sticky-note-card" onclick="handleNoteClick(event)">
+                    <div class="sticky-note-card ${linkUrl ? 'has-link' : ''}" onclick="handleNoteClick(event, '${linkUrl || ''}')">
                         <div class="sticky-note-content">
                             <div class="sticky-note-header">
                                 ${tagInfo.hasTag ?
@@ -1180,19 +1253,39 @@
                                 }
                             </div>
 
+                            ${linkPreview ? `
+                                <div class="link-preview">
+                                    ${linkPreview.image ?
+                                        `<img src="${linkPreview.image}" alt="${linkPreview.title || '連結預覽'}" class="link-preview-image">` :
+                                        `<div class="link-preview-placeholder">
+                                            <i class="bi bi-link-45deg"></i>
+                                        </div>`
+                                    }
+                                    <div class="link-preview-overlay">
+                                        ${linkPreview.title || linkPreview.domain || '連結'}
+                                    </div>
+                                </div>
+                            ` : ''}
+
                             <div class="sticky-note-title">
-                                ${truncatedTitle}
+                                ${linkPreview && linkPreview.title ? linkPreview.title : truncatedTitle}
                             </div>
 
-                            ${task.description ? `
+                            ${(task.description || (linkPreview && linkPreview.description)) ? `
                                 <div class="sticky-note-description">
-                                    ${truncatedDesc}
+                                    ${linkPreview && linkPreview.description ?
+                                        linkPreview.description.substring(0, 100) + '...' :
+                                        truncatedDesc
+                                    }
                                 </div>
                             ` : ''}
 
                             <div class="sticky-note-footer">
                                 <div>
-                                    <i class="bi bi-calendar-event"></i> ${new Date(task.created_at).toLocaleDateString('zh-TW')}
+                                    ${linkUrl ?
+                                        `<i class="bi bi-link-45deg"></i> ${new URL(linkUrl).hostname}` :
+                                        `<i class="bi bi-calendar-event"></i> ${new Date(task.created_at).toLocaleDateString('zh-TW')}`
+                                    }
                                 </div>
                                 ${task.used_count > 0 ? `
                                     <div>
@@ -1212,13 +1305,21 @@
                         </div>
                     </div>
                 `;
-            }).join('');
+            }));
+
+            favoritesList.innerHTML = cardsHtml.join('');
         }
 
-        // 處理便利貼點擊事件
-        function handleNoteClick(event) {
-            // 如果不是點擊按鈕，則可以在這裡加入其他互動功能
-            console.log('🔍 [便利貼] 便利貼被點擊');
+        // 處理卡片點擊事件
+        function handleNoteClick(event, linkUrl) {
+            // 如果有連結，點擊卡片時開啟連結
+            if (linkUrl) {
+                console.log('🔗 [卡片] 開啟連結:', linkUrl);
+                window.open(linkUrl, '_blank');
+            } else {
+                // 如果沒有連結，可以在這裡加入其他互動功能
+                console.log('🔍 [卡片] 一般卡片被點擊');
+            }
         }
 
         // 更新統計資訊
