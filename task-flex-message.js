@@ -71,10 +71,8 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
 
   if (displayTasks.length > MAX_TASKS) {
     console.log(`⚠️ [FLEX MESSAGE] 任務數量過多 (${displayTasks.length}個)，限制為 ${MAX_TASKS} 個最新任務`);
-    // 取最新的任務：優先顯示未完成的最新任務，然後是已完成的最新任務
-    const incompleteTasks = displayTasks.filter(task => !task.completed).slice(-MAX_TASKS + 5);
-    const completedTasks = displayTasks.filter(task => task.completed).slice(-5);
-    displayTasks = [...incompleteTasks, ...completedTasks];
+    // 直接取最新的 15 個任務，保持原始順序
+    displayTasks = displayTasks.slice(-MAX_TASKS);
   }
 
   // 使用顯示的任務數量（而非全部任務數量）
@@ -747,10 +745,8 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
 
   if (displayTasks.length > MAX_TASKS) {
     console.log(`⚠️ [MAIN TASK LIST] 任務數量過多 (${displayTasks.length}個)，限制為 ${MAX_TASKS} 個最新任務`);
-    // 取最新的任務：優先顯示未完成的最新任務，然後是已完成的最新任務
-    const incompleteTasks = displayTasks.filter(task => !task.completed).slice(-MAX_TASKS + 5);
-    const completedTasks = displayTasks.filter(task => task.completed).slice(-5);
-    displayTasks = [...incompleteTasks, ...completedTasks];
+    // 直接取最新的 15 個任務，保持原始順序
+    displayTasks = displayTasks.slice(-MAX_TASKS);
   }
 
   // 使用顯示的任務數量為統計基礎
