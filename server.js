@@ -1524,21 +1524,29 @@ app.get('/api/tasks', async (req, res) => {
           .eq('user_id', userId)
           .order('created_at', { ascending: true });
 
-        if (!error && messages && messages.length > 0) {
-          // 將歷史訊息轉換為任務格式
-          userTasks = messages.map((msg, index) => ({
-            id: msg.id || Date.now() + index,
-            text: msg.message_text,
-            completed: false, // 預設為未完成
-            timestamp: msg.created_at,
-            userId: userId,
-            favorited: false,
-            tag: msg.tag || null
-          }));
+        if (!error && messages) {
+          if (messages.length > 0) {
+            // 將歷史訊息轉換為任務格式
+            userTasks = messages.map((msg, index) => ({
+              id: msg.id || Date.now() + index,
+              text: msg.message_text,
+              completed: false, // 預設為未完成
+              timestamp: msg.created_at,
+              userId: userId,
+              favorited: false,
+              tag: msg.tag || null
+            }));
 
-          // 載入到記憶體中
-          userTaskStacks.set(userId, userTasks);
-          console.log(`✅ [任務API] 從資料庫載入 ${userTasks.length} 個歷史任務到記憶體`);
+            // 載入到記憶體中
+            userTaskStacks.set(userId, userTasks);
+            console.log(`✅ [任務API] 從資料庫載入 ${userTasks.length} 個歷史任務到記憶體`);
+          } else {
+            console.log('📝 [任務API] 資料庫中沒有找到該用戶的歷史任務');
+            userTasks = [];
+            userTaskStacks.set(userId, userTasks);
+          }
+        } else {
+          console.error('❌ [任務API] 查詢資料庫失敗:', error);
         }
       } catch (dbError) {
         console.error('❌ [任務API] 從資料庫載入任務失敗:', dbError);
