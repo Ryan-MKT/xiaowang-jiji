@@ -924,7 +924,10 @@ async function handleEvent(event) {
           tag: msg.tag || null
         }));
 
-        // 篩選出今天的任務 - 與日曆頁保持一致
+        userTasks = latestTasks; // 使用所有任務列表
+        userTaskStacks.set(userId, userTasks); // 更新記憶體
+
+        // 篩選出今天的任務用於FLEX MESSAGE
         const today = new Date();
         const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -935,11 +938,11 @@ async function handleEvent(event) {
           return taskDateString === todayString;
         });
 
-        userTasks = todayTasks; // 只使用今天的任務列表
-        userTaskStacks.set(userId, userTasks); // 更新記憶體
+        console.log(`✅ [FLEX同步] 已更新任務堆疊，全部任務數量: ${userTasks.length}`);
+        console.log(`📝 [FLEX同步] 今天任務數量: ${todayTasks.length}, 預覽: ${todayTasks.slice(-3).map(t => t.text).join(', ')}`);
 
-        console.log(`✅ [FLEX同步] 已更新任務堆疊，今天任務數量: ${userTasks.length}`);
-        console.log(`📝 [FLEX同步] 今天任務預覽: ${userTasks.slice(-3).map(t => t.text).join(', ')}`);
+        // 更新userTasks為今天的任務，用於FLEX MESSAGE生成
+        userTasks = todayTasks;
       }
     } catch (syncError) {
       console.error('❌ [FLEX同步] 同步失敗:', syncError);
@@ -1556,10 +1559,12 @@ app.get('/api/tasks', async (req, res) => {
     // 從記憶體獲取用戶任務
     let userTasks = userTaskStacks.get(userId) || [];
 
-    // 如果記憶體中沒有任務，嘗試從資料庫載入歷史任務
-    if (userTasks.length === 0 && supabase) {
+    // 如果記憶體中沒有任務，或者查詢歷史日期，則從資料庫載入歷史任務
+    const isHistoricalDate = dateFilter && dateFilter !== new Date().toISOString().split('T')[0];
+
+    if ((userTasks.length === 0 || isHistoricalDate) && supabase) {
       try {
-        console.log('🔄 [任務API] 記憶體中無任務，從資料庫載入歷史訊息...');
+        console.log(`🔄 [任務API] ${isHistoricalDate ? '查詢歷史日期' : '記憶體中無任務'}，從資料庫載入歷史訊息...`);
 
         const { data: messages, error } = await supabase
           .from('dev_messages')
