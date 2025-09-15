@@ -36,6 +36,19 @@ const userFavoriteTasks = new Map();
 // 資料結構: Map<userId, {waitingForTag: boolean, targetTaskId: number, timestamp: number}>
 const userTagSelectionStates = new Map();
 
+// 篩選今天任務的輔助函數
+function filterTodayTasks(tasks) {
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0];
+
+  return tasks.filter(task => {
+    if (!task.timestamp) return false;
+    const taskDate = new Date(task.timestamp);
+    const taskDateString = taskDate.toISOString().split('T')[0];
+    return taskDateString === todayString;
+  });
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 console.log('🚀 小汪記記 with LINE Login starting - TAG FIXED VERSION 2025-09-11-15:50...');
@@ -956,8 +969,14 @@ async function handleEvent(event) {
     const completedCount = userTasks.filter(task => task.completed).length;
     const favoriteCount = userTasks.filter(task => task.favorited).length;
 
+    // 篩選今天的任務用於FLEX MESSAGE顯示
+    const displayTasks = filterTodayTasks(userTasks);
+    const displayCompletedCount = displayTasks.filter(task => task.completed).length;
+    const displayFavoriteCount = displayTasks.filter(task => task.favorited).length;
+
     console.log('🚨 [SERVER DEBUG] 準備調用 createMainTaskList');
-    const flexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+    console.log(`📅 [FLEX DEBUG] 今天任務數量: ${displayTasks.length}, 全部任務數量: ${userTasks.length}`);
+    const flexMessage = createMainTaskList(displayTasks, userTags, displayCompletedCount, displayFavoriteCount);
     console.log('✅ [SERVER DEBUG] createMainTaskList 調用完成');
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
@@ -2137,12 +2156,13 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
     // 3. 發送 FLEX MESSAGE 更新到 LINE
     if (deletedTask && client) {
       try {
-        // 生成最新的 FLEX MESSAGE
+        // 生成最新的 FLEX MESSAGE（只顯示今天的任務）
+        const todayTasks = filterTodayTasks(userTasks);
         const userTags = await getUserTags(userId);
         const { createMainTaskList } = getTaskFlexModule();
-        const completedCount = userTasks.filter(task => task.completed).length;
-        const favoriteCount = userTasks.filter(task => task.favorited).length;
-        const flexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+        const completedCount = todayTasks.filter(task => task.completed).length;
+        const favoriteCount = todayTasks.filter(task => task.favorited).length;
+        const flexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
 
         // 推送 FLEX MESSAGE 給用戶
         await client.pushMessage(userId, flexMessage);
