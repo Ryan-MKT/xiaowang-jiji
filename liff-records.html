@@ -204,14 +204,14 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            border: 2px solid black;
+            border: 2px solid #ccc;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-right: 10px;
             cursor: pointer;
             font-size: 12px;
-            background: white;
+            background: transparent;
             transition: all 0.2s ease;
         }
 
@@ -554,7 +554,7 @@
                             <div class="task-item ${task.completed ? 'task-completed' : ''}" onclick="toggleTask('${task.id}')">
                                 <div style="display: flex; align-items: center; flex: 1;">
                                     <div class="task-checkbox ${task.completed ? 'completed' : ''}">
-                                        ${task.completed ? '✓' : '○'}
+                                        ${task.completed ? '✓' : ''}
                                     </div>
                                     <span class="task-text">${task.text || '未命名任務'}</span>
                                 </div>
