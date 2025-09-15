@@ -144,16 +144,20 @@ async function handlePostback(event) {
       };
       
       // 發送更新後的任務清單 (預設顯示主任務清單)
+      // 篩選今天的任務，保持與其他地方一致
+      const todayTasks = filterTodayTasks(userTasks);
+      console.log(`📅 [任務完成] 今天任務數量: ${todayTasks.length}, 全部任務數量: ${userTasks.length}`);
+
       const userTags = await getUserTags(userId);
       const { createMainTaskList } = getTaskFlexModule();
-      const completedCount = userTasks.filter(task => task.completed).length;
-      const favoriteCount = userTasks.filter(task => task.favorited).length;
-      const updatedFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
-      
+      const completedCount = todayTasks.filter(task => task.completed).length;
+      const favoriteCount = todayTasks.filter(task => task.favorited).length;
+      const updatedFlexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
+
       if (client) {
-        // 先發送恭喜訊息，再發送更新的任務清單
-        await client.replyMessage(event.replyToken, congratsMessage);
-        return client.pushMessage(userId, updatedFlexMessage);
+        // 使用一個訊息同時發送恭喜和更新的任務清單
+        const multiMessage = [congratsMessage, updatedFlexMessage];
+        return client.replyMessage(event.replyToken, multiMessage);
       } else {
         console.log('測試模式：恭喜訊息', congratsMessage.text);
         console.log('測試模式：更新任務清單', JSON.stringify(updatedFlexMessage, null, 2));
@@ -519,26 +523,31 @@ async function handleEvent(event) {
   // 更新 userMessage 為清理後的版本
   userMessage = cleanedMessage;
 
-  // 嘗試儲存到 Supabase - 加入標籤資訊
-  if (supabase) {
+  // 只記錄用戶真正傳送的訊息到 Supabase，排除系統指令
+  // 排除收藏、完成、標籤選擇等系統觸發的訊息
+  const isSystemMessage =
+    cleanedMessage.startsWith('收藏任務_') ||
+    cleanedMessage.startsWith('完成任務_') ||
+    cleanedMessage === 'SYNC_TASKS:' ||
+    cleanedMessage.includes('SYNC_TASKS:') ||
+    // 檢查是否為標籤選擇（當用戶正在等待標籤選擇時）
+    (userTagSelectionStates.get(userId)?.waitingForTag);
+
+  // 嘗試儲存到 Supabase - 只儲存用戶真正的訊息
+  if (supabase && !isSystemMessage) {
     try {
       const tablePrefix = process.env.TABLE_PREFIX || '';
       const tableName = tablePrefix + 'messages';
-      
+
       // 檢測是否為標籤選擇或任務包含標籤資訊
       let detectedTag = null;
-      
-      // 檢查用戶是否正在等待標籤選擇
-      const tagSelectionState = userTagSelectionStates.get(userId);
-      if (tagSelectionState && tagSelectionState.waitingForTag) {
-        detectedTag = cleanedMessage; // 用戶回覆的就是標籤
-      } 
+
       // 檢查任務文字是否包含標籤格式 (標籤)任務內容
-      else if (cleanedMessage.match(/^\((.+?)\)/)) {
+      if (cleanedMessage.match(/^\((.+?)\)/)) {
         const tagMatch = cleanedMessage.match(/^\((.+?)\)/);
         detectedTag = tagMatch[1];
       }
-      
+
       const { data, error } = await supabase
         .from(tableName)
         .insert([
@@ -548,19 +557,21 @@ async function handleEvent(event) {
             created_at: new Date().toISOString()
           }
         ]);
-      
+
       if (error) {
         console.error('Supabase 儲存錯誤:', error);
       } else {
-        console.log('✅ 訊息已儲存到 Supabase:', { 
-          userId, 
-          userMessage: cleanedMessage, 
+        console.log('✅ 用戶訊息已儲存到 Supabase:', {
+          userId,
+          userMessage: cleanedMessage,
           tag: detectedTag || '無標籤' 
         });
       }
     } catch (err) {
       console.error('資料庫連線錯誤:', err);
     }
+  } else if (isSystemMessage) {
+    console.log('🤖 系統訊息 (不記錄到資料庫):', userId, '-', cleanedMessage);
   } else {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
   }
@@ -809,11 +820,15 @@ async function handleEvent(event) {
       }
       
       // 重新生成任務堆疊 Flex Message (預設顯示主任務清單)
+      // 篩選今天的任務，保持與其他地方一致
+      const todayTasks = filterTodayTasks(userTasks);
+      console.log(`📅 [標籤選擇完成] 今天任務數量: ${todayTasks.length}, 全部任務數量: ${userTasks.length}`);
+
       const userTags = await getUserTags(userId);
       const { createMainTaskList } = getTaskFlexModule();
-      const completedCount = userTasks.filter(task => task.completed).length;
-      const favoriteCount = userTasks.filter(task => task.favorited).length;
-      const updatedFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+      const completedCount = todayTasks.filter(task => task.completed).length;
+      const favoriteCount = todayTasks.filter(task => task.favorited).length;
+      const updatedFlexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
       
       if (client) {
         return client.replyMessage(event.replyToken, updatedFlexMessage);
