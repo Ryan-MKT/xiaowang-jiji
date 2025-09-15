@@ -2125,6 +2125,26 @@ app.post('/api/save-task', async (req, res) => {
 
       console.log(`✅ [儲存任務] 任務 ${taskId} 已成功更新`);
 
+      // 發送 FLEX MESSAGE 更新到 LINE
+      if (client) {
+        try {
+          // 生成最新的 FLEX MESSAGE（只顯示今天的任務）
+          const todayTasks = filterTodayTasks(userTasks);
+          const userTags = await getUserTags(userId);
+          const { createMainTaskList } = getTaskFlexModule();
+          const completedCount = todayTasks.filter(task => task.completed).length;
+          const favoriteCount = todayTasks.filter(task => task.favorited).length;
+          const flexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
+
+          // 推送 FLEX MESSAGE 給用戶
+          await client.pushMessage(userId, flexMessage);
+          console.log(`✅ [儲存任務] 已發送更新的 FLEX MESSAGE 給用戶 ${userId}`);
+        } catch (flexError) {
+          console.error('⚠️ [儲存任務] FLEX MESSAGE 發送失敗:', flexError);
+          // 不阻止操作，因為儲存已經成功
+        }
+      }
+
       res.json({
         success: true,
         task: userTasks[taskIndex],
@@ -2176,6 +2196,26 @@ app.post('/api/save-task', async (req, res) => {
       }
 
       console.log(`✅ [儲存任務] 已自動創建並儲存任務 ${taskId}: "${title}"`);
+
+      // 發送 FLEX MESSAGE 更新到 LINE
+      if (client) {
+        try {
+          // 生成最新的 FLEX MESSAGE（只顯示今天的任務）
+          const todayTasks = filterTodayTasks(userTasks);
+          const userTags = await getUserTags(userId);
+          const { createMainTaskList } = getTaskFlexModule();
+          const completedCount = todayTasks.filter(task => task.completed).length;
+          const favoriteCount = todayTasks.filter(task => task.favorited).length;
+          const flexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
+
+          // 推送 FLEX MESSAGE 給用戶
+          await client.pushMessage(userId, flexMessage);
+          console.log(`✅ [儲存任務] 已發送更新的 FLEX MESSAGE 給用戶 ${userId}`);
+        } catch (flexError) {
+          console.error('⚠️ [儲存任務] FLEX MESSAGE 發送失敗:', flexError);
+          // 不阻止操作，因為儲存已經成功
+        }
+      }
 
       res.json({
         success: true,
