@@ -924,11 +924,22 @@ async function handleEvent(event) {
           tag: msg.tag || null
         }));
 
-        userTasks = latestTasks; // 使用最新的任務列表
+        // 篩選出今天的任務 - 與日曆頁保持一致
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        const todayTasks = latestTasks.filter(task => {
+          if (!task.timestamp) return false;
+          const taskDate = new Date(task.timestamp);
+          const taskDateString = taskDate.toISOString().split('T')[0];
+          return taskDateString === todayString;
+        });
+
+        userTasks = todayTasks; // 只使用今天的任務列表
         userTaskStacks.set(userId, userTasks); // 更新記憶體
 
-        console.log(`✅ [FLEX同步] 已更新任務堆疊，最新數量: ${userTasks.length}`);
-        console.log(`📝 [FLEX同步] 最新任務預覽: ${userTasks.slice(-3).map(t => t.text).join(', ')}`);
+        console.log(`✅ [FLEX同步] 已更新任務堆疊，今天任務數量: ${userTasks.length}`);
+        console.log(`📝 [FLEX同步] 今天任務預覽: ${userTasks.slice(-3).map(t => t.text).join(', ')}`);
       }
     } catch (syncError) {
       console.error('❌ [FLEX同步] 同步失敗:', syncError);
