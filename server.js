@@ -901,7 +901,39 @@ async function handleEvent(event) {
     
     // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
     console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
-    
+
+    // 🔄 確保記憶體中的任務是最新的 - 從 Supabase 重新載入
+    console.log('🔄 [FLEX同步] 確保記憶體任務堆疊為最新狀態...');
+    try {
+      const { data: latestMessages, error } = await supabase
+        .from('dev_messages')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50); // 載入最新 50 筆
+
+      if (!error && latestMessages && latestMessages.length > 0) {
+        // 將最新訊息轉換為任務格式並更新記憶體
+        const latestTasks = latestMessages.reverse().map((msg, index) => ({
+          id: msg.id || Date.now() + index,
+          text: msg.message_text,
+          completed: false,
+          timestamp: msg.created_at,
+          userId: userId,
+          favorited: false,
+          tag: msg.tag || null
+        }));
+
+        userTasks = latestTasks; // 使用最新的任務列表
+        userTaskStacks.set(userId, userTasks); // 更新記憶體
+
+        console.log(`✅ [FLEX同步] 已更新任務堆疊，最新數量: ${userTasks.length}`);
+        console.log(`📝 [FLEX同步] 最新任務預覽: ${userTasks.slice(-3).map(t => t.text).join(', ')}`);
+      }
+    } catch (syncError) {
+      console.error('❌ [FLEX同步] 同步失敗:', syncError);
+    }
+
     // 創建包含所有任務的 Flex Message (預設顯示主任務清單，包含展開標籤按鈕)
     const userTags = await getUserTags(userId);
     const { createMainTaskList } = getTaskFlexModule();
