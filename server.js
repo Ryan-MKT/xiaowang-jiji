@@ -1980,14 +1980,26 @@ app.get('/api/task-note/:taskId', async (req, res) => {
         const tablePrefix = process.env.TABLE_PREFIX || '';
         const { data, error } = await supabase
           .from(`${tablePrefix}messages`)
-          .select('note')
+          .select('note, tag, scheduled_date, reminder_time, repeat_pattern')
           .eq('id', parseInt(taskId))
           .eq('user_id', userId)
           .single();
 
-        if (!error && data && data.note) {
-          console.log(`✅ [取得備註] 從 Supabase 找到備註: ${data.note}`);
-          return res.json({ note: data.note });
+        if (!error && data) {
+          console.log(`✅ [取得任務資料] 從 Supabase 找到:`, {
+            note: data.note,
+            tag: data.tag,
+            scheduled_date: data.scheduled_date,
+            reminder_time: data.reminder_time,
+            repeat_pattern: data.repeat_pattern
+          });
+          return res.json({
+            note: data.note || '',
+            tag: data.tag || null,
+            scheduled_date: data.scheduled_date || null,
+            reminder_time: data.reminder_time || null,
+            repeat_pattern: data.repeat_pattern || null
+          });
         }
       } catch (dbError) {
         console.error('❌ [取得備註] Supabase 讀取失敗:', dbError);
@@ -1998,12 +2010,18 @@ app.get('/api/task-note/:taskId', async (req, res) => {
     const userTasks = userTaskStacks.get(userId) || [];
     const task = userTasks.find(t => t.id.toString() === taskId.toString());
 
-    if (task && task.note) {
-      console.log(`✅ [取得備註] 從記憶體找到備註: ${task.note}`);
-      res.json({ note: task.note });
+    if (task) {
+      console.log(`✅ [取得任務資料] 從記憶體找到:`, { note: task.note, tag: task.tag });
+      res.json({
+        note: task.note || '',
+        tag: task.tag || null
+      });
     } else {
-      console.log(`📝 [取得備註] 任務 ${taskId} 沒有備註`);
-      res.json({ note: '' });
+      console.log(`📝 [取得任務資料] 任務 ${taskId} 不存在`);
+      res.json({
+        note: '',
+        tag: null
+      });
     }
 
   } catch (err) {
@@ -2108,7 +2126,11 @@ app.post('/api/save-task', async (req, res) => {
             .from(`${tablePrefix}messages`)
             .update({
               message_text: title,
-              note: note || null
+              note: note || null,
+              tag: tag || null,
+              scheduled_date: date || null,
+              reminder_time: reminder || null,
+              repeat_pattern: repeat || null
             })
             .eq('id', parseInt(taskId))
             .eq('user_id', userId);
@@ -2182,7 +2204,11 @@ app.post('/api/save-task', async (req, res) => {
               id: parseInt(taskId),
               user_id: userId,
               message_text: title,
-              note: note || null
+              note: note || null,
+              tag: tag || null,
+              scheduled_date: date || null,
+              reminder_time: reminder || null,
+              repeat_pattern: repeat || null
             }]);
 
           if (insertError) {
