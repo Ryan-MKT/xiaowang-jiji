@@ -2116,41 +2116,54 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
 
     console.log(`🗑️ [刪除任務] 用戶 ${userId} 刪除任務 ${taskId}`);
 
-    // 1. 從記憶體中的任務堆疊中移除任務
+    // 1. 先從 Supabase 資料庫中刪除任務（確保資料庫刪除成功）
+    let deletedTask = null;
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        console.log(`🔍 [刪除任務] 嘗試從 ${tablePrefix}messages 表格刪除任務 ${taskId}`);
+
+        // 從 dev_messages 表格刪除（任務的實際存儲位置）
+        const { error: deleteError, count } = await supabase
+          .from(`${tablePrefix}messages`)
+          .delete({ count: 'exact' })
+          .eq('id', parseInt(taskId))
+          .eq('user_id', userId);
+
+        if (deleteError) {
+          console.error('❌ [刪除任務] Supabase 刪除錯誤:', {
+            message: deleteError.message,
+            details: deleteError.details,
+            hint: deleteError.hint,
+            code: deleteError.code
+          });
+          throw new Error(`Supabase 刪除失敗: ${deleteError.message}`);
+        } else {
+          console.log(`✅ [刪除任務] 已從 Supabase dev_messages 刪除任務 ${taskId}, 影響行數: ${count}`);
+          if (count === 0) {
+            console.log(`⚠️ [刪除任務] 警告：任務 ${taskId} 在 Supabase 中不存在`);
+          }
+        }
+      } catch (supabaseError) {
+        console.error('❌ [刪除任務] Supabase 操作失敗:', supabaseError.message);
+        return res.status(500).json({
+          error: 'Supabase 刪除失敗',
+          details: supabaseError.message
+        });
+      }
+    }
+
+    // 2. Supabase 刪除成功後，才從記憶體中移除任務
     const userTasks = userTaskStacks.get(userId) || [];
     const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
 
-    let deletedTask = null;
     if (taskIndex !== -1) {
       deletedTask = userTasks[taskIndex];
       userTasks.splice(taskIndex, 1);
       userTaskStacks.set(userId, userTasks);
       console.log(`✅ [刪除任務] 已從記憶體中刪除任務 ${taskId}: "${deletedTask.text}"`);
     } else {
-      console.log(`⚠️ [刪除任務] 任務 ${taskId} 在記憶體中不存在`);
-    }
-
-    // 2. 從 Supabase 資料庫中刪除任務（如果存在的話）
-    if (supabase) {
-      try {
-        const tablePrefix = process.env.TABLE_PREFIX || '';
-        // 從 dev_messages 表格刪除（任務的實際存儲位置）
-        const { error: deleteError } = await supabase
-          .from(`${tablePrefix}messages`)
-          .delete()
-          .eq('id', parseInt(taskId))
-          .eq('user_id', userId);
-
-        if (deleteError) {
-          console.error('⚠️ [刪除任務] Supabase 刪除錯誤:', deleteError);
-          // 不阻止操作，因為記憶體已經刪除成功
-        } else {
-          console.log(`✅ [刪除任務] 已從 Supabase dev_messages 刪除任務 ${taskId}`);
-        }
-      } catch (supabaseError) {
-        console.error('⚠️ [刪除任務] Supabase 操作失敗:', supabaseError);
-        // 不阻止操作，因為記憶體已經刪除成功
-      }
+      console.log(`⚠️ [刪除任務] 任務 ${taskId} 在記憶體中不存在，但 Supabase 刪除成功`);
     }
 
     // 3. 發送 FLEX MESSAGE 更新到 LINE
