@@ -2115,8 +2115,9 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
     if (supabase) {
       try {
         const tablePrefix = process.env.TABLE_PREFIX || '';
+        // 從 dev_messages 表格刪除（任務的實際存儲位置）
         const { error: deleteError } = await supabase
-          .from(`${tablePrefix}tasks`)
+          .from(`${tablePrefix}messages`)
           .delete()
           .eq('id', parseInt(taskId))
           .eq('user_id', userId);
@@ -2125,7 +2126,7 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
           console.error('⚠️ [刪除任務] Supabase 刪除錯誤:', deleteError);
           // 不阻止操作，因為記憶體已經刪除成功
         } else {
-          console.log(`✅ [刪除任務] 已從 Supabase 刪除任務 ${taskId}`);
+          console.log(`✅ [刪除任務] 已從 Supabase dev_messages 刪除任務 ${taskId}`);
         }
       } catch (supabaseError) {
         console.error('⚠️ [刪除任務] Supabase 操作失敗:', supabaseError);
@@ -2133,7 +2134,26 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
       }
     }
 
-    // 3. 返回成功響應
+    // 3. 發送 FLEX MESSAGE 更新到 LINE
+    if (deletedTask && client) {
+      try {
+        // 生成最新的 FLEX MESSAGE
+        const userTags = await getUserTags(userId);
+        const { createMainTaskList } = getTaskFlexModule();
+        const completedCount = userTasks.filter(task => task.completed).length;
+        const favoriteCount = userTasks.filter(task => task.favorited).length;
+        const flexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+
+        // 推送 FLEX MESSAGE 給用戶
+        await client.pushMessage(userId, flexMessage);
+        console.log(`✅ [刪除任務] 已發送更新的 FLEX MESSAGE 給用戶 ${userId}`);
+      } catch (flexError) {
+        console.error('⚠️ [刪除任務] FLEX MESSAGE 發送失敗:', flexError);
+        // 不阻止操作，因為刪除已經成功
+      }
+    }
+
+    // 4. 返回成功響應
     res.json({
       success: true,
       message: '任務已成功刪除並同步更新到 TODO LIST',
