@@ -13,7 +13,11 @@ const axios = require('axios');
 const path = require('path');
 const OenPaymentCorrect = require('./payment-correct');
 const oenPayment = new OenPaymentCorrect();
+const WebContentAnalyzer = require('./web-content-analyzer');
+const AITagGenerator = require('./ai-tag-generator');
 const { subscriptionService } = require('./subscription-service');
+const { setupAutoTagRoutes } = require('./auto-tag-api');
+const EnhancedLinkPreview = require('./enhanced-link-preview');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
@@ -51,6 +55,10 @@ function filterTodayTasks(tasks) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// 初始化增強連結預覽服務
+const enhancedPreview = new EnhancedLinkPreview();
+
 console.log('🚀 小汪記記 with LINE Login starting - TAG FIXED VERSION 2025-09-11-15:50...');
 
 // 初始化 OpenAI
@@ -86,6 +94,9 @@ app.use(session({
 
 // 靜態文件服務 - 支援直接訪問 HTML 檔案
 app.use(express.static(__dirname));
+
+// 靜態檔案服務 - 截圖圖片
+app.use('/screenshots', express.static(path.join(__dirname, 'public', 'screenshots')));
 
 // 判斷是否為問句或請求
 function isQuestion(text) {
@@ -209,11 +220,62 @@ async function handlePostback(event) {
             ])
             .select()
             .single();
-          
+
           if (error) {
             console.error('❌ [收藏任務] Supabase 儲存錯誤:', error);
           } else {
             console.log(`✅ [收藏任務] 已儲存至 Supabase，ID: ${data.id}`);
+
+            // 檢測是否包含URL並自動生成標籤
+            const urlRegex = /(https?:\/\/[^\s]+)/gi;
+            const urlMatch = favoriteTask.text.match(urlRegex);
+            let autoTags = [];
+
+            if (urlMatch && urlMatch.length > 0) {
+              const url = urlMatch[0];
+              console.log(`🏷️ [LINE Bot自動標籤] 檢測到URL，開始自動分析: ${url}`);
+
+              try {
+                // 初始化分析服務
+                const contentAnalyzer = new WebContentAnalyzer();
+                const tagGenerator = new AITagGenerator();
+
+                // 分析網頁內容
+                const analysisResult = await contentAnalyzer.analyzeUrl(url);
+
+                if (analysisResult.success) {
+                  // 生成標籤
+                  const tagResult = await tagGenerator.generateTags(analysisResult.data);
+
+                  if (tagResult.success && tagResult.tags && tagResult.tags.length > 0) {
+                    // 取前3個標籤
+                    autoTags = tagResult.tags.slice(0, 3);
+                    console.log(`🎉 [LINE Bot自動標籤] 成功生成標籤: ${autoTags.join(', ')}`);
+
+                    // 更新資料庫中的標籤資訊
+                    const tagString = autoTags.join(',');
+                    const { error: updateError } = await supabase
+                      .from('favorite_tasks')
+                      .update({ tag: tagString })
+                      .eq('id', data.id);
+
+                    if (updateError) {
+                      console.error('❌ [LINE Bot自動標籤] 標籤更新失敗:', updateError);
+                    } else {
+                      console.log(`✅ [LINE Bot自動標籤] 標籤已更新至資料庫: ${tagString}`);
+                    }
+                  } else {
+                    console.log('⚠️ [LINE Bot自動標籤] AI 標籤生成無結果');
+                  }
+                } else {
+                  console.log('⚠️ [LINE Bot自動標籤] 網頁分析失敗:', analysisResult.error);
+                }
+              } catch (autoTagError) {
+                console.error('❌ [LINE Bot自動標籤] 自動標籤處理失敗:', autoTagError.message);
+              }
+            } else {
+              console.log('ℹ️ [LINE Bot自動標籤] 任務中未檢測到 URL，跳過自動標籤');
+            }
           }
         } catch (dbError) {
           console.error('❌ [收藏任務] 資料庫連線錯誤:', dbError);
@@ -1772,18 +1834,72 @@ app.post('/api/favorites', async (req, res) => {
         }
         
         console.log(`✅ [新增收藏] 收藏任務新增成功，ID: ${data.id}`);
-        
+
+        // 檢測是否包含URL並自動生成標籤
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const urlMatch = name.match(urlRegex);
+        let autoTags = [];
+
+        if (urlMatch && urlMatch.length > 0) {
+          const url = urlMatch[0];
+          console.log(`🏷️ [自動標籤] 檢測到URL，開始自動分析: ${url}`);
+
+          try {
+            // 初始化分析服務
+            const contentAnalyzer = new WebContentAnalyzer();
+            const tagGenerator = new AITagGenerator();
+
+            // 分析網頁內容
+            const analysisResult = await contentAnalyzer.analyzeUrl(url);
+
+            if (analysisResult.success) {
+              // 生成標籤
+              const tagResult = await tagGenerator.generateTags(analysisResult.data);
+
+              if (tagResult.success && tagResult.tags && tagResult.tags.length > 0) {
+                // 取前3個標籤
+                autoTags = tagResult.tags.slice(0, 3);
+                console.log(`🎉 [自動標籤] 成功生成標籤: ${autoTags.join(', ')}`);
+
+                // 更新資料庫中的標籤資訊
+                const tagString = autoTags.join(',');
+                const { error: updateError } = await supabase
+                  .from('favorite_tasks')
+                  .update({ tag: tagString })
+                  .eq('id', data.id);
+
+                if (updateError) {
+                  console.error('❌ [自動標籤] 更新標籤失敗:', updateError);
+                } else {
+                  console.log(`✅ [自動標籤] 標籤已儲存到資料庫: ${tagString}`);
+                }
+              } else {
+                console.log('⚠️ [自動標籤] 標籤生成失敗，跳過自動標籤');
+              }
+            } else {
+              console.log('⚠️ [自動標籤] 網頁分析失敗，跳過自動標籤');
+            }
+          } catch (autoTagError) {
+            console.error('❌ [自動標籤] 自動標籤處理失敗:', autoTagError.message);
+          }
+        }
+
         // 格式化返回數據以保持相容性
         const formattedFavorite = {
           id: data.id.toString(),
           name: data.name,
           description: data.description,
           category: data.category,
+          tag: autoTags.length > 0 ? autoTags.join(',') : '',
           used_count: data.used_count,
           created_at: data.created_at
         };
-        
-        res.json({ success: true, favorite: formattedFavorite });
+
+        res.json({
+          success: true,
+          favorite: formattedFavorite,
+          autoTags: autoTags
+        });
       } catch (dbError) {
         console.error('❌ [新增收藏] 資料庫連線錯誤:', dbError);
         return res.status(500).json({ error: 'Database connection error' });
@@ -2352,7 +2468,7 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
   }
 });
 
-// 連結預覽 API
+// 增強版連結預覽 API
 app.post('/api/link-preview', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
@@ -2366,60 +2482,32 @@ app.post('/api/link-preview', async (req, res) => {
       return res.status(400).json({ error: 'Missing URL' });
     }
 
-    console.log(`🔗 [連結預覽] 用戶 ${userId} 請求預覽: ${url}`);
+    console.log(`🚀 [增強預覽] 用戶 ${userId} 請求預覽: ${url}`);
 
     try {
-      // 使用 axios 獲取網頁內容
-      const response = await axios.get(url, {
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
+      // 使用增強版連結預覽服務
+      const preview = await enhancedPreview.getEnhancedPreview(url);
 
-      const html = response.data;
-
-      // 簡單的HTML解析來提取meta資訊
-      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-      const descriptionMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
-                              html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["'][^>]*>/i);
-      const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
-                        html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["'][^>]*>/i);
-
-      const title = titleMatch ? titleMatch[1].trim() : '';
-      const description = descriptionMatch ? descriptionMatch[1].trim() : '';
-      const image = imageMatch ? imageMatch[1].trim() : null;
-
-      // 提取域名
-      const domain = new URL(url).hostname;
-
-      const preview = {
-        title: title || domain,
-        description: description.substring(0, 200) + (description.length > 200 ? '...' : ''),
-        image: image,
-        domain: domain,
-        url: url
-      };
-
-      console.log(`✅ [連結預覽] 成功解析:`, preview);
+      console.log(`✅ [增強預覽] 成功解析:`, preview);
       res.json(preview);
 
-    } catch (fetchError) {
-      console.error(`❌ [連結預覽] 獲取網頁失敗:`, fetchError.message);
+    } catch (error) {
+      console.error(`❌ [增強預覽] 失敗:`, error.message);
 
-      // 回傳基本資訊
+      // 降級到基本預覽
       const domain = new URL(url).hostname;
       res.json({
         title: domain,
         description: '無法獲取網頁描述',
         image: null,
         domain: domain,
-        url: url
+        url: url,
+        type: 'error'
       });
     }
 
   } catch (err) {
-    console.error('❌ [連結預覽] 錯誤:', err);
+    console.error('❌ [增強預覽] 系統錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -3385,9 +3473,40 @@ app.get('/api/debug/flex-message/:userId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// 設置自動標籤路由
+setupAutoTagRoutes(app);
 
 // 啟動伺服器
 app.listen(PORT, () => {
   console.log(`🤖 LINE Bot server running on port ${PORT}`);
   console.log(`📅 Started at: ${new Date().toISOString()}`);
+  console.log(`🔗 Enhanced Link Preview Service ready`);
+});
+
+// 優雅關閉處理
+process.on('SIGINT', async () => {
+  console.log('\n🔄 [伺服器] 正在關閉...');
+
+  try {
+    // 清理增強預覽服務資源
+    await enhancedPreview.cleanup();
+    console.log('✅ [伺服器] 資源清理完成');
+  } catch (error) {
+    console.error('❌ [伺服器] 清理失敗:', error.message);
+  }
+
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🔄 [伺服器] 收到 SIGTERM，正在關閉...');
+
+  try {
+    await enhancedPreview.cleanup();
+    console.log('✅ [伺服器] 資源清理完成');
+  } catch (error) {
+    console.error('❌ [伺服器] 清理失敗:', error.message);
+  }
+
+  process.exit(0);
 });
