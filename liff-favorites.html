@@ -187,6 +187,56 @@
             white-space: nowrap;
         }
 
+        /* 多標籤容器樣式 */
+        .sticky-note-tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .sticky-note-single-tag {
+            background: #f8f9fa;
+            color: #6c757d;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid #e9ecef;
+            white-space: nowrap;
+            display: inline-block;
+        }
+
+        .sticky-note-single-tag:first-child {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-color: #bbdefb;
+        }
+
+        /* AI標籤特殊樣式 */
+        .sticky-note-ai-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sticky-note-ai-tag::before {
+            content: '🤖';
+            margin-right: 4px;
+        }
+
+        .sticky-note-ai-tag:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s ease;
+        }
+
         .sticky-note-title {
             font-size: 15px;
             font-weight: 600;
@@ -685,6 +735,132 @@
             font-size: 12px;
             border-radius: 4px;
         }
+        /* 自動標籤彈窗樣式 */
+        .auto-tag-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .auto-tag-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .auto-tag-content {
+            margin-top: 15px;
+        }
+
+        .url-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .url-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .suggested-tags h4 {
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .tag-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .suggested-tag {
+            background: #007bff;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggested-tag:hover {
+            background: #0056b3;
+            transform: scale(1.05);
+        }
+
+        .auto-tag-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-apply-all {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-apply-all:hover {
+            background: #218838;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            background: #545b62;
+        }
+
+        /* 自動標籤按鈕樣式 */
+        .auto-tag-btn {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            margin-left: 8px;
+        }
+
+        .auto-tag-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .auto-tag-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
     </style>
 </head>
 <body>
@@ -962,6 +1138,11 @@
 
                     displayFavoriteTasks();
                     updateStats();
+
+                    // 異步預載AI標籤（不阻塞UI）
+                    setTimeout(() => {
+                        preloadAITags();
+                    }, 500);
                 } else {
                     console.error('❌ [收藏任務] API 請求失敗:', response.status);
                     favoritesTasks = [];
@@ -982,13 +1163,23 @@
             console.log('🔍 [標籤解析] 輸入任務:', task);
             console.log('🔍 [標籤解析] task.tag:', task.tag);
             console.log('🔍 [標籤解析] task.name:', task.name);
-            
+
             // 優先使用API回傳的tag欄位
             if (task.tag && task.tag.trim()) {
                 console.log('✅ [標籤解析] 使用API tag欄位:', task.tag);
+
+                // 處理多個標籤（以逗號分隔）
+                const tagString = task.tag.trim();
+                const tags = tagString.includes(',') ?
+                    tagString.split(',').map(t => t.trim()).filter(t => t.length > 0) :
+                    [tagString];
+
+                console.log('📋 [標籤解析] 解析出的標籤數組:', tags);
+
                 return {
                     hasTag: true,
-                    tag: task.tag.trim(),
+                    tag: tags[0], // 主要標籤（用於篩選）
+                    tags: tags,   // 所有標籤
                     content: task.name,
                     displayName: task.name
                 };
@@ -1007,6 +1198,7 @@
                 return {
                     hasTag: true,
                     tag: extractedTag,
+                    tags: [extractedTag], // 包裝成陣列格式
                     content: extractedContent,
                     displayName: taskName
                 };
@@ -1016,6 +1208,7 @@
             return {
                 hasTag: false,
                 tag: null,
+                tags: [], // 空陣列
                 content: taskName,
                 displayName: taskName
             };
@@ -1087,8 +1280,11 @@
             const tagCounts = {};
             favoritesTasks.forEach(task => {
                 const tagInfo = extractTagInfo(task);
-                if (tagInfo.hasTag) {
-                    tagCounts[tagInfo.tag] = (tagCounts[tagInfo.tag] || 0) + 1;
+                if (tagInfo.hasTag && tagInfo.tags) {
+                    // 為每個標籤分別計數
+                    tagInfo.tags.forEach(tag => {
+                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                    });
                 }
             });
 
@@ -1164,6 +1360,207 @@
             }
         }
 
+        // AI標籤快取
+        const aiTagsCache = new Map();
+
+        // 獲取URL的自動標籤建議
+        async function getAutoTags(url) {
+            try {
+                console.log('🏷️ [自動標籤] 開始分析URL:', url);
+
+                const response = await fetch('/api/auto-tag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': liffProfile.userId
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [自動標籤] 分析成功:', result);
+                    return result;
+                } else {
+                    console.error('❌ [自動標籤] API 失敗:', response.status);
+                    return null;
+                }
+            } catch (error) {
+                console.error('❌ [自動標籤] 錯誤:', error);
+                return null;
+            }
+        }
+
+        // 從文本中提取連結
+        function extractLinkFromText(text) {
+            if (!text) return null;
+            const urlRegex = /(https?:\/\/[^\s\)]+)/gi;
+            const matches = text.match(urlRegex);
+            return matches ? matches[0] : null;
+        }
+
+        // 為任務獲取AI標籤（帶快取）
+        async function getTaskAITags(task) {
+            try {
+                // 提取任務中的URL
+                const linkUrl = extractLinkFromText(task.name);
+                if (!linkUrl) {
+                    return [];
+                }
+
+                // 檢查快取
+                if (aiTagsCache.has(linkUrl)) {
+                    console.log('💾 [AI標籤快取] 使用快取:', linkUrl);
+                    return aiTagsCache.get(linkUrl);
+                }
+
+                console.log('🤖 [AI標籤] 為任務獲取AI標籤:', task.name.substring(0, 50) + '...');
+
+                // 調用AI標籤API
+                const autoTagResult = await getAutoTags(linkUrl);
+
+                if (autoTagResult && autoTagResult.success && autoTagResult.tags) {
+                    // 只取前3個標籤
+                    const aiTags = autoTagResult.tags.slice(0, 3);
+                    console.log('✅ [AI標籤] 獲取成功:', aiTags);
+
+                    // 快取結果
+                    aiTagsCache.set(linkUrl, aiTags);
+                    return aiTags;
+                } else {
+                    console.log('⚠️ [AI標籤] 無法獲取標籤');
+                    // 快取空結果，避免重複請求
+                    aiTagsCache.set(linkUrl, []);
+                    return [];
+                }
+            } catch (error) {
+                console.error('❌ [AI標籤] 獲取失敗:', error);
+                return [];
+            }
+        }
+
+        // 批量預載AI標籤
+        async function preloadAITags() {
+            if (!favoritesTasks || favoritesTasks.length === 0) return;
+
+            console.log('🚀 [AI標籤預載] 開始為', favoritesTasks.length, '個任務預載AI標籤');
+
+            // 找出有網址但還沒有AI標籤快取的任務
+            const tasksWithUrls = favoritesTasks.filter(task => {
+                const linkUrl = extractLinkFromText(task.name);
+                return linkUrl && !aiTagsCache.has(linkUrl);
+            });
+
+            console.log('📋 [AI標籤預載] 找到', tasksWithUrls.length, '個需要AI標籤的任務');
+
+            if (tasksWithUrls.length === 0) return;
+
+            // 限制同時處理的數量，避免API負載過重
+            const batchSize = 3;
+            for (let i = 0; i < tasksWithUrls.length; i += batchSize) {
+                const batch = tasksWithUrls.slice(i, i + batchSize);
+
+                console.log(`🔄 [AI標籤預載] 處理批次 ${Math.floor(i/batchSize) + 1}/${Math.ceil(tasksWithUrls.length/batchSize)}`);
+
+                // 並行處理這個批次
+                const promises = batch.map(task => getTaskAITags(task));
+                await Promise.all(promises);
+
+                // 每批次間稍作延遲
+                if (i + batchSize < tasksWithUrls.length) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+
+            console.log('✅ [AI標籤預載] 完成預載，重新渲染頁面');
+            // 預載完成後重新渲染頁面
+            displayFavoriteTasks();
+        }
+
+        // 顯示自動標籤建議彈窗
+        function showAutoTagSuggestions(url, autoTagResult) {
+            const modal = document.createElement('div');
+            modal.className = 'auto-tag-modal-overlay';
+            modal.innerHTML = `
+                <div class="auto-tag-modal">
+                    <div class="modal-header">
+                        <h3 class="modal-title">🏷️ AI標籤建議</h3>
+                        <button class="modal-close" onclick="closeAutoTagModal()">&times;</button>
+                    </div>
+                    <div class="auto-tag-content">
+                        <div class="url-info">
+                            <p><strong>網址:</strong> ${url}</p>
+                            <p><strong>標題:</strong> ${autoTagResult.metadata.title}</p>
+                            <p><strong>內容類型:</strong> ${autoTagResult.metadata.contentType?.type || '未知'}</p>
+                        </div>
+                        <div class="suggested-tags">
+                            <h4>建議標籤:</h4>
+                            <div class="tag-suggestions">
+                                ${autoTagResult.tags.map(tag => `
+                                    <span class="suggested-tag" onclick="selectSuggestedTag('${tag}')">${tag}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="auto-tag-actions">
+                            <button class="btn-apply-all" onclick="applyAllSuggestedTags()">應用所有標籤</button>
+                            <button class="btn-cancel" onclick="closeAutoTagModal()">取消</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            window.currentAutoTagResult = autoTagResult;
+        }
+
+        // 關閉自動標籤彈窗
+        function closeAutoTagModal() {
+            const modal = document.querySelector('.auto-tag-modal-overlay');
+            if (modal) {
+                modal.remove();
+            }
+            window.currentAutoTagResult = null;
+        }
+
+        // 選擇建議的標籤
+        function selectSuggestedTag(tagName) {
+            // 這裡可以與現有的標籤選擇系統整合
+            console.log('選擇標籤:', tagName);
+            // 觸發現有的標籤選擇邏輯
+            showToast(`已選擇標籤: ${tagName}`, 'success');
+        }
+
+        // 應用所有建議的標籤
+        function applyAllSuggestedTags() {
+            if (window.currentAutoTagResult) {
+                const tags = window.currentAutoTagResult.tags;
+                console.log('應用所有標籤:', tags);
+                showToast(`已應用 ${tags.length} 個標籤: ${tags.join(', ')}`, 'success');
+                closeAutoTagModal();
+            }
+        }
+
+        // 觸發自動標籤分析
+        async function triggerAutoTag(url) {
+            console.log('🏷️ [觸發] 開始自動標籤分析:', url);
+
+            // 顯示載入中提示
+            showToast('正在分析網頁內容，請稍候...', 'info');
+
+            try {
+                const autoTagResult = await getAutoTags(url);
+
+                if (autoTagResult && autoTagResult.success) {
+                    showAutoTagSuggestions(url, autoTagResult);
+                } else {
+                    showToast('無法分析此網址，請確認網址有效', 'error');
+                }
+            } catch (error) {
+                console.error('❌ [觸發] 自動標籤分析失敗:', error);
+                showToast('分析失敗，請稍後再試', 'error');
+            }
+        }
+
         // 獲取標籤對應的圖示
         function getTagIcon(tagName) {
             if (!tagName) return '🏷️';
@@ -1190,38 +1587,56 @@
 
         // 顯示收藏任務(現代卡片風格)
         async function displayFavoriteTasks() {
-            const favoritesList = document.getElementById('favoritesList');
-            const emptyState = document.getElementById('emptyState');
+            try {
+                const favoritesList = document.getElementById('favoritesList');
+                const emptyState = document.getElementById('emptyState');
+                const loadingState = document.getElementById('loadingState');
 
-            // 根據當前篩選標籤過濾任務
-            let filteredTasks = favoritesTasks;
-            if (currentFilterTag !== '') {
-                filteredTasks = favoritesTasks.filter(task => {
-                    const tagInfo = extractTagInfo(task);
-                    return tagInfo.hasTag && tagInfo.tag === currentFilterTag;
-                });
-            }
-
-            console.log('🔍 [標籤篩選] 顯示任務:', filteredTasks.length, '個 (總共', favoritesTasks.length, '個)');
-
-            if (filteredTasks.length === 0) {
-                favoritesList.innerHTML = '';
-                if (currentFilterTag === '') {
-                    emptyState.style.display = 'block';
-                } else {
-                    favoritesList.innerHTML = `
-                        <div class="empty-state">
-                            <i class="bi bi-funnel display-1 text-muted mb-3"></i>
-                            <h5>沒有「${currentFilterTag}」標籤的收藏任務</h5>
-                            <p class="text-muted">試試其他標籤或檢視全部任務！</p>
-                        </div>
-                    `;
-                    emptyState.style.display = 'none';
+                // 隱藏載入狀態
+                if (loadingState) {
+                    loadingState.style.display = 'none';
                 }
-                return;
-            }
 
-            emptyState.style.display = 'none';
+                // 檢查是否有收藏任務資料
+                if (!favoritesTasks || !Array.isArray(favoritesTasks)) {
+                    console.warn('⚠️ [收藏任務] favoritesTasks 不是有效的陣列:', favoritesTasks);
+                    favoritesTasks = [];
+                }
+
+                // 根據當前篩選標籤過濾任務
+                let filteredTasks = favoritesTasks;
+                if (currentFilterTag !== '') {
+                    filteredTasks = favoritesTasks.filter(task => {
+                        try {
+                            const tagInfo = extractTagInfo(task);
+                            return tagInfo.hasTag && tagInfo.tags && tagInfo.tags.includes(currentFilterTag);
+                        } catch (error) {
+                            console.warn('⚠️ [收藏任務] 處理任務標籤時發生錯誤:', error, task);
+                            return false;
+                        }
+                    });
+                }
+
+                console.log('🔍 [標籤篩選] 顯示任務:', filteredTasks.length, '個 (總共', favoritesTasks.length, '個)');
+
+                if (filteredTasks.length === 0) {
+                    favoritesList.innerHTML = '';
+                    if (currentFilterTag === '') {
+                        emptyState.style.display = 'block';
+                    } else {
+                        favoritesList.innerHTML = `
+                            <div class="empty-state">
+                                <i class="bi bi-funnel display-1 text-muted mb-3"></i>
+                                <h5>沒有「${currentFilterTag}」標籤的收藏任務</h5>
+                                <p class="text-muted">試試其他標籤或檢視全部任務！</p>
+                            </div>
+                        `;
+                        emptyState.style.display = 'none';
+                    }
+                    return;
+                }
+
+                emptyState.style.display = 'none';
 
             // 現代卡片風格，支援連結預覽
             const cardsHtml = await Promise.all(filteredTasks.map(async (task, index) => {
@@ -1243,14 +1658,45 @@
                     <div class="sticky-note-card ${linkUrl ? 'has-link' : ''}" onclick="handleNoteClick(event, '${linkUrl || ''}')">
                         <div class="sticky-note-content">
                             <div class="sticky-note-header">
-                                ${tagInfo.hasTag ?
-                                    `<div class="sticky-note-tag">
-                                        ${getTagIcon(tagInfo.tag)} ${tagInfo.tag}
-                                    </div>` :
-                                    `<div class="sticky-note-tag">
-                                        🏷️ 無標籤
-                                    </div>`
-                                }
+                                ${(() => {
+                                    // 獲取原有標籤
+                                    const userTags = tagInfo.hasTag && tagInfo.tags && tagInfo.tags.length > 0 ? tagInfo.tags : [];
+
+                                    // 獲取AI標籤（優先從任務資料讀取，其次從快取）
+                                    let aiTags = [];
+
+                                    // 首先檢查任務的 tag 欄位（後端儲存 AI 標籤的地方）
+                                    if (task.tag && typeof task.tag === 'string' && task.tag.trim().length > 0) {
+                                        // 從 tag 欄位解析 AI 標籤（逗號分隔）
+                                        aiTags = task.tag.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+                                        console.log('📋 [AI標籤] 從任務 tag 欄位讀取AI標籤:', aiTags);
+                                    } else {
+                                        // 如果任務沒有 tag 欄位，嘗試從快取獲取
+                                        const linkUrl = extractLinkFromText(task.name);
+                                        aiTags = linkUrl && aiTagsCache.has(linkUrl) ? aiTagsCache.get(linkUrl) : [];
+                                        console.log('📋 [AI標籤] 從快取讀取AI標籤:', aiTags);
+                                    }
+
+                                    // 如果有任何標籤就顯示
+                                    if (userTags.length > 0 || aiTags.length > 0) {
+                                        return `<div class="sticky-note-tags-container">
+                                            ${userTags.map(tag =>
+                                                `<span class="sticky-note-single-tag">
+                                                    ${getTagIcon(tag)} ${tag}
+                                                </span>`
+                                            ).join('')}
+                                            ${aiTags.map(tag =>
+                                                `<span class="sticky-note-ai-tag">
+                                                    ${tag}
+                                                </span>`
+                                            ).join('')}
+                                        </div>`;
+                                    } else {
+                                        return `<div class="sticky-note-tag">
+                                            🏷️ 無標籤
+                                        </div>`;
+                                    }
+                                })()}
                             </div>
 
                             ${linkPreview ? `
@@ -1305,9 +1751,38 @@
                         </div>
                     </div>
                 `;
-            }));
+                }));
 
-            favoritesList.innerHTML = cardsHtml.join('');
+                favoritesList.innerHTML = cardsHtml.join('');
+
+            } catch (error) {
+                console.error('❌ [收藏任務] 顯示收藏任務時發生錯誤:', error);
+
+                // 顯示錯誤訊息給用戶
+                const favoritesList = document.getElementById('favoritesList');
+                const loadingState = document.getElementById('loadingState');
+                const emptyState = document.getElementById('emptyState');
+
+                if (loadingState) {
+                    loadingState.style.display = 'none';
+                }
+                if (emptyState) {
+                    emptyState.style.display = 'none';
+                }
+
+                if (favoritesList) {
+                    favoritesList.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-exclamation-triangle display-1 text-warning mb-3"></i>
+                            <h5>載入收藏任務時發生錯誤</h5>
+                            <p class="text-muted">請重新整理頁面或稍後再試</p>
+                            <button class="btn btn-primary mt-3" onclick="loadFavoriteTasks()">
+                                <i class="bi bi-arrow-clockwise"></i> 重新載入
+                            </button>
+                        </div>
+                    `;
+                }
+            }
         }
 
         // 處理卡片點擊事件

@@ -18,6 +18,7 @@ const AITagGenerator = require('./ai-tag-generator');
 const { subscriptionService } = require('./subscription-service');
 const { setupAutoTagRoutes } = require('./auto-tag-api');
 const EnhancedLinkPreview = require('./enhanced-link-preview');
+const ContentClassifier = require('./content-classifier');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
@@ -31,6 +32,9 @@ function getTaskFlexModule() {
 // 用戶任務堆疊儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{text: string, id: number, timestamp: string}>>
 const userTaskStacks = new Map();
+
+// 暫存AI標籤的 Map (用於將AI標籤傳遞給Supabase儲存)
+const tempAITagsMap = new Map();
 
 // 用戶收藏任務儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{id: string, name: string, description: string, category: string, used_count: number, created_at: string}>>
@@ -58,6 +62,9 @@ const PORT = process.env.PORT || 3000;
 
 // 初始化增強連結預覽服務
 const enhancedPreview = new EnhancedLinkPreview();
+
+// 初始化智能內容分類器
+const contentClassifier = new ContentClassifier();
 
 console.log('🚀 小汪記記 with LINE Login starting - TAG FIXED VERSION 2025-09-11-15:50...');
 
@@ -356,6 +363,22 @@ async function handlePostback(event) {
     }
   }
 
+  // 檢查是否為展開收藏卡事件
+  if (postbackData === 'expand_collections') {
+    console.log(`📦 用戶 ${userId} 點擊展開收藏卡`);
+
+    // 創建收藏卡 BUBBLE
+    const { createCollectionsBubble } = getTaskFlexModule();
+    const collectionsBubble = createCollectionsBubble();
+
+    if (client) {
+      return client.replyMessage(event.replyToken, collectionsBubble);
+    } else {
+      console.log('測試模式：展開收藏卡 BUBBLE', JSON.stringify(collectionsBubble, null, 2));
+      return Promise.resolve(null);
+    }
+  }
+
   return Promise.resolve(null);
 }
 
@@ -590,6 +613,10 @@ async function handleEvent(event) {
   const isSystemMessage =
     cleanedMessage.startsWith('收藏任務_') ||
     cleanedMessage.startsWith('完成任務_') ||
+    cleanedMessage.startsWith('加入收藏卡_') ||
+    cleanedMessage.startsWith('記錄到TODO_') ||
+    cleanedMessage.startsWith('記錄到收藏卡_') ||
+    cleanedMessage === '不用謝謝!' ||
     cleanedMessage === 'SYNC_TASKS:' ||
     cleanedMessage.includes('SYNC_TASKS:') ||
     // 檢查是否為標籤選擇（當用戶正在等待標籤選擇時）
@@ -610,15 +637,27 @@ async function handleEvent(event) {
         detectedTag = tagMatch[1];
       }
 
+      // 檢查是否有AI標籤需要儲存
+      const insertData = {
+        user_id: userId,
+        message_text: cleanedMessage,
+        created_at: new Date().toISOString()
+      };
+
+      // 檢查是否有AI標籤需要一起儲存
+      const tempKey = `${userId}_${cleanedMessage}`;
+      const aiTags = tempAITagsMap.get(tempKey);
+      if (aiTags && aiTags.length > 0) {
+        insertData.ai_tags = aiTags.join(',');
+        console.log('💾 [Supabase] 準備儲存AI標籤:', aiTags);
+
+        // 儲存後從暫存Map中移除，避免記憶體洩漏
+        tempAITagsMap.delete(tempKey);
+      }
+
       const { data, error } = await supabase
         .from(tableName)
-        .insert([
-          {
-            user_id: userId,
-            message_text: cleanedMessage,
-            created_at: new Date().toISOString()
-          }
-        ]);
+        .insert([insertData]);
 
       if (error) {
         console.error('Supabase 儲存錯誤:', error);
@@ -658,7 +697,7 @@ async function handleEvent(event) {
   if (userMessage.startsWith('完成任務_')) {
     const taskId = parseInt(userMessage.replace('完成任務_', ''));
     console.log(`✅ 用戶 ${userId} 點擊完成任務 ID: ${taskId}`);
-    
+
     // 建立模擬的 postback 事件
     const mockPostbackEvent = {
       type: 'postback',
@@ -666,8 +705,71 @@ async function handleEvent(event) {
       source: { userId: userId },
       replyToken: event.replyToken
     };
-    
+
     return handlePostback(mockPostbackEvent);
+  }
+
+  // 特殊指令：加入收藏卡
+  if (userMessage.startsWith('加入收藏卡_')) {
+    const taskContent = userMessage.replace('加入收藏卡_', '');
+    console.log(`📦 用戶 ${userId} 要加入收藏卡: ${taskContent}`);
+
+    try {
+      // 將任務內容添加到收藏
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('favorite_tasks')
+          .insert({
+            user_id: userId,
+            name: taskContent,
+            description: '',
+            category: '',
+            tag: '',
+            used_count: 0,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('❌ 加入收藏卡失敗:', error);
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '❌ 加入收藏卡失敗，請稍後再試'
+          });
+        } else {
+          console.log('✅ 成功加入收藏卡');
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '📦 已成功加入收藏卡！\n\n您可以在收藏卡頁面查看和管理所有收藏內容。'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ 加入收藏卡處理錯誤:', error);
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '❌ 處理失敗，請稍後再試'
+      });
+    }
+  }
+
+  // 特殊指令：不用謝謝
+  if (userMessage === '不用謝謝!') {
+    console.log(`👍 用戶 ${userId} 回應不用謝謝`);
+
+    const thankYouMessages = [
+      '😊 不客氣！隨時為您服務',
+      '👍 很高興能幫到您！',
+      '🌟 小汪記記隨時待命！',
+      '💪 繼續加油，完成更多任務！',
+      '🎯 保持高效，您做得很棒！'
+    ];
+
+    const randomMessage = thankYouMessages[Math.floor(Math.random() * thankYouMessages.length)];
+
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: randomMessage
+    });
   }
 
   // 特殊指令：任務更新完成，重新生成任務堆疊
@@ -972,43 +1074,76 @@ async function handleEvent(event) {
       return Promise.resolve(null);
     }
   } else {
-    // 任務：加入任務堆疊並使用 Flex Message 記錄
-    console.log('📝 偵測到任務，加入任務堆疊');
-    
+    // 📝 收到內容：提供用戶選擇記錄方式
+    console.log('📝 收到用戶內容，提供選擇記錄方式');
+
+    // 發送包含Quick Reply的確認訊息
+    const quickReplyMessage = {
+      type: 'text',
+      text: `收到您的內容：\n\n${userMessage.length > 100 ? userMessage.substring(0, 100) + '...' : userMessage}\n\n請選擇要記錄到哪裡：`,
+      quickReply: {
+        items: [
+          {
+            type: 'action',
+            action: {
+              type: 'message',
+              label: '📝 記錄到TODO',
+              text: `記錄到TODO_${userMessage}`
+            }
+          },
+          {
+            type: 'action',
+            action: {
+              type: 'message',
+              label: '📦 記錄到收藏卡',
+              text: `記錄到收藏卡_${userMessage}`
+            }
+          }
+        ]
+      }
+    };
+
+    if (client) {
+      return client.replyMessage(event.replyToken, quickReplyMessage);
+    } else {
+      console.log('測試模式：Quick Reply選擇', JSON.stringify(quickReplyMessage, null, 2));
+      return Promise.resolve(null);
+    }
+
+  // 處理"記錄到TODO"選擇
+  if (userMessage.startsWith('記錄到TODO_')) {
+    const taskContent = userMessage.replace('記錄到TODO_', '');
+    console.log(`📝 用戶選擇記錄到TODO: ${taskContent}`);
+
     // 取得或初始化用戶任務堆疊
     let userTasks = userTaskStacks.get(userId) || [];
-    
+
     // 新增任務到堆疊
     const newTask = {
       id: Date.now(),
-      text: userMessage,
+      text: taskContent,
       timestamp: new Date().toISOString(),
-      note: '' // 備註欄位初始化為空字串
+      note: ''
     };
-    
+
     console.log(`🆔 [任務ID] 新任務已生成，ID: ${newTask.id}, 內容: "${newTask.text}"`);
-    
+
+    // 🏷️ 檢測新任務是否包含網址，如果有則自動生成AI標籤
+    await processAutoTagsForNewTask(newTask, userId);
+
     userTasks.push(newTask);
     userTaskStacks.set(userId, userTasks);
-    
-    console.log(`📋 [任務同步] 用戶 ${userId} 目前任務數量: ${userTasks.length}`);
-    console.log('📝 [任務同步] 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
-    
-    // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
-    console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
 
-    // 🔄 確保記憶體中的任務是最新的 - 從 Supabase 重新載入
-    console.log('🔄 [FLEX同步] 確保記憶體任務堆疊為最新狀態...');
+    // 同步到 Supabase 重新載入
     try {
       const { data: latestMessages, error } = await supabase
         .from('dev_messages')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(50); // 載入最新 50 筆
+        .limit(50);
 
       if (!error && latestMessages && latestMessages.length > 0) {
-        // 將最新訊息轉換為任務格式並更新記憶體
         const latestTasks = latestMessages.reverse().map((msg, index) => ({
           id: msg.id || Date.now() + index,
           text: msg.message_text,
@@ -1019,13 +1154,12 @@ async function handleEvent(event) {
           tag: msg.tag || null
         }));
 
-        userTasks = latestTasks; // 使用所有任務列表
-        userTaskStacks.set(userId, userTasks); // 更新記憶體
+        userTasks = latestTasks;
+        userTaskStacks.set(userId, userTasks);
 
-        // 篩選出今天的任務用於FLEX MESSAGE
+        // 篩選今天的任務
         const today = new Date();
-        const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD
-
+        const todayString = today.toISOString().split('T')[0];
         const todayTasks = latestTasks.filter(task => {
           if (!task.timestamp) return false;
           const taskDate = new Date(task.timestamp);
@@ -1033,17 +1167,13 @@ async function handleEvent(event) {
           return taskDateString === todayString;
         });
 
-        console.log(`✅ [FLEX同步] 已更新任務堆疊，全部任務數量: ${userTasks.length}`);
-        console.log(`📝 [FLEX同步] 今天任務數量: ${todayTasks.length}, 預覽: ${todayTasks.slice(-3).map(t => t.text).join(', ')}`);
-
-        // 更新userTasks為今天的任務，用於FLEX MESSAGE生成
         userTasks = todayTasks;
       }
     } catch (syncError) {
       console.error('❌ [FLEX同步] 同步失敗:', syncError);
     }
 
-    // 創建包含所有任務的 Flex Message (預設顯示主任務清單，包含展開標籤按鈕)
+    // 創建包含所有任務的 Flex Message
     const userTags = await getUserTags(userId);
     const { createMainTaskList } = getTaskFlexModule();
 
@@ -1056,78 +1186,71 @@ async function handleEvent(event) {
     const displayCompletedCount = displayTasks.filter(task => task.completed).length;
     const displayFavoriteCount = displayTasks.filter(task => task.favorited).length;
 
-    console.log('🚨 [SERVER DEBUG] 準備調用 createMainTaskList');
-    console.log(`📅 [FLEX DEBUG] 今天任務數量: ${displayTasks.length}, 全部任務數量: ${userTasks.length}`);
     const flexMessage = createMainTaskList(displayTasks, userTags, displayCompletedCount, displayFavoriteCount);
-    console.log('✅ [SERVER DEBUG] createMainTaskList 調用完成');
-    
-    // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
-    const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
-    console.log('📱 [任務同步] 準備發送 FLEX MESSAGE 和同步資料');
-    
-    // 🔍 詳細記錄 FLEX MESSAGE 結構用於診斷
-    console.log('🔍 [FLEX DEBUG] FLEX MESSAGE 結構預覽:');
-    console.log(`  - altText: ${flexMessage.altText}`);
-    console.log(`  - type: ${flexMessage.type}`);
-    console.log(`  - quickReply items: ${flexMessage.quickReply?.items?.length || 0}`);
-    console.log('🔍 [FLEX DEBUG] 任務ICON結構檢查:');
-    const bodyContents = flexMessage.contents?.body?.contents || [];
-    
-    // 檢查任務項目的ICON結構
-    let taskIconCount = 0;
-    bodyContents.forEach((item, idx) => {
-      if (item.type === 'box' && item.layout === 'horizontal' && item.contents && item.contents.length >= 3) {
-        const taskText = item.contents[0]?.text || '';
-        if (taskText.match(/^\d+\./)) { // 匹配任務項目格式 "1. xxx"
-          taskIconCount++;
-          console.log(`  📋 任務 ${taskIconCount}:`);
-          console.log(`    - 文字: ${taskText.substring(0, 20)}...`);
-          console.log(`    - ICON數量: ${item.contents.length}`);
-          item.contents.slice(1).forEach((icon, iconIdx) => {
-            const actionType = icon.action?.type || 'none';
-            const actionData = icon.action?.data || icon.action?.uri || 'none';
-            console.log(`    - ICON ${iconIdx + 1}: ${icon.text} (${actionType}: ${actionData})`);
-          });
-        }
-      }
-    });
-    
-    // 檢查底部按鈕區域
-    console.log('🔍 [FLEX DEBUG] 底部按鈕檢查:');
-    const bottomButtonBox = bodyContents.find(item => 
-      item.type === 'box' && 
-      item.layout === 'horizontal' && 
-      item.contents && 
-      item.contents.some(btn => btn.text && (btn.text.includes('全部記錄') || btn.text.includes('任務收藏')))
-    );
-    if (bottomButtonBox) {
-      console.log(`  ✅ 找到底部按鈕區域，包含 ${bottomButtonBox.contents?.length || 0} 個按鈕`);
-      bottomButtonBox.contents?.forEach((btn, idx) => {
-        console.log(`  📋 按鈕 ${idx + 1}: ${btn.text} -> ${btn.action?.uri}`);
-      });
-    } else {
-      console.log('  ❌ 未找到底部按鈕區域');
-    }
-    
+
     if (client) {
-      console.log('🚀 [FLEX SEND] 開始發送 3頁輪播 FLEX MESSAGE 到 LINE...');
-      return client.replyMessage(event.replyToken, flexMessage)
-        .then(result => {
-          console.log('✅ [FLEX SEND] FLEX MESSAGE 發送成功!', {
-            requestId: result['x-line-request-id'],
-            sentMessages: result.sentMessages?.length || 0
-          });
-          return result;
-        })
-        .catch(error => {
-          console.error('❌ [FLEX SEND] FLEX MESSAGE 發送失敗:', error);
-          console.error('❌ [FLEX ERROR] 錯誤詳情:', error.message);
-          throw error;
-        });
+      return client.replyMessage(event.replyToken, flexMessage);
     } else {
-      console.log('測試模式：任務堆疊 Flex Message', JSON.stringify(flexMessage, null, 2));
+      console.log('測試模式：TODO FLEX Message');
       return Promise.resolve(null);
     }
+  }
+
+  // 處理"記錄到收藏卡"選擇
+  if (userMessage.startsWith('記錄到收藏卡_')) {
+    const collectionContent = userMessage.replace('記錄到收藏卡_', '');
+    console.log(`📦 用戶選擇記錄到收藏卡: ${collectionContent}`);
+
+    try {
+      // 插入到 favorite_tasks 表格
+      const { data, error } = await supabase
+        .from('favorite_tasks')
+        .insert({
+          user_id: userId,
+          name: collectionContent.length > 50 ? collectionContent.substring(0, 50) + '...' : collectionContent,
+          description: collectionContent,
+          category: 'manual',
+          tag: '',
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('❌ [收藏儲存] 失敗:', error);
+
+        const errorMessage = {
+          type: 'text',
+          text: '❌ 加入收藏卡失敗，請稍後再試'
+        };
+
+        if (client) {
+          return client.replyMessage(event.replyToken, errorMessage);
+        }
+      } else {
+        console.log('✅ [收藏儲存] 成功加入收藏卡');
+
+        const successMessage = {
+          type: 'text',
+          text: `📦 已成功加入收藏卡！\n\n內容：${collectionContent.length > 100 ? collectionContent.substring(0, 100) + '...' : collectionContent}\n\n您可以在收藏卡頁面查看和管理。`
+        };
+
+        if (client) {
+          return client.replyMessage(event.replyToken, successMessage);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [收藏處理] 錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '❌ 處理收藏內容時發生錯誤，請稍後再試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      }
+    }
+
+    return Promise.resolve(null);
   }
 }
 
@@ -1244,28 +1367,57 @@ app.get('/liff/favorites', (req, res) => {
 app.get('/liff/account', (req, res) => {
   const fs = require('fs');
   const path = require('path');
-  
+
   try {
     let html = fs.readFileSync(path.join(__dirname, 'liff-account.html'), 'utf8');
-    
+
     // 進行 LIFF ID 動態替換
     const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
     html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
-    
+
     console.log(`👤 [帳戶頁面] 使用 LIFF ID: ${liffId}`);
     console.log(`🔗 [帳戶頁面] URL 參數:`, req.url);
-    
+
     // 強制不緩存
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'
     });
-    
+
     res.send(html);
   } catch (error) {
     console.error('讀取帳戶頁面錯誤:', error);
     res.status(500).send('帳戶頁面載入失敗');
+  }
+});
+
+// 收藏卡頁面路由
+app.get('/liff-collections.html', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'liff-collections.html'), 'utf8');
+
+    // 進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+
+    console.log(`📦 [收藏卡頁面] 使用 LIFF ID: ${liffId}`);
+    console.log(`🔗 [收藏卡頁面] URL 參數:`, req.url);
+
+    // 強制不緩存
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    res.send(html);
+  } catch (error) {
+    console.error('讀取收藏卡頁面錯誤:', error);
+    res.status(500).send('收藏卡頁面載入失敗');
   }
 });
 
@@ -3473,8 +3625,76 @@ app.get('/api/debug/flex-message/:userId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// 設置自動標籤路由
-setupAutoTagRoutes(app);
+// 🏷️ 自動AI標籤處理函數 - 為新任務自動生成AI標籤
+async function processAutoTagsForNewTask(task, userId) {
+  try {
+    console.log('🤖 [自動AI標籤] 開始處理新任務:', task.text.substring(0, 50) + '...');
+
+    // 檢測任務中是否包含URL
+    const urlRegex = /(https?:\/\/[^\s\)]+)/gi;
+    const urls = task.text.match(urlRegex);
+
+    if (!urls || urls.length === 0) {
+      console.log('⚠️ [自動AI標籤] 任務中沒有發現URL，跳過AI標籤處理');
+      return;
+    }
+
+    const url = urls[0]; // 取第一個URL
+    console.log('🔗 [自動AI標籤] 發現URL:', url);
+
+    // 初始化服務
+    const contentAnalyzer = new WebContentAnalyzer();
+    const tagGenerator = new AITagGenerator();
+
+    // 第一步：分析網頁內容
+    console.log('🔍 [自動AI標籤] 開始分析網頁內容...');
+    const analysisResult = await contentAnalyzer.analyzeUrl(url);
+
+    if (!analysisResult.success) {
+      console.error('❌ [自動AI標籤] 網頁分析失敗:', analysisResult.error);
+      return;
+    }
+
+    console.log('✅ [自動AI標籤] 網頁分析成功，開始生成標籤...');
+
+    // 第二步：生成AI標籤
+    const tagResult = await tagGenerator.generateTags(analysisResult.data);
+
+    if (!tagResult.success || !tagResult.tags || tagResult.tags.length === 0) {
+      console.error('❌ [自動AI標籤] 標籤生成失敗:', tagResult.error || '沒有生成標籤');
+      return;
+    }
+
+    // 只取前3個標籤
+    const aiTags = tagResult.tags.slice(0, 3);
+    console.log('🎉 [自動AI標籤] 成功生成標籤:', aiTags);
+
+    // 第三步：將AI標籤儲存到資料庫的 ai_tags 欄位
+    try {
+      // 儲存AI標籤到相關的任務記錄（如果有對應的資料庫記錄）
+      const aiTagsString = aiTags.join(',');
+
+      // 將AI標籤添加到任務物件中
+      task.ai_tags = aiTags;
+
+      // 同時將AI標籤儲存到暫存Map中，以便Supabase儲存時使用
+      const tempKey = `${userId}_${task.text}`;
+      tempAITagsMap.set(tempKey, aiTags);
+
+      console.log('💾 [自動AI標籤] AI標籤已添加到任務中:', aiTags);
+      console.log('🔑 [自動AI標籤] 暫存Key:', tempKey);
+
+    } catch (saveError) {
+      console.error('❌ [自動AI標籤] 儲存標籤失敗:', saveError);
+    }
+
+  } catch (error) {
+    console.error('❌ [自動AI標籤] 處理過程中發生錯誤:', error);
+  }
+}
+
+// 設置自動標籤路由 - 傳遞 cache 系統
+setupAutoTagRoutes(app, tempAITagsMap);
 
 // 啟動伺服器
 app.listen(PORT, () => {

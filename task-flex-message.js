@@ -55,6 +55,26 @@ function createTaskFlexMessage(taskText) {
           }
         ]
       }
+    },
+    quickReply: {
+      items: [
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '📦 加入收藏卡',
+            text: `加入收藏卡_${taskText.substring(0, 50)}`
+          }
+        },
+        {
+          type: 'action',
+          action: {
+            type: 'message',
+            label: '👍 不用謝謝!',
+            text: '不用謝謝!'
+          }
+        }
+      ]
     }
   };
 }
@@ -102,7 +122,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://32a2c9af30e7.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+          uri: `https://b6fb9a6cac36.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
         }
       }
     ];
@@ -238,7 +258,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://32a2c9af30e7.ngrok-free.app/liff-records.html'
+                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-records.html'
                 }
               },
               {
@@ -250,7 +270,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://32a2c9af30e7.ngrok-free.app/liff-favorites.html'
+                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-favorites.html'
                 }
               },
               {
@@ -262,7 +282,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://32a2c9af30e7.ngrok-free.app/liff-account.html'
+                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-account.html'
                 }
               }
             ]
@@ -624,7 +644,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://32a2c9af30e7.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
+          uri: `https://b6fb9a6cac36.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
         }
       }
     ];
@@ -774,7 +794,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           margin: 'none',
           action: {
             type: 'uri',
-            uri: `https://32a2c9af30e7.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+            uri: `https://b6fb9a6cac36.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
           }
         }
       ];
@@ -872,43 +892,55 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
     {
       type: 'box',
       layout: 'horizontal',
-      spacing: 'md',
+      spacing: 'sm',
       margin: 'md',
       contents: [
         {
           type: 'text',
           text: '日歷',
-          size: 'sm',
+          size: 'xs',
           color: '#000000',
           align: 'center',
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://32a2c9af30e7.ngrok-free.app/liff-records.html'
+            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-records.html'
           }
         },
         {
           type: 'text',
           text: '收藏',
-          size: 'sm',
+          size: 'xs',
           color: '#000000',
           align: 'center',
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://32a2c9af30e7.ngrok-free.app/liff-favorites.html'
+            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-favorites.html'
+          }
+        },
+        {
+          type: 'text',
+          text: '收藏卡',
+          size: 'xs',
+          color: '#000000',
+          align: 'center',
+          flex: 1,
+          action: {
+            type: 'uri',
+            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-collections.html'
           }
         },
         {
           type: 'text',
           text: '我的',
-          size: 'sm',
+          size: 'xs',
           color: '#000000',
           align: 'center',
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://32a2c9af30e7.ngrok-free.app/liff-account.html'
+            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-account.html'
           }
         }
       ]
@@ -921,25 +953,58 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
     {
       type: 'box',
       layout: 'horizontal',
-      spacing: 'none',
+      spacing: 'sm',
       margin: 'md',
-      paddingAll: 'sm',
-      backgroundColor: '#667eea',
-      cornerRadius: '8px',
       contents: [
         {
-          type: 'text',
-          text: '🏷️ 展開標籤',
-          size: 'sm',
-          color: '#FFFFFF',
-          align: 'center',
-          weight: 'bold',
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'none',
+          paddingAll: 'sm',
+          backgroundColor: '#667eea',
+          cornerRadius: '8px',
           flex: 1,
-          action: {
-            type: 'postback',
-            label: '展開標籤',
-            data: 'expand_tags'
-          }
+          contents: [
+            {
+              type: 'text',
+              text: '🏷️ 展開標籤',
+              size: 'sm',
+              color: '#FFFFFF',
+              align: 'center',
+              weight: 'bold',
+              flex: 1,
+              action: {
+                type: 'postback',
+                label: '展開標籤',
+                data: 'expand_tags'
+              }
+            }
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'none',
+          paddingAll: 'sm',
+          backgroundColor: '#ff6b6b',
+          cornerRadius: '8px',
+          flex: 1,
+          contents: [
+            {
+              type: 'text',
+              text: '📦 展開收藏卡',
+              size: 'sm',
+              color: '#FFFFFF',
+              align: 'center',
+              weight: 'bold',
+              flex: 1,
+              action: {
+                type: 'postback',
+                label: '展開收藏卡',
+                data: 'expand_collections'
+              }
+            }
+          ]
         }
       ]
     }
@@ -1048,6 +1113,148 @@ function create3BubbleCarousel(tasks, userTags = null, completedCount = 0, favor
   };
 }
 
+// 創建收藏卡展開 BUBBLE
+function createCollectionsBubble() {
+  console.log('📦 [收藏卡BUBBLE] 生成收藏卡展開頁面');
+
+  return {
+    type: 'flex',
+    altText: '收藏卡展開頁面',
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'md',
+        backgroundColor: '#ff6b6b',
+        contents: [
+          {
+            type: 'text',
+            text: '📦 收藏卡',
+            color: '#FFFFFF',
+            size: 'lg',
+            weight: 'bold',
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: '您珍貴的收藏品',
+            color: '#FFFFFF',
+            size: 'xs',
+            align: 'center',
+            margin: 'xs'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        backgroundColor: '#FFF5F5',
+        contents: [
+          {
+            type: 'text',
+            text: '🚧 功能開發中',
+            size: 'xl',
+            weight: 'bold',
+            color: '#ff6b6b',
+            align: 'center',
+            margin: 'lg'
+          },
+          {
+            type: 'separator',
+            margin: 'lg',
+            color: '#ffcccb'
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            margin: 'lg',
+            spacing: 'md',
+            contents: [
+              {
+                type: 'text',
+                text: '即將推出的功能：',
+                size: 'md',
+                weight: 'bold',
+                color: '#333333'
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                margin: 'md',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '🌐 智能網址收藏',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: '📱 社群媒體快照',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: '🏷️ AI 智能標籤',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: '🔍 快速搜尋過濾',
+                    size: 'sm',
+                    color: '#666666'
+                  },
+                  {
+                    type: 'text',
+                    text: '📊 收藏統計分析',
+                    size: 'sm',
+                    color: '#666666'
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            type: 'separator',
+            margin: 'lg',
+            color: '#ffcccb'
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'lg',
+            spacing: 'md',
+            contents: [
+              {
+                type: 'text',
+                text: '🎯 前往收藏卡',
+                size: 'sm',
+                color: '#FFFFFF',
+                align: 'center',
+                weight: 'bold',
+                flex: 1,
+                paddingAll: 'md',
+                backgroundColor: '#ff6b6b',
+                cornerRadius: '8px',
+                action: {
+                  type: 'uri',
+                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-collections.html'
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  };
+}
+
 module.exports = {
   createTaskFlexMessage,
   createTaskStackFlexMessage,
@@ -1058,5 +1265,6 @@ module.exports = {
   createDynamicTagCarousel,
   createMainTaskList,
   parseTasksByTags,
-  createTagBubble
+  createTagBubble,
+  createCollectionsBubble
 };
