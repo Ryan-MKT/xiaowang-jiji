@@ -122,7 +122,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://b6fb9a6cac36.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+          uri: `https://3c22a40d8ece.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
         }
       }
     ];
@@ -258,7 +258,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-records.html'
+                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/records'
                 }
               },
               {
@@ -270,7 +270,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-favorites.html'
+                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/favorites'
                 }
               },
               {
@@ -282,7 +282,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-account.html'
+                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/account'
                 }
               }
             ]
@@ -644,7 +644,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://b6fb9a6cac36.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
+          uri: `https://3c22a40d8ece.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
         }
       }
     ];
@@ -794,7 +794,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           margin: 'none',
           action: {
             type: 'uri',
-            uri: `https://b6fb9a6cac36.ngrok-free.app/liff-task-note.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+            uri: `https://3c22a40d8ece.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
           }
         }
       ];
@@ -904,7 +904,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-records.html'
+            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/records'
           }
         },
         {
@@ -916,7 +916,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-favorites.html'
+            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/favorites'
           }
         },
         {
@@ -928,7 +928,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-collections.html'
+            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/collections'
           }
         },
         {
@@ -940,7 +940,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-account.html'
+            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/account'
           }
         }
       ]
@@ -1244,7 +1244,7 @@ function createCollectionsBubble() {
                 cornerRadius: '8px',
                 action: {
                   type: 'uri',
-                  uri: 'https://b6fb9a6cac36.ngrok-free.app/liff-collections.html'
+                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/collections'
                 }
               }
             ]

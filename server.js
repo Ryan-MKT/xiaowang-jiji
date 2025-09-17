@@ -11,30 +11,16 @@ const fs = require('fs-extra');
 const FormData = require('form-data');
 const axios = require('axios');
 const path = require('path');
-const OenPaymentCorrect = require('./payment-correct');
-const oenPayment = new OenPaymentCorrect();
-const WebContentAnalyzer = require('./web-content-analyzer');
-const AITagGenerator = require('./ai-tag-generator');
-const { subscriptionService } = require('./subscription-service');
-const { setupAutoTagRoutes } = require('./auto-tag-api');
-const EnhancedLinkPreview = require('./enhanced-link-preview');
-const ContentClassifier = require('./content-classifier');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
-  console.log(`🔄 [MODULE RELOAD] 清除快取: ${modulePath}`);
   delete require.cache[modulePath];
-  const module = require('./task-flex-message');
-  console.log(`📦 [MODULE RELOAD] 重新載入模組完成`);
-  return module;
+  return require('./task-flex-message');
 }
 
 // 用戶任務堆疊儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{text: string, id: number, timestamp: string}>>
 const userTaskStacks = new Map();
-
-// 暫存AI標籤的 Map (用於將AI標籤傳遞給Supabase儲存)
-const tempAITagsMap = new Map();
 
 // 用戶收藏任務儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{id: string, name: string, description: string, category: string, used_count: number, created_at: string}>>
@@ -44,29 +30,9 @@ const userFavoriteTasks = new Map();
 // 資料結構: Map<userId, {waitingForTag: boolean, targetTaskId: number, timestamp: number}>
 const userTagSelectionStates = new Map();
 
-// 篩選今天任務的輔助函數
-function filterTodayTasks(tasks) {
-  const today = new Date();
-  const todayString = today.toISOString().split('T')[0];
-
-  return tasks.filter(task => {
-    if (!task.timestamp) return false;
-    const taskDate = new Date(task.timestamp);
-    const taskDateString = taskDate.toISOString().split('T')[0];
-    return taskDateString === todayString;
-  });
-}
-
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// 初始化增強連結預覽服務
-const enhancedPreview = new EnhancedLinkPreview();
-
-// 初始化智能內容分類器
-const contentClassifier = new ContentClassifier();
-
-console.log('🚀 小汪記記 with LINE Login starting - TAG FIXED VERSION 2025-09-11-15:50...');
+const PORT = process.env.PORT || 3001;
+console.log('🚀 小汪記記 with LINE Login starting...');
 
 // 初始化 OpenAI
 const openai = new OpenAI({
@@ -98,12 +64,6 @@ app.use(session({
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 小時
 }));
-
-// 靜態文件服務 - 支援直接訪問 HTML 檔案
-app.use(express.static(__dirname));
-
-// 靜態檔案服務 - 截圖圖片
-app.use('/screenshots', express.static(path.join(__dirname, 'public', 'screenshots')));
 
 // 判斷是否為問句或請求
 function isQuestion(text) {
@@ -161,21 +121,15 @@ async function handlePostback(event) {
         text: `🎉 恭喜！${completedTask.text} 已完成！`
       };
       
-      // 發送更新後的任務清單 (預設顯示主任務清單)
-      // 篩選今天的任務，保持與其他地方一致
-      const todayTasks = filterTodayTasks(userTasks);
-      console.log(`📅 [任務完成] 今天任務數量: ${todayTasks.length}, 全部任務數量: ${userTasks.length}`);
-
+      // 發送更新後的任務清單
       const userTags = await getUserTags(userId);
-      const { createMainTaskList } = getTaskFlexModule();
-      const completedCount = todayTasks.filter(task => task.completed).length;
-      const favoriteCount = todayTasks.filter(task => task.favorited).length;
-      const updatedFlexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
-
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+      
       if (client) {
-        // 使用一個訊息同時發送恭喜和更新的任務清單
-        const multiMessage = [congratsMessage, updatedFlexMessage];
-        return client.replyMessage(event.replyToken, multiMessage);
+        // 先發送恭喜訊息，再發送更新的任務清單
+        await client.replyMessage(event.replyToken, congratsMessage);
+        return client.pushMessage(userId, updatedFlexMessage);
       } else {
         console.log('測試模式：恭喜訊息', congratsMessage.text);
         console.log('測試模式：更新任務清單', JSON.stringify(updatedFlexMessage, null, 2));
@@ -191,13 +145,9 @@ async function handlePostback(event) {
     
     // 取得用戶任務堆疊
     let userTasks = userTaskStacks.get(userId) || [];
-    console.log(`🔍 [任務搜尋] 用戶 ${userId} 目前有 ${userTasks.length} 個任務`);
-    console.log(`🔍 [任務搜尋] 任務ID清單:`, userTasks.map(task => `ID:${task.id}("${task.text}")`));
-    console.log(`🔍 [任務搜尋] 要找的任務ID: ${taskId}`);
     
     // 找到對應的任務
     const taskIndex = userTasks.findIndex(task => task.id === taskId);
-    console.log(`🔍 [任務搜尋] 找到的任務索引: ${taskIndex}`);
     if (taskIndex !== -1) {
       const favoriteTask = userTasks[taskIndex];
       
@@ -227,62 +177,11 @@ async function handlePostback(event) {
             ])
             .select()
             .single();
-
+          
           if (error) {
             console.error('❌ [收藏任務] Supabase 儲存錯誤:', error);
           } else {
             console.log(`✅ [收藏任務] 已儲存至 Supabase，ID: ${data.id}`);
-
-            // 檢測是否包含URL並自動生成標籤
-            const urlRegex = /(https?:\/\/[^\s]+)/gi;
-            const urlMatch = favoriteTask.text.match(urlRegex);
-            let autoTags = [];
-
-            if (urlMatch && urlMatch.length > 0) {
-              const url = urlMatch[0];
-              console.log(`🏷️ [LINE Bot自動標籤] 檢測到URL，開始自動分析: ${url}`);
-
-              try {
-                // 初始化分析服務
-                const contentAnalyzer = new WebContentAnalyzer();
-                const tagGenerator = new AITagGenerator();
-
-                // 分析網頁內容
-                const analysisResult = await contentAnalyzer.analyzeUrl(url);
-
-                if (analysisResult.success) {
-                  // 生成標籤
-                  const tagResult = await tagGenerator.generateTags(analysisResult.data);
-
-                  if (tagResult.success && tagResult.tags && tagResult.tags.length > 0) {
-                    // 取前3個標籤
-                    autoTags = tagResult.tags.slice(0, 3);
-                    console.log(`🎉 [LINE Bot自動標籤] 成功生成標籤: ${autoTags.join(', ')}`);
-
-                    // 更新資料庫中的標籤資訊
-                    const tagString = autoTags.join(',');
-                    const { error: updateError } = await supabase
-                      .from('favorite_tasks')
-                      .update({ tag: tagString })
-                      .eq('id', data.id);
-
-                    if (updateError) {
-                      console.error('❌ [LINE Bot自動標籤] 標籤更新失敗:', updateError);
-                    } else {
-                      console.log(`✅ [LINE Bot自動標籤] 標籤已更新至資料庫: ${tagString}`);
-                    }
-                  } else {
-                    console.log('⚠️ [LINE Bot自動標籤] AI 標籤生成無結果');
-                  }
-                } else {
-                  console.log('⚠️ [LINE Bot自動標籤] 網頁分析失敗:', analysisResult.error);
-                }
-              } catch (autoTagError) {
-                console.error('❌ [LINE Bot自動標籤] 自動標籤處理失敗:', autoTagError.message);
-              }
-            } else {
-              console.log('ℹ️ [LINE Bot自動標籤] 任務中未檢測到 URL，跳過自動標籤');
-            }
           }
         } catch (dbError) {
           console.error('❌ [收藏任務] 資料庫連線錯誤:', dbError);
@@ -297,7 +196,6 @@ async function handlePostback(event) {
           name: favoriteTask.text,
           description: '',
           category: '',
-          tag: null, // 標籤將在用戶選擇後更新
           used_count: 0,
           created_at: new Date().toISOString(),
           source_task_id: taskId
@@ -309,15 +207,15 @@ async function handlePostback(event) {
       
       console.log(`✅ 任務已收藏: ${favoriteTask.text}`);
       
-      // 🔧 關鍵修復：無論是否有 client 都要設置標籤選擇狀態
-      userTagSelectionStates.set(userId, {
-        waitingForTag: true,
-        targetTaskId: taskId,
-        timestamp: Date.now()
-      });
-      console.log(`🏷️ [標籤選擇] 用戶 ${userId} 進入標籤選擇狀態，目標任務 ID: ${taskId}`);
-      
       if (client) {
+        // 設置標籤選擇狀態
+        userTagSelectionStates.set(userId, {
+          waitingForTag: true,
+          targetTaskId: taskId,
+          timestamp: Date.now()
+        });
+        console.log(`🏷️ [標籤選擇] 用戶 ${userId} 進入標籤選擇狀態，目標任務 ID: ${taskId}`);
+        
         // 準備標籤詢問訊息（包含 Quick Reply 按鈕）
         const userTags = await getUserTags(userId);
         const { generateQuickReply } = getTaskFlexModule();
@@ -335,50 +233,7 @@ async function handlePostback(event) {
       }
     }
   }
-
-  // 檢查是否為展開標籤事件
-  if (postbackData === 'expand_tags') {
-    console.log(`🏷️ 用戶 ${userId} 點擊展開標籤`);
-
-    // 取得用戶任務和標籤資料
-    const userTasks = userTaskStacks.get(userId) || [];
-
-    // 篩選今天的任務，保持與主 FLEX MESSAGE 一致
-    const todayTasks = filterTodayTasks(userTasks);
-    console.log(`📅 [展開標籤] 今天任務數量: ${todayTasks.length}, 全部任務數量: ${userTasks.length}`);
-
-    const userTags = await getUserTags(userId);
-    const completedCount = todayTasks.filter(task => task.completed).length;
-    const favoriteCount = todayTasks.filter(task => task.favorited).length;
-
-    // 使用動態標籤輪播 FLEX Message（只顯示今天的任務）
-    const { createDynamicTagCarousel } = getTaskFlexModule();
-    const tagCarouselMessage = createDynamicTagCarousel(todayTasks, userTags, completedCount, favoriteCount);
-
-    if (client) {
-      return client.replyMessage(event.replyToken, tagCarouselMessage);
-    } else {
-      console.log('測試模式：展開標籤輪播訊息', JSON.stringify(tagCarouselMessage, null, 2));
-      return Promise.resolve(null);
-    }
-  }
-
-  // 檢查是否為展開收藏卡事件
-  if (postbackData === 'expand_collections') {
-    console.log(`📦 用戶 ${userId} 點擊展開收藏卡`);
-
-    // 創建收藏卡 BUBBLE
-    const { createCollectionsBubble } = getTaskFlexModule();
-    const collectionsBubble = createCollectionsBubble();
-
-    if (client) {
-      return client.replyMessage(event.replyToken, collectionsBubble);
-    } else {
-      console.log('測試模式：展開收藏卡 BUBBLE', JSON.stringify(collectionsBubble, null, 2));
-      return Promise.resolve(null);
-    }
-  }
-
+  
   return Promise.resolve(null);
 }
 
@@ -608,71 +463,50 @@ async function handleEvent(event) {
   // 更新 userMessage 為清理後的版本
   userMessage = cleanedMessage;
 
-  // 只記錄用戶真正傳送的訊息到 Supabase，排除系統指令
-  // 排除收藏、完成、標籤選擇等系統觸發的訊息
-  const isSystemMessage =
-    cleanedMessage.startsWith('收藏任務_') ||
-    cleanedMessage.startsWith('完成任務_') ||
-    cleanedMessage.startsWith('加入收藏卡_') ||
-    cleanedMessage.startsWith('記錄到TODO_') ||
-    cleanedMessage.startsWith('記錄到收藏卡_') ||
-    cleanedMessage === '不用謝謝!' ||
-    cleanedMessage === 'SYNC_TASKS:' ||
-    cleanedMessage.includes('SYNC_TASKS:') ||
-    // 檢查是否為標籤選擇（當用戶正在等待標籤選擇時）
-    (userTagSelectionStates.get(userId)?.waitingForTag);
-
-  // 嘗試儲存到 Supabase - 只儲存用戶真正的訊息
-  if (supabase && !isSystemMessage) {
+  // 嘗試儲存到 Supabase - 加入標籤資訊
+  if (supabase) {
     try {
       const tablePrefix = process.env.TABLE_PREFIX || '';
       const tableName = tablePrefix + 'messages';
-
+      
       // 檢測是否為標籤選擇或任務包含標籤資訊
       let detectedTag = null;
-
+      
+      // 檢查用戶是否正在等待標籤選擇
+      const tagSelectionState = userTagSelectionStates.get(userId);
+      if (tagSelectionState && tagSelectionState.waitingForTag) {
+        detectedTag = cleanedMessage; // 用戶回覆的就是標籤
+      } 
       // 檢查任務文字是否包含標籤格式 (標籤)任務內容
-      if (cleanedMessage.match(/^\((.+?)\)/)) {
+      else if (cleanedMessage.match(/^\((.+?)\)/)) {
         const tagMatch = cleanedMessage.match(/^\((.+?)\)/);
         detectedTag = tagMatch[1];
       }
-
-      // 檢查是否有AI標籤需要儲存
-      const insertData = {
-        user_id: userId,
-        message_text: cleanedMessage,
-        created_at: new Date().toISOString()
-      };
-
-      // 檢查是否有AI標籤需要一起儲存
-      const tempKey = `${userId}_${cleanedMessage}`;
-      const aiTags = tempAITagsMap.get(tempKey);
-      if (aiTags && aiTags.length > 0) {
-        insertData.ai_tags = aiTags.join(',');
-        console.log('💾 [Supabase] 準備儲存AI標籤:', aiTags);
-
-        // 儲存後從暫存Map中移除，避免記憶體洩漏
-        tempAITagsMap.delete(tempKey);
-      }
-
+      
       const { data, error } = await supabase
         .from(tableName)
-        .insert([insertData]);
-
+        .insert([
+          {
+            user_id: userId,
+            message_text: cleanedMessage,
+            message_type: isVoiceMessage ? 'voice' : 'text',
+            tag: detectedTag,
+            created_at: new Date().toISOString()
+          }
+        ]);
+      
       if (error) {
         console.error('Supabase 儲存錯誤:', error);
       } else {
-        console.log('✅ 用戶訊息已儲存到 Supabase:', {
-          userId,
-          userMessage: cleanedMessage,
+        console.log('✅ 訊息已儲存到 Supabase:', { 
+          userId, 
+          userMessage: cleanedMessage, 
           tag: detectedTag || '無標籤' 
         });
       }
     } catch (err) {
       console.error('資料庫連線錯誤:', err);
     }
-  } else if (isSystemMessage) {
-    console.log('🤖 系統訊息 (不記錄到資料庫):', userId, '-', cleanedMessage);
   } else {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
   }
@@ -697,7 +531,7 @@ async function handleEvent(event) {
   if (userMessage.startsWith('完成任務_')) {
     const taskId = parseInt(userMessage.replace('完成任務_', ''));
     console.log(`✅ 用戶 ${userId} 點擊完成任務 ID: ${taskId}`);
-
+    
     // 建立模擬的 postback 事件
     const mockPostbackEvent = {
       type: 'postback',
@@ -705,71 +539,8 @@ async function handleEvent(event) {
       source: { userId: userId },
       replyToken: event.replyToken
     };
-
+    
     return handlePostback(mockPostbackEvent);
-  }
-
-  // 特殊指令：加入收藏卡
-  if (userMessage.startsWith('加入收藏卡_')) {
-    const taskContent = userMessage.replace('加入收藏卡_', '');
-    console.log(`📦 用戶 ${userId} 要加入收藏卡: ${taskContent}`);
-
-    try {
-      // 將任務內容添加到收藏
-      if (supabase) {
-        const { data, error } = await supabase
-          .from('favorite_tasks')
-          .insert({
-            user_id: userId,
-            name: taskContent,
-            description: '',
-            category: '',
-            tag: '',
-            used_count: 0,
-            created_at: new Date().toISOString()
-          });
-
-        if (error) {
-          console.error('❌ 加入收藏卡失敗:', error);
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '❌ 加入收藏卡失敗，請稍後再試'
-          });
-        } else {
-          console.log('✅ 成功加入收藏卡');
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '📦 已成功加入收藏卡！\n\n您可以在收藏卡頁面查看和管理所有收藏內容。'
-          });
-        }
-      }
-    } catch (error) {
-      console.error('❌ 加入收藏卡處理錯誤:', error);
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '❌ 處理失敗，請稍後再試'
-      });
-    }
-  }
-
-  // 特殊指令：不用謝謝
-  if (userMessage === '不用謝謝!') {
-    console.log(`👍 用戶 ${userId} 回應不用謝謝`);
-
-    const thankYouMessages = [
-      '😊 不客氣！隨時為您服務',
-      '👍 很高興能幫到您！',
-      '🌟 小汪記記隨時待命！',
-      '💪 繼續加油，完成更多任務！',
-      '🎯 保持高效，您做得很棒！'
-    ];
-
-    const randomMessage = thankYouMessages[Math.floor(Math.random() * thankYouMessages.length)];
-
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: randomMessage
-    });
   }
 
   // 特殊指令：任務更新完成，重新生成任務堆疊
@@ -812,12 +583,10 @@ async function handleEvent(event) {
         // 更新伺服器端的任務堆疊
         userTaskStacks.set(userId, cleanedTasks);
         
-        // 重新生成任務堆疊 Flex Message (預設顯示主任務清單)
+        // 重新生成任務堆疊 Flex Message
         const userTags = await getUserTags(userId);
-        const { createMainTaskList } = getTaskFlexModule();
-        const completedCount = cleanedTasks.filter(task => task.completed).length;
-        const favoriteCount = cleanedTasks.filter(task => task.favorited).length;
-        const taskStackFlexMessage = createMainTaskList(cleanedTasks, userTags, completedCount, favoriteCount);
+        const { createTaskStackFlexMessage } = getTaskFlexModule();
+        const taskStackFlexMessage = createTaskStackFlexMessage(cleanedTasks, userTags);
         
         console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
         console.log('📝 更新後任務清單:', cleanedTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -846,10 +615,8 @@ async function handleEvent(event) {
         
         if (userTasks.length > 0) {
           const userTags = await getUserTags(userId);
-          const { createMainTaskList } = getTaskFlexModule();
-          const completedCount = userTasks.filter(task => task.completed).length;
-          const favoriteCount = userTasks.filter(task => task.favorited).length;
-          const taskStackFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+          const { createTaskStackFlexMessage } = getTaskFlexModule();
+          const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
           
           if (client) {
             return client.replyMessage(event.replyToken, taskStackFlexMessage);
@@ -877,12 +644,10 @@ async function handleEvent(event) {
       let userTasks = userTaskStacks.get(userId) || [];
       
       if (userTasks.length > 0) {
-        // 重新生成任務堆疊 Flex Message (預設顯示主任務清單)
+        // 重新生成任務堆疊 Flex Message
         const userTags = await getUserTags(userId);
-        const { createMainTaskList } = getTaskFlexModule();
-        const completedCount = userTasks.filter(task => task.completed).length;
-        const favoriteCount = userTasks.filter(task => task.favorited).length;
-        const taskStackFlexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
+        const { createTaskStackFlexMessage } = getTaskFlexModule();
+        const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
         
         console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
         console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -929,70 +694,28 @@ async function handleEvent(event) {
     if (taskIndex !== -1) {
       const originalTask = userTasks[taskIndex];
       
-      // 🔧 關鍵修復：在修改前先保存原始名稱
-      const originalTaskText = originalTask.text;
-      
       // 更新任務文字格式為 (標籤)原文字
-      const taggedText = `(${userMessage})${originalTaskText}`;
+      const taggedText = `(${userMessage})${originalTask.text}`;
       userTasks[taskIndex].text = taggedText;
       userTaskStacks.set(userId, userTasks);
       
-      console.log(`✅ 任務已標記: ${originalTaskText} -> ${taggedText}`);
-      console.log(`🔍 [標籤流程] 用戶選擇標籤: ${userMessage}`);
-      console.log(`🔍 [標籤流程] 原任務已收藏: ${originalTask.favorited}`);
+      console.log(`✅ 任務已標記: ${originalTask.text} -> ${taggedText}`);
       
-      // 同步更新收藏任務中的名稱和標籤（如果該任務已被收藏）
+      // 同步更新收藏任務中的名稱（如果該任務已被收藏）
       if (originalTask.favorited) {
-        console.log(`🚀 [標籤流程] 開始更新收藏任務的標籤...`);
-        // 更新 Supabase 中的收藏記錄
-        if (supabase) {
-          try {
-            // 🔧 關鍵修復：同時更新 name 和 tag 在同一個 SQL 操作中
-            console.log(`🔍 [標籤更新] 使用表格: favorite_tasks`);
-            console.log(`🔍 [標籤更新] 更新條件 - 用戶ID: ${userId}, 原任務名稱: ${originalTaskText}`);
-            console.log(`🔍 [標籤更新] 新任務名稱: ${taggedText}, 標籤: ${userMessage}`);
-            
-            const { error: updateError } = await supabase
-              .from('favorite_tasks')
-              .update({
-                name: taggedText,
-                tag: userMessage,
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', userId)
-              .eq('name', originalTaskText);
-
-            if (updateError) {
-              console.error('❌ [標籤更新] 更新失敗:', updateError);
-            } else {
-              console.log(`✅ [標籤更新] 任務名稱和標籤已成功更新: ${taggedText} -> 標籤: ${userMessage}`);
-            }
-          } catch (dbError) {
-            console.error('❌ [標籤更新] 資料庫連線錯誤:', dbError);
-          }
-        }
-        
-        // 更新記憶體儲存
         let userFavorites = userFavoriteTasks.get(userId) || [];
         const favoriteIndex = userFavorites.findIndex(fav => fav.source_task_id === originalTask.id);
         if (favoriteIndex !== -1) {
           userFavorites[favoriteIndex].name = taggedText;
-          userFavorites[favoriteIndex].tag = userMessage;
           userFavoriteTasks.set(userId, userFavorites);
-          console.log(`🔄 記憶體收藏任務同步更新: ${taggedText}, 標籤: ${userMessage}`);
+          console.log(`🔄 收藏任務同步更新: ${taggedText}`);
         }
       }
       
-      // 重新生成任務堆疊 Flex Message (預設顯示主任務清單)
-      // 篩選今天的任務，保持與其他地方一致
-      const todayTasks = filterTodayTasks(userTasks);
-      console.log(`📅 [標籤選擇完成] 今天任務數量: ${todayTasks.length}, 全部任務數量: ${userTasks.length}`);
-
+      // 重新生成任務堆疊 Flex Message
       const userTags = await getUserTags(userId);
-      const { createMainTaskList } = getTaskFlexModule();
-      const completedCount = todayTasks.filter(task => task.completed).length;
-      const favoriteCount = todayTasks.filter(task => task.favorited).length;
-      const updatedFlexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
       
       if (client) {
         return client.replyMessage(event.replyToken, updatedFlexMessage);
@@ -1074,183 +797,100 @@ async function handleEvent(event) {
       return Promise.resolve(null);
     }
   } else {
-    // 📝 收到內容：提供用戶選擇記錄方式
-    console.log('📝 收到用戶內容，提供選擇記錄方式');
-
-    // 發送包含Quick Reply的確認訊息
-    const quickReplyMessage = {
-      type: 'text',
-      text: `收到您的內容：\n\n${userMessage.length > 100 ? userMessage.substring(0, 100) + '...' : userMessage}\n\n請選擇要記錄到哪裡：`,
-      quickReply: {
-        items: [
-          {
-            type: 'action',
-            action: {
-              type: 'message',
-              label: '📝 記錄到TODO',
-              text: `記錄到TODO_${userMessage}`
-            }
-          },
-          {
-            type: 'action',
-            action: {
-              type: 'message',
-              label: '📦 記錄到收藏卡',
-              text: `記錄到收藏卡_${userMessage}`
-            }
-          }
-        ]
-      }
-    };
-
-    if (client) {
-      return client.replyMessage(event.replyToken, quickReplyMessage);
-    } else {
-      console.log('測試模式：Quick Reply選擇', JSON.stringify(quickReplyMessage, null, 2));
-      return Promise.resolve(null);
-    }
-
-  // 處理"記錄到TODO"選擇
-  if (userMessage.startsWith('記錄到TODO_')) {
-    const taskContent = userMessage.replace('記錄到TODO_', '');
-    console.log(`📝 用戶選擇記錄到TODO: ${taskContent}`);
-
+    // 任務：加入任務堆疊並使用 Flex Message 記錄
+    console.log('📝 偵測到任務，加入任務堆疊');
+    
     // 取得或初始化用戶任務堆疊
     let userTasks = userTaskStacks.get(userId) || [];
-
+    
     // 新增任務到堆疊
     const newTask = {
       id: Date.now(),
-      text: taskContent,
-      timestamp: new Date().toISOString(),
-      note: ''
+      text: userMessage,
+      timestamp: new Date().toISOString()
     };
-
-    console.log(`🆔 [任務ID] 新任務已生成，ID: ${newTask.id}, 內容: "${newTask.text}"`);
-
-    // 🏷️ 檢測新任務是否包含網址，如果有則自動生成AI標籤
-    await processAutoTagsForNewTask(newTask, userId);
-
+    
     userTasks.push(newTask);
     userTaskStacks.set(userId, userTasks);
-
-    // 同步到 Supabase 重新載入
-    try {
-      const { data: latestMessages, error } = await supabase
-        .from('dev_messages')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (!error && latestMessages && latestMessages.length > 0) {
-        const latestTasks = latestMessages.reverse().map((msg, index) => ({
-          id: msg.id || Date.now() + index,
-          text: msg.message_text,
-          completed: false,
-          timestamp: msg.created_at,
-          userId: userId,
-          favorited: false,
-          tag: msg.tag || null
-        }));
-
-        userTasks = latestTasks;
-        userTaskStacks.set(userId, userTasks);
-
-        // 篩選今天的任務
-        const today = new Date();
-        const todayString = today.toISOString().split('T')[0];
-        const todayTasks = latestTasks.filter(task => {
-          if (!task.timestamp) return false;
-          const taskDate = new Date(task.timestamp);
-          const taskDateString = taskDate.toISOString().split('T')[0];
-          return taskDateString === todayString;
-        });
-
-        userTasks = todayTasks;
-      }
-    } catch (syncError) {
-      console.error('❌ [FLEX同步] 同步失敗:', syncError);
-    }
-
+    
+    console.log(`📋 [任務同步] 用戶 ${userId} 目前任務數量: ${userTasks.length}`);
+    console.log('📝 [任務同步] 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
+    
+    // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
+    console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
+    
     // 創建包含所有任務的 Flex Message
     const userTags = await getUserTags(userId);
-    const { createMainTaskList } = getTaskFlexModule();
-
-    // 計算統計資料
-    const completedCount = userTasks.filter(task => task.completed).length;
-    const favoriteCount = userTasks.filter(task => task.favorited).length;
-
-    // 篩選今天的任務用於FLEX MESSAGE顯示
-    const displayTasks = filterTodayTasks(userTasks);
-    const displayCompletedCount = displayTasks.filter(task => task.completed).length;
-    const displayFavoriteCount = displayTasks.filter(task => task.favorited).length;
-
-    const flexMessage = createMainTaskList(displayTasks, userTags, displayCompletedCount, displayFavoriteCount);
-
-    if (client) {
-      return client.replyMessage(event.replyToken, flexMessage);
+    const { createTaskStackFlexMessage } = getTaskFlexModule();
+    const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
+    
+    // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
+    const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
+    console.log('📱 [任務同步] 準備發送 FLEX MESSAGE 和同步資料');
+    
+    // 🔍 詳細記錄 FLEX MESSAGE 結構用於診斷
+    console.log('🔍 [FLEX DEBUG] FLEX MESSAGE 結構預覽:');
+    console.log(`  - altText: ${flexMessage.altText}`);
+    console.log(`  - type: ${flexMessage.type}`);
+    console.log(`  - quickReply items: ${flexMessage.quickReply?.items?.length || 0}`);
+    console.log('🔍 [FLEX DEBUG] 任務ICON結構檢查:');
+    const bodyContents = flexMessage.contents?.body?.contents || [];
+    
+    // 檢查任務項目的ICON結構
+    let taskIconCount = 0;
+    bodyContents.forEach((item, idx) => {
+      if (item.type === 'box' && item.layout === 'horizontal' && item.contents && item.contents.length >= 3) {
+        const taskText = item.contents[0]?.text || '';
+        if (taskText.match(/^\d+\./)) { // 匹配任務項目格式 "1. xxx"
+          taskIconCount++;
+          console.log(`  📋 任務 ${taskIconCount}:`);
+          console.log(`    - 文字: ${taskText.substring(0, 20)}...`);
+          console.log(`    - ICON數量: ${item.contents.length}`);
+          item.contents.slice(1).forEach((icon, iconIdx) => {
+            const actionType = icon.action?.type || 'none';
+            const actionData = icon.action?.data || icon.action?.uri || 'none';
+            console.log(`    - ICON ${iconIdx + 1}: ${icon.text} (${actionType}: ${actionData})`);
+          });
+        }
+      }
+    });
+    
+    // 檢查底部按鈕區域
+    console.log('🔍 [FLEX DEBUG] 底部按鈕檢查:');
+    const bottomButtonBox = bodyContents.find(item => 
+      item.type === 'box' && 
+      item.layout === 'horizontal' && 
+      item.contents && 
+      item.contents.some(btn => btn.text && (btn.text.includes('全部記錄') || btn.text.includes('任務收藏')))
+    );
+    if (bottomButtonBox) {
+      console.log(`  ✅ 找到底部按鈕區域，包含 ${bottomButtonBox.contents?.length || 0} 個按鈕`);
+      bottomButtonBox.contents?.forEach((btn, idx) => {
+        console.log(`  📋 按鈕 ${idx + 1}: ${btn.text} -> ${btn.action?.uri}`);
+      });
     } else {
-      console.log('測試模式：TODO FLEX Message');
+      console.log('  ❌ 未找到底部按鈕區域');
+    }
+    
+    if (client) {
+      console.log('🚀 [FLEX SEND] 開始發送 FLEX MESSAGE 到 LINE...');
+      return client.replyMessage(event.replyToken, flexMessage)
+        .then(result => {
+          console.log('✅ [FLEX SEND] FLEX MESSAGE 發送成功!', {
+            requestId: result['x-line-request-id'],
+            sentMessages: result.sentMessages?.length || 0
+          });
+          return result;
+        })
+        .catch(error => {
+          console.error('❌ [FLEX SEND] FLEX MESSAGE 發送失敗:', error);
+          console.error('❌ [FLEX ERROR] 錯誤詳情:', error.message);
+          throw error;
+        });
+    } else {
+      console.log('測試模式：任務堆疊 Flex Message', JSON.stringify(flexMessage, null, 2));
       return Promise.resolve(null);
     }
-  }
-
-  // 處理"記錄到收藏卡"選擇
-  if (userMessage.startsWith('記錄到收藏卡_')) {
-    const collectionContent = userMessage.replace('記錄到收藏卡_', '');
-    console.log(`📦 用戶選擇記錄到收藏卡: ${collectionContent}`);
-
-    try {
-      // 插入到 favorite_tasks 表格
-      const { data, error } = await supabase
-        .from('favorite_tasks')
-        .insert({
-          user_id: userId,
-          name: collectionContent.length > 50 ? collectionContent.substring(0, 50) + '...' : collectionContent,
-          description: collectionContent,
-          category: 'manual',
-          tag: '',
-          created_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('❌ [收藏儲存] 失敗:', error);
-
-        const errorMessage = {
-          type: 'text',
-          text: '❌ 加入收藏卡失敗，請稍後再試'
-        };
-
-        if (client) {
-          return client.replyMessage(event.replyToken, errorMessage);
-        }
-      } else {
-        console.log('✅ [收藏儲存] 成功加入收藏卡');
-
-        const successMessage = {
-          type: 'text',
-          text: `📦 已成功加入收藏卡！\n\n內容：${collectionContent.length > 100 ? collectionContent.substring(0, 100) + '...' : collectionContent}\n\n您可以在收藏卡頁面查看和管理。`
-        };
-
-        if (client) {
-          return client.replyMessage(event.replyToken, successMessage);
-        }
-      }
-    } catch (error) {
-      console.error('❌ [收藏處理] 錯誤:', error);
-
-      const errorMessage = {
-        type: 'text',
-        text: '❌ 處理收藏內容時發生錯誤，請稍後再試'
-      };
-
-      if (client) {
-        return client.replyMessage(event.replyToken, errorMessage);
-      }
-    }
-
-    return Promise.resolve(null);
   }
 }
 
@@ -1259,6 +899,34 @@ const lineLoginRoutes = require('./line-login-routes');
 app.use('/auth/line', lineLoginRoutes);
 
 // LIFF 應用程式路由
+// LIFF 應用程式直接HTML路由
+app.get('/liff-app.html', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'liff-app.html'), 'utf8');
+    
+    // 進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+    
+    console.log(`📝 [LIFF-APP.HTML] 使用 LIFF ID: `);
+    console.log(`🔗 [LIFF-APP.HTML] URL 參數:`, req.url);
+    
+    // 強制不緩存
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    res.send(html);
+  } catch (error) {
+    console.error('讀取liff-app.html錯誤:', error);
+    res.status(500).send('LIFF應用程式載入失敗');
+  }
+});
 app.get('/liff', (req, res) => {
   const fs = require('fs');
   const path = require('path');
@@ -1367,57 +1035,28 @@ app.get('/liff/favorites', (req, res) => {
 app.get('/liff/account', (req, res) => {
   const fs = require('fs');
   const path = require('path');
-
+  
   try {
     let html = fs.readFileSync(path.join(__dirname, 'liff-account.html'), 'utf8');
-
+    
     // 進行 LIFF ID 動態替換
     const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
     html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
-
+    
     console.log(`👤 [帳戶頁面] 使用 LIFF ID: ${liffId}`);
     console.log(`🔗 [帳戶頁面] URL 參數:`, req.url);
-
+    
     // 強制不緩存
     res.set({
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'
     });
-
+    
     res.send(html);
   } catch (error) {
     console.error('讀取帳戶頁面錯誤:', error);
     res.status(500).send('帳戶頁面載入失敗');
-  }
-});
-
-// 收藏卡頁面路由
-app.get('/liff-collections.html', (req, res) => {
-  const fs = require('fs');
-  const path = require('path');
-
-  try {
-    let html = fs.readFileSync(path.join(__dirname, 'liff-collections.html'), 'utf8');
-
-    // 進行 LIFF ID 動態替換
-    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
-    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
-
-    console.log(`📦 [收藏卡頁面] 使用 LIFF ID: ${liffId}`);
-    console.log(`🔗 [收藏卡頁面] URL 參數:`, req.url);
-
-    // 強制不緩存
-    res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-
-    res.send(html);
-  } catch (error) {
-    console.error('讀取收藏卡頁面錯誤:', error);
-    res.status(500).send('收藏卡頁面載入失敗');
   }
 });
 
@@ -1594,52 +1233,6 @@ app.get('/api/tags', async (req, res) => {
 });
 
 // 新增標籤
-// 任務切換完成狀態 API
-app.post('/api/tasks/toggle', async (req, res) => {
-  try {
-    const { taskId, userId } = req.body;
-
-    if (!taskId || !userId) {
-      return res.status(400).json({ error: 'Missing taskId or userId' });
-    }
-
-    console.log(`🔄 [Toggle Task] 用戶 ${userId} 切換任務 ${taskId} 狀態`);
-
-    // 從記憶體中獲取用戶任務
-    const userTasks = userTaskStacks.get(userId) || [];
-    const taskIndex = userTasks.findIndex(task => task.id == taskId);
-
-    if (taskIndex === -1) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    // 切換任務完成狀態
-    const task = userTasks[taskIndex];
-    task.completed = !task.completed;
-    task.updatedAt = new Date().toISOString();
-
-    // 更新記憶體中的任務
-    userTaskStacks.set(userId, userTasks);
-
-    // 注意：此系統使用記憶體儲存任務，不依賴資料庫中的 tasks 表
-    // 任務資料已經在記憶體中更新，無需額外的資料庫操作
-    console.log('ℹ️ [Toggle Task] 系統使用記憶體儲存，任務已在 userTaskStacks 中更新');
-
-    console.log(`✅ [Toggle Task] 任務 ${taskId} 狀態已更新: ${task.completed ? '完成' : '未完成'}`);
-
-    res.json({
-      success: true,
-      taskId: taskId,
-      completed: task.completed,
-      message: task.completed ? '任務已完成！' : '任務已取消完成'
-    });
-
-  } catch (error) {
-    console.error('❌ [Toggle Task] API 錯誤:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 app.post('/api/tags', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
@@ -1801,87 +1394,19 @@ app.delete('/api/tags/:tagId', async (req, res) => {
 app.get('/api/tasks', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
-    const dateFilter = req.query.date; // 新增：取得日期查詢參數
-
+    
     if (!userId) {
       return res.status(400).json({ error: 'Missing user ID' });
     }
-
-    console.log(`🔍 [任務API] 取得使用者 ${userId} 的任務列表${dateFilter ? ` (日期: ${dateFilter})` : ''}`);
-
+    
+    console.log(`🔍 [任務API] 取得使用者 ${userId} 的任務列表`);
+    
     // 從記憶體獲取用戶任務
-    let userTasks = userTaskStacks.get(userId) || [];
-
-    // 如果記憶體中沒有任務，或者查詢歷史日期，則從資料庫載入歷史任務
-    const isHistoricalDate = dateFilter && dateFilter !== new Date().toISOString().split('T')[0];
-
-    if ((userTasks.length === 0 || isHistoricalDate) && supabase) {
-      try {
-        console.log(`🔄 [任務API] ${isHistoricalDate ? '查詢歷史日期' : '記憶體中無任務'}，從資料庫載入歷史訊息...`);
-
-        const { data: messages, error } = await supabase
-          .from('dev_messages')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: true });
-
-        if (!error && messages) {
-          if (messages.length > 0) {
-            // 將歷史訊息轉換為任務格式
-            userTasks = messages.map((msg, index) => ({
-              id: msg.id || Date.now() + index,
-              text: msg.message_text,
-              completed: false, // 預設為未完成
-              timestamp: msg.created_at,
-              userId: userId,
-              favorited: false
-            }));
-
-            // 載入到記憶體中
-            userTaskStacks.set(userId, userTasks);
-            console.log(`✅ [任務API] 從資料庫載入 ${userTasks.length} 個歷史任務到記憶體`);
-          } else {
-            console.log('📝 [任務API] 資料庫中沒有找到該用戶的歷史任務');
-            userTasks = [];
-            userTaskStacks.set(userId, userTasks);
-          }
-        } else {
-          console.error('❌ [任務API] 查詢資料庫失敗:', error);
-        }
-      } catch (dbError) {
-        console.error('❌ [任務API] 從資料庫載入任務失敗:', dbError);
-      }
-    }
-
-    // 新增：如果有日期篩選參數，過濾任務
-    if (dateFilter) {
-      const filterDate = new Date(dateFilter);
-      const filterDateString = filterDate.toISOString().split('T')[0]; // YYYY-MM-DD 格式
-
-      userTasks = userTasks.filter(task => {
-        if (!task.timestamp) return false;
-
-        // 處理時間戳格式，確保比較的是同一天
-        const taskDate = new Date(task.timestamp);
-        const taskDateString = taskDate.toISOString().split('T')[0];
-
-        const isMatch = taskDateString === filterDateString;
-
-        if (isMatch) {
-          console.log(`📅 [日期篩選] 匹配任務: ${task.text} (${taskDateString})`);
-        }
-
-        return isMatch;
-      });
-
-      console.log(`📅 [日期篩選] 篩選日期 ${dateFilter}: 找到 ${userTasks.length} 個任務`);
-    }
-
+    const userTasks = userTaskStacks.get(userId) || [];
+    
     console.log(`✅ [任務API] 成功回傳 ${userTasks.length} 個任務`);
-    if (userTasks.length > 0) {
-      console.log(`📝 [任務API] 任務預覽:`, userTasks.slice(0, 3).map(task => task.text));
-    }
-
+    console.log(`📝 [任務API] 任務預覽:`, userTasks.slice(0, 3).map(task => task.text));
+    
     res.json(userTasks);
   } catch (err) {
     console.error('❌ [任務API] 錯誤:', err);
@@ -1922,13 +1447,11 @@ app.get('/api/favorites', async (req, res) => {
           name: item.name,
           description: item.description,
           category: item.category,
-          tag: item.tag,
           used_count: item.used_count,
           created_at: item.created_at
         }));
         
         console.log(`✅ [收藏API] 成功回傳 ${formattedFavorites.length} 個收藏任務（從 Supabase）`);
-        console.log('🔍 [收藏API] 回傳資料樣本:', formattedFavorites.slice(0, 2));
         res.json(formattedFavorites);
       } catch (dbError) {
         console.error('❌ [收藏API] 資料庫連線錯誤:', dbError);
@@ -1986,72 +1509,18 @@ app.post('/api/favorites', async (req, res) => {
         }
         
         console.log(`✅ [新增收藏] 收藏任務新增成功，ID: ${data.id}`);
-
-        // 檢測是否包含URL並自動生成標籤
-        const urlRegex = /(https?:\/\/[^\s]+)/gi;
-        const urlMatch = name.match(urlRegex);
-        let autoTags = [];
-
-        if (urlMatch && urlMatch.length > 0) {
-          const url = urlMatch[0];
-          console.log(`🏷️ [自動標籤] 檢測到URL，開始自動分析: ${url}`);
-
-          try {
-            // 初始化分析服務
-            const contentAnalyzer = new WebContentAnalyzer();
-            const tagGenerator = new AITagGenerator();
-
-            // 分析網頁內容
-            const analysisResult = await contentAnalyzer.analyzeUrl(url);
-
-            if (analysisResult.success) {
-              // 生成標籤
-              const tagResult = await tagGenerator.generateTags(analysisResult.data);
-
-              if (tagResult.success && tagResult.tags && tagResult.tags.length > 0) {
-                // 取前3個標籤
-                autoTags = tagResult.tags.slice(0, 3);
-                console.log(`🎉 [自動標籤] 成功生成標籤: ${autoTags.join(', ')}`);
-
-                // 更新資料庫中的標籤資訊
-                const tagString = autoTags.join(',');
-                const { error: updateError } = await supabase
-                  .from('favorite_tasks')
-                  .update({ tag: tagString })
-                  .eq('id', data.id);
-
-                if (updateError) {
-                  console.error('❌ [自動標籤] 更新標籤失敗:', updateError);
-                } else {
-                  console.log(`✅ [自動標籤] 標籤已儲存到資料庫: ${tagString}`);
-                }
-              } else {
-                console.log('⚠️ [自動標籤] 標籤生成失敗，跳過自動標籤');
-              }
-            } else {
-              console.log('⚠️ [自動標籤] 網頁分析失敗，跳過自動標籤');
-            }
-          } catch (autoTagError) {
-            console.error('❌ [自動標籤] 自動標籤處理失敗:', autoTagError.message);
-          }
-        }
-
+        
         // 格式化返回數據以保持相容性
         const formattedFavorite = {
           id: data.id.toString(),
           name: data.name,
           description: data.description,
           category: data.category,
-          tag: autoTags.length > 0 ? autoTags.join(',') : '',
           used_count: data.used_count,
           created_at: data.created_at
         };
-
-        res.json({
-          success: true,
-          favorite: formattedFavorite,
-          autoTags: autoTags
-        });
+        
+        res.json({ success: true, favorite: formattedFavorite });
       } catch (dbError) {
         console.error('❌ [新增收藏] 資料庫連線錯誤:', dbError);
         return res.status(500).json({ error: 'Database connection error' });
@@ -2154,8 +1623,7 @@ app.post('/api/favorites/:id/use', async (req, res) => {
       text: favoriteTask.name,
       timestamp: new Date().toISOString(),
       completed: false,
-      fromFavorite: true,
-      note: '' // 備註欄位初始化為空字串
+      fromFavorite: true
     };
     
     currentTasks.push(newTask);
@@ -2224,442 +1692,6 @@ app.delete('/api/favorites/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('❌ [刪除收藏] 錯誤:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// ==================== 任務備註 API ====================
-
-// 取得任務備註
-app.get('/api/task-note/:taskId', async (req, res) => {
-  try {
-    const userId = req.headers['x-user-id'];
-    const taskId = req.params.taskId;
-
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing user ID' });
-    }
-
-    console.log(`📝 [取得備註] 用戶 ${userId} 取得任務 ${taskId} 的備註`);
-
-    // 優先從 Supabase 讀取備註
-    if (supabase) {
-      try {
-        const tablePrefix = process.env.TABLE_PREFIX || '';
-        const { data, error } = await supabase
-          .from(`${tablePrefix}messages`)
-          .select('note, tag, scheduled_date, reminder_time, repeat_pattern')
-          .eq('id', parseInt(taskId))
-          .eq('user_id', userId)
-          .single();
-
-        if (!error && data) {
-          console.log(`✅ [取得任務資料] 從 Supabase 找到:`, {
-            note: data.note,
-            tag: data.tag,
-            scheduled_date: data.scheduled_date,
-            reminder_time: data.reminder_time,
-            repeat_pattern: data.repeat_pattern
-          });
-          return res.json({
-            note: data.note || '',
-            tag: data.tag || null,
-            scheduled_date: data.scheduled_date || null,
-            reminder_time: data.reminder_time || null,
-            repeat_pattern: data.repeat_pattern || null
-          });
-        }
-      } catch (dbError) {
-        console.error('❌ [取得備註] Supabase 讀取失敗:', dbError);
-      }
-    }
-
-    // 如果 Supabase 沒有或失敗，從記憶體中的任務堆疊尋找對應的任務並取得備註
-    const userTasks = userTaskStacks.get(userId) || [];
-    const task = userTasks.find(t => t.id.toString() === taskId.toString());
-
-    if (task) {
-      console.log(`✅ [取得任務資料] 從記憶體找到:`, { note: task.note, tag: task.tag });
-      res.json({
-        note: task.note || '',
-        tag: task.tag || null
-      });
-    } else {
-      console.log(`📝 [取得任務資料] 任務 ${taskId} 不存在`);
-      res.json({
-        note: '',
-        tag: null
-      });
-    }
-
-  } catch (err) {
-    console.error('❌ [取得備註] 錯誤:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// 儲存任務備註
-app.post('/api/task-note', async (req, res) => {
-  try {
-    const userId = req.headers['x-user-id'];
-    const { taskId, taskText, note } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing user ID' });
-    }
-    
-    if (!taskId) {
-      return res.status(400).json({ error: 'Missing task ID' });
-    }
-    
-    console.log(`💾 [儲存備註] 用戶 ${userId} 儲存任務 ${taskId} 的備註: ${note}`);
-    
-    // 從記憶體中的任務堆疊尋找對應的任務並更新備註
-    const userTasks = userTaskStacks.get(userId) || [];
-    const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
-
-    if (taskIndex !== -1) {
-      // 更新現有任務的備註
-      userTasks[taskIndex].note = note.trim();
-      userTaskStacks.set(userId, userTasks);
-      console.log(`✅ [儲存備註] 任務 ${taskId} 備註已更新`);
-    } else {
-      // 任務不存在，自動創建新任務
-      console.log(`⚠️ [儲存備註] 任務 ${taskId} 不存在，自動創建新任務`);
-
-      const newTask = {
-        id: parseInt(taskId),
-        text: taskText || '未命名任務',
-        note: note.trim(),
-        completed: false,
-        favorited: false,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      userTasks.push(newTask);
-      userTaskStacks.set(userId, userTasks);
-      console.log(`✅ [儲存備註] 已自動創建並儲存任務 ${taskId} 的備註`);
-    }
-    
-    res.json({ success: true, note: note.trim() });
-    
-  } catch (err) {
-    console.error('❌ [儲存備註] 錯誤:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// 儲存任務完整資料
-app.post('/api/save-task', async (req, res) => {
-  try {
-    const userId = req.headers['x-user-id'];
-    const { taskId, title, note, tag, date, reminder, repeat } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing user ID' });
-    }
-
-    if (!taskId || !title) {
-      return res.status(400).json({ error: 'Missing required fields: taskId and title' });
-    }
-
-    console.log(`💾 [儲存任務] 用戶 ${userId} 儲存任務 ${taskId}:`, { title, note, tag, date, reminder, repeat });
-
-    // 從記憶體中的任務堆疊尋找對應的任務並更新
-    const userTasks = userTaskStacks.get(userId) || [];
-    const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
-
-    if (taskIndex !== -1) {
-      // 更新現有任務的所有資料
-      userTasks[taskIndex] = {
-        ...userTasks[taskIndex],
-        text: title,
-        note: note || '',
-        tag: tag || null,
-        date: date || null,
-        reminder: reminder || null,
-        repeat: repeat || null,
-        updated_at: new Date().toISOString()
-      };
-
-      userTaskStacks.set(userId, userTasks);
-
-      // 同步更新到 Supabase
-      if (supabase) {
-        try {
-          const tablePrefix = process.env.TABLE_PREFIX || '';
-          const { error: updateError } = await supabase
-            .from(`${tablePrefix}messages`)
-            .update({
-              message_text: title,
-              note: note || null,
-              tag: tag || null,
-              scheduled_date: date || null,
-              reminder_time: reminder || null,
-              repeat_pattern: repeat || null
-            })
-            .eq('id', parseInt(taskId))
-            .eq('user_id', userId);
-
-          if (updateError) {
-            console.error('❌ [儲存任務] Supabase 更新失敗:', updateError);
-          } else {
-            console.log(`✅ [儲存任務] 任務 ${taskId} 已成功同步到 Supabase`);
-          }
-        } catch (dbError) {
-          console.error('❌ [儲存任務] Supabase 連線錯誤:', dbError);
-        }
-      }
-
-      console.log(`✅ [儲存任務] 任務 ${taskId} 已成功更新`);
-
-      // 發送 FLEX MESSAGE 更新到 LINE
-      if (client) {
-        try {
-          // 生成最新的 FLEX MESSAGE（只顯示今天的任務）
-          const todayTasks = filterTodayTasks(userTasks);
-          const userTags = await getUserTags(userId);
-          const { createMainTaskList } = getTaskFlexModule();
-          const completedCount = todayTasks.filter(task => task.completed).length;
-          const favoriteCount = todayTasks.filter(task => task.favorited).length;
-          const flexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
-
-          // 推送 FLEX MESSAGE 給用戶
-          await client.pushMessage(userId, flexMessage);
-          console.log(`✅ [儲存任務] 已發送更新的 FLEX MESSAGE 給用戶 ${userId}`);
-        } catch (flexError) {
-          console.error('⚠️ [儲存任務] FLEX MESSAGE 發送失敗:', flexError);
-          // 不阻止操作，因為儲存已經成功
-        }
-      }
-
-      res.json({
-        success: true,
-        task: userTasks[taskIndex],
-        message: '任務已成功儲存並同步更新到 TODO LIST'
-      });
-    } else {
-      // 任務不存在，自動創建新任務
-      console.log(`⚠️ [儲存任務] 任務 ${taskId} 不存在，自動創建新任務`);
-
-      const newTask = {
-        id: parseInt(taskId),
-        text: title,
-        note: note || '',
-        tag: tag || null,
-        date: date || null,
-        reminder: reminder || null,
-        repeat: repeat || null,
-        completed: false,
-        favorited: false,
-        timestamp: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      userTasks.push(newTask);
-      userTaskStacks.set(userId, userTasks);
-
-      // 同步新任務到 Supabase
-      if (supabase) {
-        try {
-          const tablePrefix = process.env.TABLE_PREFIX || '';
-          const { error: insertError } = await supabase
-            .from(`${tablePrefix}messages`)
-            .insert([{
-              id: parseInt(taskId),
-              user_id: userId,
-              message_text: title,
-              note: note || null,
-              tag: tag || null,
-              scheduled_date: date || null,
-              reminder_time: reminder || null,
-              repeat_pattern: repeat || null
-            }]);
-
-          if (insertError) {
-            console.error('❌ [儲存任務] Supabase 新增失敗:', insertError);
-          } else {
-            console.log(`✅ [儲存任務] 新任務 ${taskId} 已成功同步到 Supabase`);
-          }
-        } catch (dbError) {
-          console.error('❌ [儲存任務] Supabase 連線錯誤:', dbError);
-        }
-      }
-
-      console.log(`✅ [儲存任務] 已自動創建並儲存任務 ${taskId}: "${title}"`);
-
-      // 發送 FLEX MESSAGE 更新到 LINE
-      if (client) {
-        try {
-          // 生成最新的 FLEX MESSAGE（只顯示今天的任務）
-          const todayTasks = filterTodayTasks(userTasks);
-          const userTags = await getUserTags(userId);
-          const { createMainTaskList } = getTaskFlexModule();
-          const completedCount = todayTasks.filter(task => task.completed).length;
-          const favoriteCount = todayTasks.filter(task => task.favorited).length;
-          const flexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
-
-          // 推送 FLEX MESSAGE 給用戶
-          await client.pushMessage(userId, flexMessage);
-          console.log(`✅ [儲存任務] 已發送更新的 FLEX MESSAGE 給用戶 ${userId}`);
-        } catch (flexError) {
-          console.error('⚠️ [儲存任務] FLEX MESSAGE 發送失敗:', flexError);
-          // 不阻止操作，因為儲存已經成功
-        }
-      }
-
-      res.json({
-        success: true,
-        task: newTask,
-        message: '任務已成功創建並儲存到 TODO LIST'
-      });
-    }
-
-  } catch (err) {
-    console.error('❌ [儲存任務] 錯誤:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// 刪除任務
-app.delete('/api/delete-task/:taskId', async (req, res) => {
-  try {
-    const userId = req.headers['x-user-id'];
-    const taskId = req.params.taskId;
-
-    if (!userId || !taskId) {
-      return res.status(400).json({ error: 'Missing required fields: userId and taskId' });
-    }
-
-    console.log(`🗑️ [刪除任務] 用戶 ${userId} 刪除任務 ${taskId}`);
-
-    // 1. 先從 Supabase 資料庫中刪除任務（確保資料庫刪除成功）
-    let deletedTask = null;
-    if (supabase) {
-      try {
-        const tablePrefix = process.env.TABLE_PREFIX || '';
-        console.log(`🔍 [刪除任務] 嘗試從 ${tablePrefix}messages 表格刪除任務 ${taskId}`);
-
-        // 從 dev_messages 表格刪除（任務的實際存儲位置）
-        const { error: deleteError, count } = await supabase
-          .from(`${tablePrefix}messages`)
-          .delete({ count: 'exact' })
-          .eq('id', parseInt(taskId))
-          .eq('user_id', userId);
-
-        if (deleteError) {
-          console.error('❌ [刪除任務] Supabase 刪除錯誤:', {
-            message: deleteError.message,
-            details: deleteError.details,
-            hint: deleteError.hint,
-            code: deleteError.code
-          });
-          throw new Error(`Supabase 刪除失敗: ${deleteError.message}`);
-        } else {
-          console.log(`✅ [刪除任務] 已從 Supabase dev_messages 刪除任務 ${taskId}, 影響行數: ${count}`);
-          if (count === 0) {
-            console.log(`⚠️ [刪除任務] 警告：任務 ${taskId} 在 Supabase 中不存在`);
-          }
-        }
-      } catch (supabaseError) {
-        console.error('❌ [刪除任務] Supabase 操作失敗:', supabaseError.message);
-        return res.status(500).json({
-          error: 'Supabase 刪除失敗',
-          details: supabaseError.message
-        });
-      }
-    }
-
-    // 2. Supabase 刪除成功後，才從記憶體中移除任務
-    const userTasks = userTaskStacks.get(userId) || [];
-    const taskIndex = userTasks.findIndex(t => t.id.toString() === taskId.toString());
-
-    if (taskIndex !== -1) {
-      deletedTask = userTasks[taskIndex];
-      userTasks.splice(taskIndex, 1);
-      userTaskStacks.set(userId, userTasks);
-      console.log(`✅ [刪除任務] 已從記憶體中刪除任務 ${taskId}: "${deletedTask.text}"`);
-    } else {
-      console.log(`⚠️ [刪除任務] 任務 ${taskId} 在記憶體中不存在，但 Supabase 刪除成功`);
-    }
-
-    // 3. 發送 FLEX MESSAGE 更新到 LINE
-    if (deletedTask && client) {
-      try {
-        // 生成最新的 FLEX MESSAGE（只顯示今天的任務）
-        const todayTasks = filterTodayTasks(userTasks);
-        const userTags = await getUserTags(userId);
-        const { createMainTaskList } = getTaskFlexModule();
-        const completedCount = todayTasks.filter(task => task.completed).length;
-        const favoriteCount = todayTasks.filter(task => task.favorited).length;
-        const flexMessage = createMainTaskList(todayTasks, userTags, completedCount, favoriteCount);
-
-        // 推送 FLEX MESSAGE 給用戶
-        await client.pushMessage(userId, flexMessage);
-        console.log(`✅ [刪除任務] 已發送更新的 FLEX MESSAGE 給用戶 ${userId}`);
-      } catch (flexError) {
-        console.error('⚠️ [刪除任務] FLEX MESSAGE 發送失敗:', flexError);
-        // 不阻止操作，因為刪除已經成功
-      }
-    }
-
-    // 4. 返回成功響應
-    res.json({
-      success: true,
-      message: '任務已成功刪除並同步更新到 TODO LIST',
-      deletedTask: deletedTask,
-      remainingTasksCount: userTasks.length
-    });
-
-  } catch (err) {
-    console.error('❌ [刪除任務] 錯誤:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// 增強版連結預覽 API
-app.post('/api/link-preview', async (req, res) => {
-  try {
-    const userId = req.headers['x-user-id'];
-    const { url } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing user ID' });
-    }
-
-    if (!url) {
-      return res.status(400).json({ error: 'Missing URL' });
-    }
-
-    console.log(`🚀 [增強預覽] 用戶 ${userId} 請求預覽: ${url}`);
-
-    try {
-      // 使用增強版連結預覽服務
-      const preview = await enhancedPreview.getEnhancedPreview(url);
-
-      console.log(`✅ [增強預覽] 成功解析:`, preview);
-      res.json(preview);
-
-    } catch (error) {
-      console.error(`❌ [增強預覽] 失敗:`, error.message);
-
-      // 降級到基本預覽
-      const domain = new URL(url).hostname;
-      res.json({
-        title: domain,
-        description: '無法獲取網頁描述',
-        image: null,
-        domain: domain,
-        url: url,
-        type: 'error'
-      });
-    }
-
-  } catch (err) {
-    console.error('❌ [增強預覽] 系統錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -2742,12 +1774,6 @@ app.post('/admin/create-tags-table', async (req, res) => {
 });
 
 // ==================== WEBHOOK 路由 ====================
-
-// Webhook GET 端點 - 供 LINE 驗證使用
-app.get('/webhook', (req, res) => {
-  console.log('🔍 [Webhook GET] LINE 驗證請求');
-  res.status(200).send('OK');
-});
 
 app.post('/webhook', (req, res) => {
   // 簡化版本：跳過 LINE signature 驗證用於測試
@@ -2847,886 +1873,8 @@ app.get('/api/messages', async (req, res) => {
   }
 });
 
-// === 支付 API 端點 ===
-
-// 訂閱狀態查詢 API
-app.post('/api/subscription/status', async (req, res) => {
-    try {
-        const { userId } = req.body;
-        
-        if (!userId) {
-            return res.status(400).json({ error: '缺少用戶 ID' });
-        }
-        
-        console.log(`📋 [訂閱API] 查詢用戶訂閱狀態: ${userId}`);
-        
-        const subscription = await subscriptionService.getUserSubscription(userId);
-        
-        console.log(`✅ [訂閱API] 返回訂閱狀態:`, {
-            type: subscription.subscription_type,
-            status: subscription.status,
-            expires: subscription.expires_at
-        });
-        
-        res.json(subscription);
-        
-    } catch (error) {
-        console.error('❌ [訂閱API] 查詢訂閱狀態失敗:', error);
-        res.status(500).json({ error: '查詢訂閱狀態失敗' });
-    }
-});
-
-// 創建支付訂單
-app.post('/api/payment/create', async (req, res) => {
-  try {
-    const { userId, userName, amount, itemName, description } = req.body;
-    
-    console.log('💳 [付款API] 收到建立訂單請求:', { userId, amount, itemName });
-    
-    // 驗證必要欄位
-    if (!userId || !amount) {
-      return res.status(400).json({
-        success: false,
-        error: '缺少必要欄位：userId 和 amount'
-      });
-    }
-    
-    // 建立支付訂單
-    const orderResult = await oenPayment.createPaymentOrder({
-      userId,
-      userName: userName || '小汪記記用戶',
-      amount: parseInt(amount),
-      itemName: itemName || '小汪記記 - 訂閱升級',
-      description: description || '解鎖進階功能，享受更好的記事體驗'
-    });
-    
-    console.log('✅ [付款API] 訂單建立成功:', orderResult.orderId);
-    
-    res.json({
-      success: true,
-      orderId: orderResult.orderId,
-      paymentUrl: orderResult.paymentUrl
-    });
-    
-  } catch (error) {
-    console.error('❌ [付款API] 建立訂單失敗:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// 處理付款回調
-app.post('/payment/callback', async (req, res) => {
-  try {
-    console.log('📞 [付款回調] 收到 Oen Payment 回調:', req.body);
-    
-    // 處理付款結果
-    const paymentResult = oenPayment.processWebhook(req.body);
-    
-    if (paymentResult.success) {
-      console.log('🎉 [付款成功] 訂單支付成功:', paymentResult.orderId);
-      
-      // 自動更新用戶訂閱狀態
-      try {
-        const subscriptionResult = await subscriptionService.processSuccessfulPayment(paymentResult);
-        console.log('✅ [訂閱更新] 用戶訂閱已自動更新:', {
-          userId: subscriptionResult.userId,
-          type: subscriptionResult.subscription_type,
-          status: subscriptionResult.status,
-          expiresAt: subscriptionResult.expires_at
-        });
-      } catch (subscriptionError) {
-        console.error('❌ [訂閱更新] 自動更新訂閱失敗:', subscriptionError.message);
-        // 付款成功但訂閱更新失敗，需要手動處理
-      }
-      
-    } else {
-      console.log('❌ [付款失敗] 訂單支付失敗:', paymentResult.orderId);
-    }
-    
-    // 返回成功回應給 Oen Payment
-    res.send('OK');
-    
-  } catch (error) {
-    console.error('❌ [付款回調] 處理回調失敗:', error);
-    res.status(400).send('ERROR');
-  }
-});
-
-// Token Webhook 處理端點
-app.post('/api/payment/token-webhook', async (req, res) => {
-  try {
-    console.log('📞 [Token Webhook] 收到 Oen Payment Token 回調:', req.body);
-    
-    const webhookData = req.body;
-    
-    // 驗證是否為 Token 相關回調
-    if (webhookData.purpose === 'token' && webhookData.success) {
-      console.log('🎫 [Token Webhook] Token 綁卡成功:', {
-        token: webhookData.token,
-        transactionId: webhookData.transactionId,
-        customId: webhookData.customId
-      });
-      
-      // 處理 customId 中的用戶資訊
-      try {
-        const customData = JSON.parse(webhookData.customId);
-        console.log('👤 [Token Webhook] 用戶資訊:', customData);
-        
-        // TODO: 將 Token 儲存到資料庫，與用戶 ID 關聯
-        // 這裡可以儲存 Token 供後續交易使用
-        
-        console.log('✅ [Token Webhook] Token 處理完成');
-      } catch (parseError) {
-        console.error('❌ [Token Webhook] customId 解析失敗:', parseError);
-      }
-      
-    } else {
-      console.log('❌ [Token Webhook] Token 綁卡失敗或非 Token 回調');
-    }
-    
-    // 返回成功回應給 Oen Payment
-    res.json({ success: true, message: 'Token webhook processed' });
-    
-  } catch (error) {
-    console.error('❌ [Token Webhook] 處理 Token 回調失敗:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// Token 成功頁面
-app.get('/payment/token-success', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="zh-TW">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>綁卡成功 - 小汪記記</title>
-        <style>
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                margin: 0; 
-                padding: 20px; 
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .container { 
-                background: white; 
-                padding: 40px; 
-                border-radius: 15px; 
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                text-align: center;
-                max-width: 500px;
-                width: 100%;
-            }
-            .success-icon { 
-                font-size: 64px; 
-                color: #28a745; 
-                margin-bottom: 20px;
-            }
-            h1 { 
-                color: #28a745; 
-                margin-bottom: 20px;
-                font-size: 28px;
-            }
-            p { 
-                color: #666; 
-                line-height: 1.6;
-                margin-bottom: 15px;
-            }
-            .highlight { 
-                background: #e7f5e7; 
-                padding: 15px; 
-                border-radius: 8px; 
-                margin: 20px 0;
-                border-left: 4px solid #28a745;
-            }
-            .btn { 
-                display: inline-block; 
-                background: #28a745; 
-                color: white; 
-                padding: 12px 30px; 
-                text-decoration: none; 
-                border-radius: 25px; 
-                margin-top: 20px;
-                transition: background 0.3s;
-            }
-            .btn:hover { 
-                background: #218838; 
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="success-icon">🎉</div>
-            <h1>信用卡綁定成功！</h1>
-            <p>恭喜您成功綁定信用卡到小汪記記系統！</p>
-            
-            <div class="highlight">
-                <strong>✅ 綁卡完成</strong><br>
-                您的信用卡已安全綁定，可以開始使用 Premium 功能
-            </div>
-            
-            <p>系統已自動處理您的綁卡資訊，您現在可以：</p>
-            <p>• 享受無限制任務管理</p>
-            <p>• 使用自定義標籤功能</p>
-            <p>• 存取任務收藏功能</p>
-            
-            <a href="#" class="btn" onclick="window.close()">關閉頁面</a>
-        </div>
-    </body>
-    </html>
-  `);
-});
-
-// Token 失敗頁面
-app.get('/payment/token-failure', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="zh-TW">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>綁卡失敗 - 小汪記記</title>
-        <style>
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
-                margin: 0; 
-                padding: 20px; 
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .container { 
-                background: white; 
-                padding: 40px; 
-                border-radius: 15px; 
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                text-align: center;
-                max-width: 500px;
-                width: 100%;
-            }
-            .error-icon { 
-                font-size: 64px; 
-                color: #dc3545; 
-                margin-bottom: 20px;
-            }
-            h1 { 
-                color: #dc3545; 
-                margin-bottom: 20px;
-                font-size: 28px;
-            }
-            p { 
-                color: #666; 
-                line-height: 1.6;
-                margin-bottom: 15px;
-            }
-            .highlight { 
-                background: #f8d7da; 
-                padding: 15px; 
-                border-radius: 8px; 
-                margin: 20px 0;
-                border-left: 4px solid #dc3545;
-            }
-            .btn { 
-                display: inline-block; 
-                background: #dc3545; 
-                color: white; 
-                padding: 12px 30px; 
-                text-decoration: none; 
-                border-radius: 25px; 
-                margin-top: 20px;
-                transition: background 0.3s;
-            }
-            .btn:hover { 
-                background: #c82333; 
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="error-icon">❌</div>
-            <h1>信用卡綁定失敗</h1>
-            <p>很抱歉，您的信用卡綁定過程中發生了問題。</p>
-            
-            <div class="highlight">
-                <strong>可能的原因：</strong><br>
-                • 信用卡資訊輸入錯誤<br>
-                • 信用卡餘額不足進行驗證<br>
-                • 網路連線問題<br>
-                • 銀行系統暫時不可用
-            </div>
-            
-            <p>請稍後再試，或聯絡客服協助解決問題。</p>
-            
-            <a href="#" class="btn" onclick="window.close()">關閉頁面</a>
-        </div>
-    </body>
-    </html>
-  `);
-});
-
-// 模擬支付頁面
-app.get('/payment/create', (req, res) => {
-  const { 
-    store_id, 
-    order_id, 
-    amount, 
-    currency, 
-    item_name, 
-    item_description, 
-    customer_id, 
-    customer_name,
-    callback_url,
-    return_url,
-    timestamp,
-    signature 
-  } = req.query;
-  
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="zh-TW">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Oen Payment - 測試支付</title>
-        <style>
-            body { 
-                font-family: Arial, sans-serif; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                margin: 0; 
-                padding: 20px; 
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .payment-container { 
-                background: white; 
-                padding: 30px; 
-                border-radius: 15px; 
-                max-width: 500px; 
-                margin: 0 auto; 
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            }
-            .logo { 
-                text-align: center; 
-                color: #667eea; 
-                font-size: 2rem; 
-                margin-bottom: 30px; 
-                font-weight: bold;
-            }
-            .order-info { 
-                background: #f8f9fa; 
-                padding: 20px; 
-                border-radius: 10px; 
-                margin-bottom: 20px; 
-            }
-            .info-row { 
-                display: flex; 
-                justify-content: space-between; 
-                margin-bottom: 10px; 
-                padding: 5px 0;
-                border-bottom: 1px solid #eee;
-            }
-            .info-row:last-child { border-bottom: none; }
-            .label { font-weight: bold; color: #555; }
-            .value { color: #333; }
-            .amount { 
-                font-size: 1.5rem; 
-                color: #28a745; 
-                font-weight: bold; 
-            }
-            .buttons { 
-                display: flex; 
-                gap: 15px; 
-                margin-top: 25px; 
-            }
-            .btn { 
-                flex: 1; 
-                padding: 15px; 
-                border: none; 
-                border-radius: 8px; 
-                font-size: 1rem; 
-                cursor: pointer; 
-                font-weight: bold;
-                transition: all 0.3s ease;
-            }
-            .btn-success { 
-                background: #28a745; 
-                color: white; 
-            }
-            .btn-success:hover { 
-                background: #218838; 
-                transform: translateY(-2px);
-            }
-            .btn-danger { 
-                background: #dc3545; 
-                color: white; 
-            }
-            .btn-danger:hover { 
-                background: #c82333; 
-                transform: translateY(-2px);
-            }
-            .notice {
-                background: #fff3cd;
-                color: #856404;
-                padding: 15px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                border-left: 4px solid #ffc107;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="payment-container">
-            <div class="logo">💳 Oen Payment 測試環境</div>
-            
-            <div class="notice">
-                ⚠️ 這是測試環境，不會產生實際交易
-            </div>
-            
-            <div class="order-info">
-                <h3 style="margin-top: 0; color: #333;">訂單資訊</h3>
-                <div class="info-row">
-                    <span class="label">商品名稱:</span>
-                    <span class="value">${decodeURIComponent(item_name || '')}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">商品描述:</span>
-                    <span class="value">${decodeURIComponent(item_description || '')}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">訂單編號:</span>
-                    <span class="value">${order_id}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">客戶名稱:</span>
-                    <span class="value">${decodeURIComponent(customer_name || '')}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">支付金額:</span>
-                    <span class="value amount">NT$ ${amount}</span>
-                </div>
-            </div>
-            
-            <div class="buttons">
-                <button class="btn btn-success" onclick="simulatePaymentSuccess()">
-                    ✅ 模擬付款成功
-                </button>
-                <button class="btn btn-danger" onclick="simulatePaymentFail()">
-                    ❌ 模擬付款失敗
-                </button>
-            </div>
-        </div>
-
-        <script>
-            function simulatePaymentSuccess() {
-                // 顯示處理中狀態
-                const btn = event.target;
-                btn.disabled = true;
-                btn.innerHTML = '⏳ 處理中...';
-                
-                // 模擬支付成功，發送回調到 callback_url
-                fetch('/payment/callback', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        order_id: '${order_id}',
-                        trade_status: 'TRADE_SUCCESS',
-                        amount: '${amount}.00',
-                        trade_no: 'OEN_TEST_' + Date.now(),
-                        customer_id: '${customer_id}',
-                        timestamp: Math.floor(Date.now() / 1000),
-                        signature: '${signature}' // 使用相同簽名用於測試
-                    })
-                }).then(response => {
-                    if (response.ok) {
-                        // 顯示成功訊息並跳轉
-                        btn.innerHTML = '✅ 成功！跳轉中...';
-                        setTimeout(() => {
-                            window.location.href = '${decodeURIComponent(return_url)}?orderId=${order_id}&status=success&customerName=${encodeURIComponent(customer_name)}';
-                        }, 1000);
-                    } else {
-                        throw new Error('服務器回應錯誤: ' + response.status);
-                    }
-                }).catch(error => {
-                    console.error('支付處理失敗:', error);
-                    btn.disabled = false;
-                    btn.innerHTML = '✅ 模擬付款成功';
-                    alert('⚠️ 支付處理失敗: ' + error.message + '\\n請稍後重試或聯繫客服。');
-                });
-            }
-            
-            function simulatePaymentFail() {
-                // 模擬支付失敗
-                alert('😔 支付失敗！這是模擬的失敗情況。');
-                // 可以加入失敗回調邏輯
-            }
-        </script>
-    </body>
-    </html>
-  `);
-});
-
-// 付款成功頁面
-app.get('/payment/success', (req, res) => {
-  const { orderId, status, customerName } = req.query;
-  const displayName = customerName ? decodeURIComponent(customerName) : '用戶';
-  
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="zh-TW">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>付款成功 - 小汪記記</title>
-        <style>
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                margin: 0; 
-                padding: 20px; 
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .success-card { 
-                background: white; 
-                padding: 40px; 
-                border-radius: 20px; 
-                max-width: 500px; 
-                margin: 0 auto; 
-                box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-                text-align: center;
-            }
-            .success-icon { 
-                font-size: 5rem; 
-                margin-bottom: 20px;
-                animation: bounce 1s ease-out;
-            }
-            .success-title { 
-                color: #28a745; 
-                font-size: 2rem; 
-                margin-bottom: 15px;
-                font-weight: 600;
-            }
-            .customer-name {
-                color: #667eea;
-                font-size: 1.2rem;
-                margin-bottom: 20px;
-                font-weight: 500;
-            }
-            .success-message { 
-                color: #555; 
-                margin-bottom: 25px;
-                line-height: 1.6;
-                font-size: 1.1rem;
-            }
-            .order-info {
-                background: #f8f9fa;
-                padding: 15px;
-                border-radius: 10px;
-                margin-bottom: 25px;
-                border-left: 4px solid #28a745;
-            }
-            .order-id {
-                color: #666;
-                font-size: 0.9rem;
-                margin-bottom: 5px;
-            }
-            .features {
-                text-align: left;
-                margin-bottom: 25px;
-            }
-            .feature-item {
-                display: flex;
-                align-items: center;
-                margin-bottom: 10px;
-                color: #555;
-            }
-            .feature-icon {
-                color: #28a745;
-                margin-right: 10px;
-                font-weight: bold;
-            }
-            .buttons {
-                display: flex;
-                gap: 15px;
-                justify-content: center;
-            }
-            .btn {
-                padding: 12px 25px;
-                border: none;
-                border-radius: 25px;
-                font-size: 1rem;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-weight: 500;
-            }
-            .btn-primary {
-                background: #007bff;
-                color: white;
-            }
-            .btn-secondary {
-                background: #6c757d;
-                color: white;
-            }
-            .btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            }
-            @keyframes bounce {
-                0%, 20%, 60%, 100% { transform: translateY(0); }
-                40% { transform: translateY(-20px); }
-                80% { transform: translateY(-10px); }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="success-card">
-            <div class="success-icon">🎉</div>
-            <h1 class="success-title">付款成功！</h1>
-            <div class="customer-name">歡迎 ${displayName}！</div>
-            
-            <div class="order-info">
-                <div class="order-id">訂單編號：${orderId || 'N/A'}</div>
-                <div style="color: #28a745; font-weight: 600;">✅ 小汪記記 Premium 會員已啟用</div>
-            </div>
-            
-            <div class="success-message">
-                恭喜您成功訂閱小汪記記進階功能！<br>
-                現在您可以享受完整的記事體驗，包括：
-            </div>
-            
-            <div class="features">
-                <div class="feature-item">
-                    <span class="feature-icon">∞</span>
-                    <span>無限制任務數量</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">🏷️</span>
-                    <span>自定義標籤管理</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">⭐</span>
-                    <span>任務收藏功能</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">📊</span>
-                    <span>進階統計報表</span>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">💬</span>
-                    <span>優先客服支援</span>
-                </div>
-            </div>
-            
-            <div class="buttons">
-                <button class="btn btn-primary" onclick="returnToApp()">
-                    🏠 返回小汪記記
-                </button>
-                <button class="btn btn-secondary" onclick="closeWindow()">
-                    ✖️ 關閉頁面
-                </button>
-            </div>
-        </div>
-        <script>
-            function closeWindow() {
-                if (window.opener) {
-                    window.close();
-                } else {
-                    alert('請手動關閉此頁面返回小汪記記');
-                }
-            }
-            
-            function returnToApp() {
-                // 如果是從 LIFF 或應用內開啟，嘗試回到應用
-                try {
-                    if (window.opener && window.opener.location) {
-                        window.opener.location.reload(); // 重新載入父頁面以刷新訂閱狀態
-                        window.close();
-                    } else {
-                        // 嘗試打開 LINE Bot 對話
-                        window.open('https://line.me/R/ti/p/@小汪記記', '_blank');
-                        window.close();
-                    }
-                } catch (error) {
-                    alert('請手動返回小汪記記應用，您的進階功能已啟用！');
-                    closeWindow();
-                }
-            }
-            
-            // 3秒後自動顯示返回提示
-            setTimeout(() => {
-                if (document.querySelector('.btn-primary')) {
-                    document.querySelector('.btn-primary').style.animation = 'pulse 1s infinite';
-                }
-            }, 3000);
-        </script>
-        <style>
-            @keyframes pulse {
-                0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); }
-                70% { box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
-            }
-        </style>
-    </body>
-    </html>
-  `);
-});
-
-// 測試 API：檢查用戶任務
-app.get('/api/debug/user-tasks/:userId', (req, res) => {
-  const userId = req.params.userId;
-  const userTasks = userTaskStacks.get(userId) || [];
-  res.json({
-    userId,
-    taskCount: userTasks.length,
-    tasks: userTasks.slice(0, 5).map(task => ({
-      id: task.id,
-      text: task.text,
-      note: task.note,
-      hasNote: !!task.note
-    }))
-  });
-});
-
-// 測試 API：生成 FLEX MESSAGE
-app.get('/api/debug/flex-message/:userId', async (req, res) => {
-  try {
-    const userId = req.params.userId;
-    const userTasks = userTaskStacks.get(userId) || [];
-    const userTags = await getUserTags(userId);
-    const { createMainTaskList } = getTaskFlexModule();
-    const completedCount = userTasks.filter(task => task.completed).length;
-    const favoriteCount = userTasks.filter(task => task.favorited).length;
-    const flexMessage = createMainTaskList(userTasks, userTags, completedCount, favoriteCount);
-
-    res.json({
-      userId,
-      taskCount: userTasks.length,
-      completedCount,
-      favoriteCount,
-      flexMessage
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-// 🏷️ 自動AI標籤處理函數 - 為新任務自動生成AI標籤
-async function processAutoTagsForNewTask(task, userId) {
-  try {
-    console.log('🤖 [自動AI標籤] 開始處理新任務:', task.text.substring(0, 50) + '...');
-
-    // 檢測任務中是否包含URL
-    const urlRegex = /(https?:\/\/[^\s\)]+)/gi;
-    const urls = task.text.match(urlRegex);
-
-    if (!urls || urls.length === 0) {
-      console.log('⚠️ [自動AI標籤] 任務中沒有發現URL，跳過AI標籤處理');
-      return;
-    }
-
-    const url = urls[0]; // 取第一個URL
-    console.log('🔗 [自動AI標籤] 發現URL:', url);
-
-    // 初始化服務
-    const contentAnalyzer = new WebContentAnalyzer();
-    const tagGenerator = new AITagGenerator();
-
-    // 第一步：分析網頁內容
-    console.log('🔍 [自動AI標籤] 開始分析網頁內容...');
-    const analysisResult = await contentAnalyzer.analyzeUrl(url);
-
-    if (!analysisResult.success) {
-      console.error('❌ [自動AI標籤] 網頁分析失敗:', analysisResult.error);
-      return;
-    }
-
-    console.log('✅ [自動AI標籤] 網頁分析成功，開始生成標籤...');
-
-    // 第二步：生成AI標籤
-    const tagResult = await tagGenerator.generateTags(analysisResult.data);
-
-    if (!tagResult.success || !tagResult.tags || tagResult.tags.length === 0) {
-      console.error('❌ [自動AI標籤] 標籤生成失敗:', tagResult.error || '沒有生成標籤');
-      return;
-    }
-
-    // 只取前3個標籤
-    const aiTags = tagResult.tags.slice(0, 3);
-    console.log('🎉 [自動AI標籤] 成功生成標籤:', aiTags);
-
-    // 第三步：將AI標籤儲存到資料庫的 ai_tags 欄位
-    try {
-      // 儲存AI標籤到相關的任務記錄（如果有對應的資料庫記錄）
-      const aiTagsString = aiTags.join(',');
-
-      // 將AI標籤添加到任務物件中
-      task.ai_tags = aiTags;
-
-      // 同時將AI標籤儲存到暫存Map中，以便Supabase儲存時使用
-      const tempKey = `${userId}_${task.text}`;
-      tempAITagsMap.set(tempKey, aiTags);
-
-      console.log('💾 [自動AI標籤] AI標籤已添加到任務中:', aiTags);
-      console.log('🔑 [自動AI標籤] 暫存Key:', tempKey);
-
-    } catch (saveError) {
-      console.error('❌ [自動AI標籤] 儲存標籤失敗:', saveError);
-    }
-
-  } catch (error) {
-    console.error('❌ [自動AI標籤] 處理過程中發生錯誤:', error);
-  }
-}
-
-// 設置自動標籤路由 - 傳遞 cache 系統
-setupAutoTagRoutes(app, tempAITagsMap);
-
 // 啟動伺服器
 app.listen(PORT, () => {
   console.log(`🤖 LINE Bot server running on port ${PORT}`);
   console.log(`📅 Started at: ${new Date().toISOString()}`);
-  console.log(`🔗 Enhanced Link Preview Service ready`);
-});
-
-// 優雅關閉處理
-process.on('SIGINT', async () => {
-  console.log('\n🔄 [伺服器] 正在關閉...');
-
-  try {
-    // 清理增強預覽服務資源
-    await enhancedPreview.cleanup();
-    console.log('✅ [伺服器] 資源清理完成');
-  } catch (error) {
-    console.error('❌ [伺服器] 清理失敗:', error.message);
-  }
-
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('\n🔄 [伺服器] 收到 SIGTERM，正在關閉...');
-
-  try {
-    await enhancedPreview.cleanup();
-    console.log('✅ [伺服器] 資源清理完成');
-  } catch (error) {
-    console.error('❌ [伺服器] 清理失敗:', error.message);
-  }
-
-  process.exit(0);
 });
