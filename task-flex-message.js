@@ -284,6 +284,18 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                   type: 'uri',
                   uri: 'https://3c22a40d8ece.ngrok-free.app/liff/account'
                 }
+              },
+              {
+                type: 'text',
+                text: '收藏卡',
+                size: 'sm',
+                color: '#000000',
+                align: 'center',
+                flex: 1,
+                action: {
+                  type: 'uri',
+                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/collections'
+                }
               }
             ]
           },
