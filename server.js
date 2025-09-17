@@ -65,6 +65,10 @@ app.use(session({
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 小時
 }));
 
+// 靜態檔案服務 - 提供截圖預覽圖片
+app.use('/screenshots', express.static(path.join(__dirname, 'public', 'screenshots')));
+console.log('📁 Static files enabled for screenshots at /screenshots');
+
 // 判斷是否為問句或請求
 function isQuestion(text) {
   // 問句特徵
@@ -583,6 +587,92 @@ async function handleEvent(event) {
       const result = await createCollection(userId, collectionData);
 
       if (result.success) {
+        // 🔧 自動處理URL預覽生成（LINE Bot路徑）
+        const title = collectionData.title || '';
+        const content = collectionData.content || {};
+        const url = content.url || title;
+
+        console.log(`🔍 [LINE Bot自動預覽調試] 收藏卡 ${result.data.id} 檢測資料:`);
+        console.log(`  - title: ${title}`);
+        console.log(`  - content.url: ${content.url}`);
+        console.log(`  - 最終url: ${url}`);
+
+        // 檢測是否為需要預覽的URL
+        const needsPreview = url && (
+          url.includes('http') && (
+            url.includes('facebook.com') ||
+            url.includes('instagram.com') ||
+            url.includes('youtube.com') ||
+            url.includes('twitter.com') ||
+            url.includes('github.com') ||
+            url.includes('medium.com')
+          )
+        );
+
+        console.log(`🔍 [LINE Bot自動預覽調試] needsPreview: ${needsPreview}`);
+
+        if (needsPreview) {
+          console.log(`🔧 [LINE Bot自動預覽] 檢測到URL需要預覽: ${url}`);
+
+          // 背景處理URL預覽，不阻塞LINE Bot回應
+          setImmediate(async () => {
+            try {
+              if (url.includes('facebook.com')) {
+                // Facebook特殊處理
+                const { UniversalFacebookProcessor } = require('./universal-facebook-processor');
+                const processor = new UniversalFacebookProcessor();
+
+                console.log(`🔧 [LINE Bot自動預覽] 開始處理收藏卡 ${result.data.id} 的Facebook預覽`);
+                const processingResult = await processor.processSingleFacebookUrl(url);
+
+                if (processingResult.success) {
+                  console.log(`✅ [LINE Bot自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理成功`);
+                } else {
+                  console.log(`⚠️ [LINE Bot自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理失敗: ${processingResult.error}`);
+                }
+              } else {
+                // 一般URL預覽處理
+                console.log(`🔧 [LINE Bot自動預覽] 開始處理收藏卡 ${result.data.id} 的一般URL預覽`);
+
+                const EnhancedLinkPreview = require('./enhanced-link-preview');
+                const preview = new EnhancedLinkPreview();
+                const previewResult = await preview.getEnhancedPreview(url);
+
+                if (previewResult.image) {
+                  const updateData = {
+                    content: {
+                      ...content,
+                      url: url,
+                      preview_image: previewResult.image,
+                      preview_title: previewResult.title || '預覽標題',
+                      preview_description: previewResult.description || '預覽描述',
+                      extraction_method: previewResult.type,
+                      auto_processed: true,
+                      linebot_processed: true,
+                      extraction_date: new Date().toISOString()
+                    }
+                  };
+
+                  const collectionsAPI = require('./collections-api');
+                  const updateResult = await collectionsAPI.updateCollection(userId, result.data.id, updateData);
+
+                  if (updateResult.success) {
+                    console.log(`✅ [LINE Bot自動預覽] 收藏卡 ${result.data.id} 一般URL預覽處理成功`);
+                  } else {
+                    console.log(`⚠️ [LINE Bot自動預覽] 收藏卡 ${result.data.id} 更新失敗: ${updateResult.error}`);
+                  }
+                } else {
+                  console.log(`⚠️ [LINE Bot自動預覽] 收藏卡 ${result.data.id} 無法獲取預覽圖片`);
+                }
+
+                await preview.cleanup();
+              }
+            } catch (autoError) {
+              console.error(`❌ [LINE Bot自動預覽] 背景處理失敗: ${autoError.message}`);
+            }
+          });
+        }
+
         return client.replyMessage(event.replyToken, {
           type: 'text',
           text: `✅ 任務已成功加入收藏卡！\n📋 "${task.message_text}"`
@@ -1212,6 +1302,84 @@ app.post('/api/collections/:userId', async (req, res) => {
     const result = await collectionsAPI.createCollection(userId, collectionData);
 
     if (result.success) {
+      // 🔧 自動處理URL預覽生成
+      const title = collectionData.title || '';
+      const content = collectionData.content || {};
+      const url = content.url || title;
+
+      // 檢測是否為需要預覽的URL
+      const needsPreview = url && (
+        url.includes('http') && (
+          url.includes('facebook.com') ||
+          url.includes('instagram.com') ||
+          url.includes('youtube.com') ||
+          url.includes('twitter.com') ||
+          url.includes('github.com') ||
+          url.includes('medium.com')
+        )
+      );
+
+      if (needsPreview) {
+        console.log(`🔧 [自動預覽] 檢測到URL需要預覽: ${url}`);
+
+        // 背景處理URL預覽，不阻塞API回應
+        setImmediate(async () => {
+          try {
+            if (url.includes('facebook.com')) {
+              // Facebook特殊處理
+              const { UniversalFacebookProcessor } = require('./universal-facebook-processor');
+              const processor = new UniversalFacebookProcessor();
+
+              console.log(`🔧 [自動預覽] 開始處理收藏卡 ${result.data.id} 的Facebook預覽`);
+              const processingResult = await processor.processSingleFacebookUrl(url);
+
+              if (processingResult.success) {
+                console.log(`✅ [自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理成功`);
+              } else {
+                console.log(`⚠️ [自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理失敗: ${processingResult.error}`);
+              }
+            } else {
+              // 一般URL預覽處理
+              console.log(`🔧 [自動預覽] 開始處理收藏卡 ${result.data.id} 的一般URL預覽`);
+
+              const EnhancedLinkPreview = require('./enhanced-link-preview');
+              const preview = new EnhancedLinkPreview();
+              const previewResult = await preview.getEnhancedPreview(url);
+
+              if (previewResult.image) {
+                const updateData = {
+                  content: {
+                    ...content,
+                    url: url,
+                    preview_image: previewResult.image,
+                    preview_title: previewResult.title || '預覽標題',
+                    preview_description: previewResult.description || '預覽描述',
+                    extraction_method: previewResult.type,
+                    auto_processed: true,
+                    extraction_date: new Date().toISOString()
+                  }
+                };
+
+                const collectionsAPI = require('./collections-api');
+                const updateResult = await collectionsAPI.updateCollection(userId, result.data.id, updateData);
+
+                if (updateResult.success) {
+                  console.log(`✅ [自動預覽] 收藏卡 ${result.data.id} 一般URL預覽處理成功`);
+                } else {
+                  console.log(`⚠️ [自動預覽] 收藏卡 ${result.data.id} 更新失敗: ${updateResult.error}`);
+                }
+              } else {
+                console.log(`⚠️ [自動預覽] 收藏卡 ${result.data.id} 無法獲取預覽圖片`);
+              }
+
+              await preview.cleanup();
+            }
+          } catch (autoError) {
+            console.error(`❌ [自動預覽] 背景處理失敗: ${autoError.message}`);
+          }
+        });
+      }
+
       res.json({ success: true, data: result.data });
     } else {
       res.status(400).json({ success: false, error: result.error });
@@ -1275,6 +1443,66 @@ app.get('/api/collections/:userId/stats', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ [API] 獲取收藏卡統計失敗:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// 網址預覽 API
+const urlPreviewAPI = require('./url-preview-api');
+const EnhancedLinkPreview = require('./enhanced-link-preview');
+
+// 創建Enhanced Link Preview實例
+const enhancedPreview = new EnhancedLinkPreview();
+
+// 🔍 獲取網址預覽
+app.post('/api/url-preview', async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ success: false, error: '缺少URL參數' });
+    }
+
+    // 驗證URL格式
+    try {
+      new URL(url);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'URL格式無效' });
+    }
+
+    console.log(`🔍 [API] 請求網址預覽: ${url}`);
+
+    // 檢查是否為社交媒體連結，使用Enhanced Preview
+    if (enhancedPreview.isSocialMediaLink(url)) {
+      console.log(`📱 [API] 使用Enhanced Preview處理社交媒體連結`);
+      const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+
+      // 轉換為標準格式
+      const result = {
+        success: true,
+        data: {
+          title: enhancedResult.title,
+          description: enhancedResult.description,
+          image: enhancedResult.image,
+          url: enhancedResult.url,
+          type: enhancedResult.type
+        }
+      };
+
+      res.json(result);
+      return;
+    }
+
+    // 對於非社交媒體連結，使用標準預覽
+    const result = await urlPreviewAPI.fetchUrlPreview(url);
+
+    if (result.success) {
+      res.json({ success: true, data: result.data });
+    } else {
+      res.json({ success: false, error: result.error, data: result.data });
+    }
+  } catch (error) {
+    console.error('❌ [API] 網址預覽失敗:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

@@ -111,6 +111,31 @@
             color: #388e3c;
         }
 
+        /* 預覽圖片樣式 */
+        .preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .preview-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .preview-icon-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #1976d2;
+        }
+
         .collection-info {
             padding: 20px;
         }
@@ -506,6 +531,9 @@
             const aiTags = [];
 
             const type = analyzeCollectionType(collection);
+            const title = (collection.title || '').toLowerCase();
+            const description = (collection.description || '').toLowerCase();
+
             switch (type) {
                 case 'video':
                     aiTags.push('影片', '多媒體');
@@ -514,10 +542,12 @@
                     aiTags.push('圖片', '視覺');
                     break;
                 case 'url':
-                    if (collection.name.includes('facebook')) {
+                    if (title.includes('facebook') || description.includes('facebook')) {
                         aiTags.push('社群', '分享');
-                    } else if (collection.name.includes('github')) {
+                    } else if (title.includes('github') || description.includes('github')) {
                         aiTags.push('程式', '開發');
+                    } else if (title.includes('youtube') || description.includes('youtube')) {
+                        aiTags.push('影片', '娛樂');
                     } else {
                         aiTags.push('網站', '連結');
                     }
@@ -574,7 +604,7 @@
                         </div>
 
                         <div class="collection-preview ${type}-preview">
-                            ${getPreviewIcon(type)}
+                            ${getPreviewContent(collection, type)}
                         </div>
 
                         <div class="collection-info">
@@ -614,6 +644,35 @@
             }).join('');
         }
 
+        // 取得預覽內容 (圖片或圖標)
+        function getPreviewContent(collection, type) {
+            // 檢查是否有預覽圖片
+            if (collection.preview_image) {
+                return `<img src="${collection.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
+            }
+
+            // 檢查content中是否有圖片URL
+            if (collection.content && collection.content.preview_image) {
+                return `<img src="${collection.content.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
+            }
+
+            // 如果是URL類型，嘗試載入預覽
+            if (type === 'url' || type === 'video') {
+                const url = getUrlFromCollection(collection);
+                if (url) {
+                    loadUrlPreview(collection.id, url);
+                    return `<div id="preview-${collection.id}" class="preview-loading">
+                                <div class="spinner-border spinner-border-sm text-light" role="status"></div>
+                                <small class="d-block mt-1">載入中...</small>
+                            </div>`;
+                }
+            }
+
+            return getPreviewIcon(type);
+        }
+
         // 取得預覽圖標
         function getPreviewIcon(type) {
             const icons = {
@@ -623,6 +682,75 @@
                 text: '<i class="bi bi-file-text"></i>'
             };
             return icons[type] || icons.text;
+        }
+
+        // 從收藏項目中提取URL
+        function getUrlFromCollection(collection) {
+            console.log(`🔍 [URL檢測] 收藏項目:`, collection);
+
+            // 優先檢查 content.url
+            if (collection.content && collection.content.url) {
+                console.log(`✅ [URL檢測] 從content.url找到: ${collection.content.url}`);
+                return collection.content.url;
+            }
+
+            // 檢查標題是否為URL
+            if (collection.title && collection.title.includes('http')) {
+                console.log(`✅ [URL檢測] 從title找到: ${collection.title}`);
+                return collection.title;
+            }
+
+            // 檢查描述中的URL
+            if (collection.description && collection.description.includes('http')) {
+                const urlMatch = collection.description.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) {
+                    console.log(`✅ [URL檢測] 從description找到: ${urlMatch[0]}`);
+                    return urlMatch[0];
+                }
+            }
+
+            console.log(`❌ [URL檢測] 未找到URL`);
+            return null;
+        }
+
+        // 載入網址預覽
+        async function loadUrlPreview(collectionId, url) {
+            try {
+                console.log(`🔍 [預覽] 載入網址預覽: ${url}`);
+
+                const response = await fetch('/api/url-preview', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                const result = await response.json();
+                const previewElement = document.getElementById(`preview-${collectionId}`);
+
+                if (!previewElement) return;
+
+                if (result.success && result.data.image) {
+                    console.log(`✅ [預覽] 成功載入預覽圖片: ${result.data.image}`);
+                    previewElement.innerHTML = `
+                        <img src="${result.data.image}" alt="預覽圖片" class="preview-image"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="preview-icon-fallback" style="display: none;">
+                            <i class="bi bi-link-45deg"></i>
+                        </div>
+                    `;
+                } else {
+                    console.log(`❌ [預覽] 無法載入預覽圖片，使用預設圖標`);
+                    previewElement.innerHTML = '<i class="bi bi-link-45deg"></i>';
+                }
+            } catch (error) {
+                console.error(`❌ [預覽] 載入預覽失敗:`, error);
+                const previewElement = document.getElementById(`preview-${collectionId}`);
+                if (previewElement) {
+                    previewElement.innerHTML = '<i class="bi bi-link-45deg"></i>';
+                }
+            }
         }
 
         // 取得類型圖標

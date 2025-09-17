@@ -79,9 +79,13 @@ class EnhancedLinkPreview {
      * 生成截圖檔名
      */
     generateScreenshotFilename(url) {
-        const hash = Buffer.from(url).toString('base64')
-            .replace(/[/+=]/g, '')
-            .substring(0, 16);
+        const crypto = require('crypto');
+        // 使用完整的URL + 時間戳確保唯一性
+        const uniqueString = url + '_' + Date.now();
+        const hash = crypto.createHash('sha256')
+            .update(uniqueString)
+            .digest('hex')
+            .substring(0, 32); // 使用32個字符確保唯一性
         return `screenshot_${hash}.png`;
     }
 
