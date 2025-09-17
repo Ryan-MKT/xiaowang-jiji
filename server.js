@@ -1060,6 +1060,35 @@ app.get('/liff/account', (req, res) => {
   }
 });
 
+// 收藏集合頁面路由
+app.get('/liff/collections', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'liff-collections.html'), 'utf8');
+
+    // 進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+
+    console.log(`📋 [收藏集合頁面] 使用 LIFF ID: ${liffId}`);
+    console.log(`🔗 [收藏集合頁面] URL 參數:`, req.url);
+
+    // 強制不緩存
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+
+    res.send(html);
+  } catch (error) {
+    console.error('讀取收藏集合頁面錯誤:', error);
+    res.status(500).send('收藏集合頁面載入失敗');
+  }
+});
+
 // 路由設定
 app.get('/', (req, res) => {
   const loginUrl = '/auth/line/login';
