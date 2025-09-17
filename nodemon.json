@@ -1,0 +1,29 @@
+{
+  "watch": [
+    "server.js",
+    "*.js",
+    "*.html"
+  ],
+  "ignore": [
+    "node_modules/**/*",
+    "*.log",
+    "*.tmp",
+    "*.temp",
+    "*.sql",
+    "*.md",
+    "*.txt",
+    "*.json.backup",
+    "*.json.corrupted.*",
+    ".git/**/*",
+    ".env*",
+    "uploads/**/*",
+    "public/uploads/**/*"
+  ],
+  "ext": "js,html,json",
+  "delay": 2000,
+  "verbose": false,
+  "restartable": "rs",
+  "env": {
+    "NODE_ENV": "development"
+  }
+}

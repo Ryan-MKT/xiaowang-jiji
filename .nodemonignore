@@ -1,0 +1,22 @@
+# 忽略不需要重啟的檔案
+*.log
+*.tmp
+*.temp
+*.sql
+*.md
+*.txt
+*.json.backup
+*.json.corrupted.*
+node_modules/
+.git/
+.env
+.env.*
+uploads/
+public/uploads/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+.DS_Store
+Thumbs.db

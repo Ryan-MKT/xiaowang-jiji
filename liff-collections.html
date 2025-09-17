@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小汪記記 - 收藏卡</title>
+
+    <!-- LINE LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-bottom: 80px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            margin-bottom: 30px;
+        }
+
+        .collections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+        }
+
+        .collection-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .collection-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(31, 38, 135, 0.3);
+        }
+
+        .collection-card .card-header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            font-weight: 600;
+        }
+
+        .collection-preview {
+            height: 180px;
+            overflow: hidden;
+            position: relative;
+            background: #f8f9fa;
+        }
+
+        .collection-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .collection-preview:hover img {
+            transform: scale(1.05);
+        }
+
+        .url-preview {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #1976d2;
+        }
+
+        .video-preview {
+            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #7b1fa2;
+        }
+
+        .text-preview {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #388e3c;
+        }
+
+        .collection-info {
+            padding: 20px;
+        }
+
+        .collection-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .collection-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .collection-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .type-url {
+            background: rgba(25, 118, 210, 0.1);
+            color: #1976d2;
+        }
+
+        .type-video {
+            background: rgba(123, 31, 162, 0.1);
+            color: #7b1fa2;
+        }
+
+        .type-image {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ff8f00;
+        }
+
+        .type-text {
+            background: rgba(56, 142, 60, 0.1);
+            color: #388e3c;
+        }
+
+        .collection-date {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .ai-tags-section {
+            background: linear-gradient(45deg, #ffeaa7, #fab1a0);
+            padding: 10px 15px;
+            margin: 0 -20px -20px -20px;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+
+        .ai-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .ai-tag {
+            background: rgba(255, 255, 255, 0.8);
+            color: #e17055;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border: 1px solid rgba(225, 112, 85, 0.3);
+        }
+
+        .user-tags-section {
+            background: linear-gradient(45deg, #a29bfe, #6c5ce7);
+            padding: 10px 15px;
+            margin: 10px -20px -20px -20px;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+
+        .user-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .user-tag {
+            background: rgba(255, 255, 255, 0.9);
+            color: #6c5ce7;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .collection-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .floating-add-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .floating-add-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.6);
+        }
+
+        .filter-bar {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.2);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            background: white;
+            color: #666;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        @media (max-width: 576px) {
+            .collections-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 頁面標題 -->
+        <div class="card header-card">
+            <div class="card-body text-center py-4">
+                <h2 class="mb-2">
+                    <i class="bi bi-collection text-primary"></i>
+                    收藏卡
+                </h2>
+                <p class="text-muted mb-0">管理您的珍貴收藏 - 網址、影片、圖文</p>
+            </div>
+        </div>
+
+        <!-- 篩選器 -->
+        <div class="filter-bar">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">篩選分類</h6>
+                <small class="text-muted" id="collectionCount">載入中...</small>
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">
+                    <i class="bi bi-grid-3x3-gap me-1"></i>全部
+                </button>
+                <button class="filter-btn" data-filter="url">
+                    <i class="bi bi-link-45deg me-1"></i>網址
+                </button>
+                <button class="filter-btn" data-filter="video">
+                    <i class="bi bi-play-circle me-1"></i>影片
+                </button>
+                <button class="filter-btn" data-filter="image">
+                    <i class="bi bi-image me-1"></i>圖片
+                </button>
+                <button class="filter-btn" data-filter="text">
+                    <i class="bi bi-file-text me-1"></i>文字
+                </button>
+            </div>
+        </div>
+
+        <!-- 收藏品網格 -->
+        <div class="collections-grid" id="collectionsGrid">
+            <!-- 載入中 -->
+            <div class="loading-spinner">
+                <div class="spinner-border text-light" role="status">
+                    <span class="visually-hidden">載入中...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 空狀態 -->
+        <div class="empty-state d-none" id="emptyState">
+            <i class="bi bi-collection"></i>
+            <h4>還沒有收藏品</h4>
+            <p>開始收藏您喜愛的網址、影片和內容吧！</p>
+        </div>
+    </div>
+
+    <!-- 新增收藏浮動按鈕 -->
+    <button class="floating-add-btn" id="addCollectionBtn" title="新增收藏">
+        <i class="bi bi-plus"></i>
+    </button>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let userId = null;
+        let collections = [];
+        let currentFilter = 'all';
+
+        // 初始化 LIFF
+        async function initializeLiff() {
+            try {
+                await liff.init({ liffId: '2008077335-rZlgE4bX' });
+
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    userId = profile.userId;
+                    console.log('🟢 [LIFF] 用戶已登入:', userId);
+
+                    // 載入收藏品
+                    await loadCollections();
+                } else {
+                    console.log('❌ [LIFF] 用戶未登入，請先登入');
+                    liff.login();
+                }
+            } catch (error) {
+                console.error('❌ [LIFF] 初始化失敗:', error);
+                showError('LIFF 初始化失敗，請重新載入頁面');
+            }
+        }
+
+        // 載入收藏品
+        async function loadCollections() {
+            try {
+                console.log('🔄 [收藏卡] 開始載入收藏品...');
+
+                const response = await fetch(`/api/favorites?userId=${userId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('✅ [收藏卡] 載入收藏品成功:', data.length);
+
+                collections = data || [];
+                filterAndDisplayCollections();
+                updateCollectionCount();
+
+            } catch (error) {
+                console.error('❌ [收藏卡] 載入收藏品失敗:', error);
+                showError('載入收藏品失敗');
+                showEmptyState();
+            }
+        }
+
+        // 分析收藏品類型
+        function analyzeCollectionType(collection) {
+            const name = collection.name || '';
+            const description = collection.description || '';
+
+            // 檢查是否為網址
+            if (name.includes('http') || name.includes('www.') || name.includes('.com') || name.includes('.tw')) {
+                if (name.includes('youtube.com') || name.includes('youtu.be') || name.includes('vimeo.com')) {
+                    return 'video';
+                } else if (name.includes('.jpg') || name.includes('.png') || name.includes('.gif') || name.includes('.jpeg') || description.includes('圖片')) {
+                    return 'image';
+                } else {
+                    return 'url';
+                }
+            }
+
+            // 檢查是否為影片
+            if (name.includes('影片') || name.includes('video') || description.includes('影片')) {
+                return 'video';
+            }
+
+            // 檢查是否為圖片
+            if (name.includes('圖片') || name.includes('照片') || name.includes('image') || description.includes('圖片')) {
+                return 'image';
+            }
+
+            // 默認為文字
+            return 'text';
+        }
+
+        // 取得收藏品標題
+        function getCollectionTitle(collection) {
+            let title = collection.name || '無標題收藏';
+
+            // 如果是網址，嘗試提取標題
+            if (title.includes('http')) {
+                const urlParts = title.split('/');
+                const domain = urlParts[2] || title;
+                title = domain.replace('www.', '');
+            }
+
+            // 移除標籤前綴 (如 "(工作)")
+            title = title.replace(/^\([^)]*\)/, '').trim();
+
+            return title;
+        }
+
+        // 取得收藏品 AI 標籤
+        function getAITags(collection) {
+            // 這裡應該是從 collection.ai_tags 或其他欄位讀取
+            // 暫時使用假資料示例
+            const aiTags = [];
+
+            const type = analyzeCollectionType(collection);
+            switch (type) {
+                case 'video':
+                    aiTags.push('影片', '多媒體');
+                    break;
+                case 'image':
+                    aiTags.push('圖片', '視覺');
+                    break;
+                case 'url':
+                    if (collection.name.includes('facebook')) {
+                        aiTags.push('社群', '分享');
+                    } else if (collection.name.includes('github')) {
+                        aiTags.push('程式', '開發');
+                    } else {
+                        aiTags.push('網站', '連結');
+                    }
+                    break;
+                default:
+                    aiTags.push('文字', '內容');
+            }
+
+            return aiTags;
+        }
+
+        // 取得用戶標籤
+        function getUserTags(collection) {
+            const tag = collection.tag || '';
+            return tag ? [tag] : [];
+        }
+
+        // 篩選並顯示收藏品
+        function filterAndDisplayCollections() {
+            const grid = document.getElementById('collectionsGrid');
+
+            // 篩選收藏品
+            let filteredCollections = collections;
+            if (currentFilter !== 'all') {
+                filteredCollections = collections.filter(collection =>
+                    analyzeCollectionType(collection) === currentFilter
+                );
+            }
+
+            if (filteredCollections.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            // 隱藏空狀態
+            document.getElementById('emptyState').classList.add('d-none');
+
+            // 生成收藏品卡片
+            grid.innerHTML = filteredCollections.map(collection => {
+                const type = analyzeCollectionType(collection);
+                const title = getCollectionTitle(collection);
+                const aiTags = getAITags(collection);
+                const userTags = getUserTags(collection);
+                const date = new Date(collection.created_at).toLocaleDateString('zh-TW');
+
+                return `
+                    <div class="collection-card" data-type="${type}">
+                        <div class="collection-actions">
+                            <button class="action-btn" onclick="openCollection('${collection.id}')" title="開啟">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </button>
+                            <button class="action-btn text-danger" onclick="deleteCollection('${collection.id}')" title="刪除">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+
+                        <div class="collection-preview ${type}-preview">
+                            ${getPreviewIcon(type)}
+                        </div>
+
+                        <div class="collection-info">
+                            <div class="collection-title">${title}</div>
+
+                            <div class="collection-meta">
+                                <span class="collection-type type-${type}">
+                                    ${getTypeIcon(type)} ${getTypeName(type)}
+                                </span>
+                                <span class="collection-date">${date}</span>
+                            </div>
+
+                            ${aiTags.length > 0 ? `
+                                <div class="ai-tags-section">
+                                    <small class="text-white fw-bold mb-2 d-block">
+                                        <i class="bi bi-robot"></i> AI 標籤
+                                    </small>
+                                    <div class="ai-tags">
+                                        ${aiTags.map(tag => `<span class="ai-tag">${tag}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${userTags.length > 0 ? `
+                                <div class="user-tags-section">
+                                    <small class="text-white fw-bold mb-2 d-block">
+                                        <i class="bi bi-person"></i> 我的標籤
+                                    </small>
+                                    <div class="user-tags">
+                                        ${userTags.map(tag => `<span class="user-tag">${tag}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 取得預覽圖標
+        function getPreviewIcon(type) {
+            const icons = {
+                url: '<i class="bi bi-link-45deg"></i>',
+                video: '<i class="bi bi-play-circle"></i>',
+                image: '<i class="bi bi-image"></i>',
+                text: '<i class="bi bi-file-text"></i>'
+            };
+            return icons[type] || icons.text;
+        }
+
+        // 取得類型圖標
+        function getTypeIcon(type) {
+            const icons = {
+                url: '<i class="bi bi-link-45deg"></i>',
+                video: '<i class="bi bi-play-circle"></i>',
+                image: '<i class="bi bi-image"></i>',
+                text: '<i class="bi bi-file-text"></i>'
+            };
+            return icons[type] || icons.text;
+        }
+
+        // 取得類型名稱
+        function getTypeName(type) {
+            const names = {
+                url: '網址',
+                video: '影片',
+                image: '圖片',
+                text: '文字'
+            };
+            return names[type] || '文字';
+        }
+
+        // 更新收藏品數量
+        function updateCollectionCount() {
+            const count = collections.length;
+            document.getElementById('collectionCount').textContent = `共 ${count} 個收藏品`;
+        }
+
+        // 顯示空狀態
+        function showEmptyState() {
+            document.getElementById('collectionsGrid').innerHTML = '';
+            document.getElementById('emptyState').classList.remove('d-none');
+        }
+
+        // 顯示錯誤訊息
+        function showError(message) {
+            const grid = document.getElementById('collectionsGrid');
+            grid.innerHTML = `
+                <div class="col-12 text-center text-white">
+                    <i class="bi bi-exclamation-triangle fs-1 mb-3"></i>
+                    <h5>${message}</h5>
+                </div>
+            `;
+        }
+
+        // 開啟收藏品
+        function openCollection(collectionId) {
+            const collection = collections.find(c => c.id == collectionId);
+            if (collection && collection.name.includes('http')) {
+                window.open(collection.name, '_blank');
+            } else {
+                alert('這個收藏品無法直接開啟');
+            }
+        }
+
+        // 刪除收藏品
+        async function deleteCollection(collectionId) {
+            if (!confirm('確定要刪除這個收藏品嗎？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/favorites/${collectionId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId })
+                });
+
+                if (response.ok) {
+                    console.log('✅ [收藏卡] 刪除收藏品成功');
+                    await loadCollections(); // 重新載入
+                } else {
+                    throw new Error('刪除失敗');
+                }
+            } catch (error) {
+                console.error('❌ [收藏卡] 刪除收藏品失敗:', error);
+                alert('刪除失敗，請稍後再試');
+            }
+        }
+
+        // 新增收藏品
+        function addCollection() {
+            const url = prompt('請輸入要收藏的網址：');
+            if (url && url.trim()) {
+                // 這裡可以實作新增收藏品的功能
+                // 暫時顯示訊息
+                alert('新增收藏品功能開發中...');
+            }
+        }
+
+        // 事件監聽器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化 LIFF
+            initializeLiff();
+
+            // 篩選按鈕事件
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // 更新按鈕狀態
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // 更新篩選器
+                    currentFilter = this.dataset.filter;
+                    filterAndDisplayCollections();
+                });
+            });
+
+            // 新增收藏按鈕事件
+            document.getElementById('addCollectionBtn').addEventListener('click', addCollection);
+        });
+    </script>
+</body>
+</html>

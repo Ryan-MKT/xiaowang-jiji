@@ -1042,33 +1042,8 @@
         let selectedEmoji = '🏷️';
         
         // 立即檢查函數
-        function immediateCheck() {
-            console.log('🔍 [FAVORITES] 立即檢查開始');
-            console.log('🔍 [FAVORITES] document 狀態:', document.readyState);
-            console.log('🔍 [FAVORITES] 所有按鈕元素:', document.querySelectorAll('button').length);
-            console.log('🔍 [FAVORITES] .tag-settings-btn 元素:', document.querySelectorAll('.tag-settings-btn').length);
-            console.log('🔍 [FAVORITES] #tagSettingsModal 元素:', !!document.getElementById('tagSettingsModal'));
-            
-            // 5秒後再檢查一次
-            setTimeout(() => {
-                console.log('🔍 [FAVORITES] 5秒後檢查');
-                console.log('🔍 [FAVORITES] document 狀態:', document.readyState);
-                console.log('🔍 [FAVORITES] 所有按鈕元素:', document.querySelectorAll('button').length);
-                console.log('🔍 [FAVORITES] .tag-settings-btn 元素:', document.querySelectorAll('.tag-settings-btn').length);
-                console.log('🔍 [FAVORITES] #tagSettingsModal 元素:', !!document.getElementById('tagSettingsModal'));
-                
-                const btn = document.querySelector('.tag-settings-btn');
-                if (btn) {
-                    console.log('✅ [FAVORITES] 5秒後找到按鈕，測試點擊');
-                    btn.click();
-                } else {
-                    console.log('❌ [FAVORITES] 5秒後仍未找到按鈕');
-                }
-            }, 5000);
-        }
-        
-        // 立即執行檢查
-        immediateCheck();
+        // 自動點擊測試已完全移除 - 避免自動彈窗
+        console.log("✅ [FAVORITES] 自動點擊測試已移除 - 避免自動彈窗");
         
         // 簡單直接的解決方案：強制顯示標籤區域
         function forceShowTagSection() {
@@ -2420,10 +2395,6 @@
                 
                 // 手動測試按鈕
                 console.log('🔄 [FAVORITES] 手動測試按鈕點擊...');
-                setTimeout(() => {
-                    console.log('🧪 [FAVORITES] 模擬按鈕點擊測試');
-                    tagSettingsBtn.click();
-                }, 2000);
                 
             } else {
                 console.error('❌ [FAVORITES] 設定標籤按鈕不存在');

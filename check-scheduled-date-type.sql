@@ -1,0 +1,1 @@
+SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'dev_messages' AND column_name = 'scheduled_date';
