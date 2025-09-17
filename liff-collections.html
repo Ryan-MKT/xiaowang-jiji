@@ -420,6 +420,8 @@
         let userId = null;
         let collections = [];
         let currentFilter = 'all';
+        let previewCheckInterval = null;
+        let cardsNeedingPreview = new Set();
 
         // 初始化 LIFF
         async function initializeLiff() {
@@ -463,6 +465,9 @@
                 collections = result.data || [];
                 filterAndDisplayCollections();
                 updateCollectionCount();
+
+                // 檢查是否有需要預覽的收藏卡
+                checkForMissingPreviews();
 
             } catch (error) {
                 console.error('❌ [收藏卡] 載入收藏品失敗:', error);
@@ -787,6 +792,108 @@
             document.getElementById('emptyState').classList.remove('d-none');
         }
 
+        // 檢查缺少預覽的收藏卡
+        function checkForMissingPreviews() {
+            console.log('🔍 [預覽檢查] 開始檢查缺少預覽的收藏卡...');
+
+            cardsNeedingPreview.clear();
+
+            collections.forEach(collection => {
+                const title = collection.title || '';
+                const hasPreview = collection.preview_image || (collection.content && collection.content.preview_image);
+
+                // 檢查是否為需要預覽的URL但缺少預覽圖片
+                const needsPreview = title.includes('http') && (
+                    title.includes('facebook.com') ||
+                    title.includes('instagram.com') ||
+                    title.includes('youtube.com') ||
+                    title.includes('twitter.com') ||
+                    title.includes('github.com') ||
+                    title.includes('medium.com')
+                );
+
+                if (needsPreview && !hasPreview) {
+                    cardsNeedingPreview.add(collection.id);
+                    console.log(`📋 [預覽檢查] 收藏卡 ${collection.id} 需要預覽: ${title}`);
+                }
+            });
+
+            if (cardsNeedingPreview.size > 0) {
+                console.log(`🔄 [預覽檢查] 開始監控 ${cardsNeedingPreview.size} 個收藏卡的預覽狀態`);
+                startPreviewMonitoring();
+            } else {
+                console.log('✅ [預覽檢查] 所有收藏卡都有預覽圖片');
+                stopPreviewMonitoring();
+            }
+        }
+
+        // 開始預覽監控
+        function startPreviewMonitoring() {
+            if (previewCheckInterval) {
+                clearInterval(previewCheckInterval);
+            }
+
+            let checkCount = 0;
+            const maxChecks = 24; // 最多檢查2分鐘 (5秒 x 24 = 120秒)
+
+            previewCheckInterval = setInterval(async () => {
+                checkCount++;
+                console.log(`🔄 [預覽監控] 第 ${checkCount} 次檢查 (${cardsNeedingPreview.size} 個待處理)`);
+
+                try {
+                    // 重新載入收藏卡資料
+                    const response = await fetch(`/api/collections/${userId}`);
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.success) {
+                            const updatedCollections = result.data || [];
+                            let hasUpdates = false;
+
+                            // 檢查是否有新的預覽圖片
+                            updatedCollections.forEach(collection => {
+                                if (cardsNeedingPreview.has(collection.id)) {
+                                    const hasPreview = collection.preview_image || (collection.content && collection.content.preview_image);
+                                    if (hasPreview) {
+                                        console.log(`✅ [預覽監控] 收藏卡 ${collection.id} 預覽圖片已生成!`);
+                                        cardsNeedingPreview.delete(collection.id);
+                                        hasUpdates = true;
+                                    }
+                                }
+                            });
+
+                            // 如果有更新，重新載入並顯示
+                            if (hasUpdates) {
+                                collections = updatedCollections;
+                                filterAndDisplayCollections();
+                                console.log(`🎉 [預覽監控] 頁面已更新，剩餘 ${cardsNeedingPreview.size} 個待處理`);
+                            }
+
+                            // 如果所有預覽都完成或超過最大檢查次數，停止監控
+                            if (cardsNeedingPreview.size === 0 || checkCount >= maxChecks) {
+                                if (cardsNeedingPreview.size === 0) {
+                                    console.log('🎉 [預覽監控] 所有預覽圖片已生成完成！');
+                                } else {
+                                    console.log(`⏰ [預覽監控] 達到最大檢查次數，停止監控。剩餘 ${cardsNeedingPreview.size} 個`);
+                                }
+                                stopPreviewMonitoring();
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ [預覽監控] 檢查失敗:', error);
+                }
+            }, 5000); // 每5秒檢查一次
+        }
+
+        // 停止預覽監控
+        function stopPreviewMonitoring() {
+            if (previewCheckInterval) {
+                clearInterval(previewCheckInterval);
+                previewCheckInterval = null;
+                console.log('⏹️ [預覽監控] 已停止監控');
+            }
+        }
+
         // 顯示錯誤訊息
         function showError(message) {
             const grid = document.getElementById('collectionsGrid');
@@ -920,6 +1027,21 @@
 
             // 新增收藏按鈕事件
             document.getElementById('addCollectionBtn').addEventListener('click', addCollection);
+        });
+
+        // 頁面卸載時清理定時器
+        window.addEventListener('beforeunload', function() {
+            stopPreviewMonitoring();
+        });
+
+        // 頁面隱藏時停止監控
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopPreviewMonitoring();
+            } else if (cardsNeedingPreview.size > 0) {
+                // 頁面重新顯示時，如果還有待處理的預覽，重新開始監控
+                checkForMissingPreviews();
+            }
         });
     </script>
 </body>
