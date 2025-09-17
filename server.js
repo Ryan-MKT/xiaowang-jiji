@@ -489,7 +489,7 @@ async function handleEvent(event) {
           {
             user_id: userId,
             message_text: cleanedMessage,
-            message_type: isVoiceMessage ? 'voice' : 'text',
+            // message_type: isVoiceMessage ? 'voice' : 'text', // 暫時註解掉
             tag: detectedTag,
             created_at: new Date().toISOString()
           }
@@ -509,6 +509,95 @@ async function handleEvent(event) {
     }
   } else {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
+  }
+
+  // 特殊指令：加入收藏卡
+  if (userMessage.startsWith('加入收藏卡_')) {
+    const taskId = parseInt(userMessage.replace('加入收藏卡_', ''));
+    console.log(`📋 用戶 ${userId} 點擊加入收藏卡任務 ID: ${taskId}`);
+
+    try {
+      let task = null;
+
+      // 先嘗試直接用ID查詢資料庫
+      const { data: directTask, error: directError } = await supabase
+        .from('dev_messages')
+        .select('*')
+        .eq('id', taskId)
+        .eq('user_id', userId)
+        .single();
+
+      if (directTask && !directError) {
+        task = directTask;
+        console.log('✅ [收藏卡] 直接找到任務:', task.message_text);
+      } else {
+        // 如果直接查詢失敗，嘗試從記憶體任務堆疊中找到對應的任務文字
+        console.log('🔍 [收藏卡] 直接查詢失敗，嘗試從記憶體查找任務文字');
+        const userTasks = userTaskStacks.get(userId) || [];
+        const memoryTask = userTasks.find(t => t.id === taskId);
+
+        if (memoryTask) {
+          console.log(`🔍 [收藏卡] 從記憶體找到任務文字: "${memoryTask.text}"`);
+
+          // 用任務文字查詢資料庫最新的匹配任務
+          const { data: textTask, error: textError } = await supabase
+            .from('dev_messages')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('message_text', memoryTask.text)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (textTask && !textError) {
+            task = textTask;
+            console.log('✅ [收藏卡] 通過文字找到任務:', task.message_text, 'ID:', task.id);
+          }
+        }
+      }
+
+      if (!task) {
+        console.error('❌ [收藏卡] 無法找到任務');
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '❌ 找不到該任務，無法加入收藏卡'
+        });
+      }
+
+      // 建立收藏卡資料
+      const collectionData = {
+        title: task.message_text,
+        description: task.note || '',
+        category: 'text',
+        content: {
+          originalTaskId: task.id, // 使用資料庫的真實ID
+          createdAt: task.created_at
+        },
+        tags: task.tag ? [task.tag] : [],
+        color: '#4169E1',
+        icon: '📋'
+      };
+
+      // 呼叫收藏卡 API
+      const { createCollection } = require('./collections-api');
+      const result = await createCollection(userId, collectionData);
+
+      if (result.success) {
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: `✅ 任務已成功加入收藏卡！\n📋 "${task.message_text}"`
+        });
+      } else {
+        throw new Error(result.error);
+      }
+
+    } catch (error) {
+      console.error('❌ [收藏卡] 加入失敗:', error);
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '❌ 加入收藏卡失敗，請稍後再試'
+      });
+    }
   }
 
   // 特殊指令：收藏任務
@@ -1086,6 +1175,107 @@ app.get('/liff/collections', (req, res) => {
   } catch (error) {
     console.error('讀取收藏集合頁面錯誤:', error);
     res.status(500).send('收藏集合頁面載入失敗');
+  }
+});
+
+// 收藏卡 API 路由
+const collectionsAPI = require('./collections-api');
+
+// 🔍 獲取用戶收藏卡
+app.get('/api/collections/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const options = {
+      category: req.query.category,
+      limit: req.query.limit ? parseInt(req.query.limit) : undefined
+    };
+
+    const result = await collectionsAPI.getUserCollections(userId, options);
+
+    if (result.success) {
+      res.json({ success: true, data: result.data });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('❌ [API] 獲取收藏卡失敗:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ➕ 建立收藏卡
+app.post('/api/collections/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const collectionData = req.body;
+
+    const result = await collectionsAPI.createCollection(userId, collectionData);
+
+    if (result.success) {
+      res.json({ success: true, data: result.data });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('❌ [API] 建立收藏卡失敗:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// 📝 更新收藏卡
+app.put('/api/collections/:userId/:collectionId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const collectionId = req.params.collectionId;
+    const updateData = req.body;
+
+    const result = await collectionsAPI.updateCollection(userId, collectionId, updateData);
+
+    if (result.success) {
+      res.json({ success: true, data: result.data });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('❌ [API] 更新收藏卡失敗:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// 🗑️ 刪除收藏卡
+app.delete('/api/collections/:userId/:collectionId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const collectionId = req.params.collectionId;
+
+    const result = await collectionsAPI.deleteCollection(userId, collectionId);
+
+    if (result.success) {
+      res.json({ success: true, data: result.data });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('❌ [API] 刪除收藏卡失敗:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// 📊 獲取收藏卡統計
+app.get('/api/collections/:userId/stats', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const result = await collectionsAPI.getCollectionStats(userId);
+
+    if (result.success) {
+      res.json({ success: true, data: result.data });
+    } else {
+      res.status(400).json({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('❌ [API] 獲取收藏卡統計失敗:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

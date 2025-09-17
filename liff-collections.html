@@ -423,15 +423,19 @@
             try {
                 console.log('🔄 [收藏卡] 開始載入收藏品...');
 
-                const response = await fetch(`/api/favorites?userId=${userId}`);
+                const response = await fetch(`/api/collections/${userId}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
-                console.log('✅ [收藏卡] 載入收藏品成功:', data.length);
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || '載入失敗');
+                }
 
-                collections = data || [];
+                console.log('✅ [收藏卡] 載入收藏品成功:', result.data.length);
+
+                collections = result.data || [];
                 filterAndDisplayCollections();
                 updateCollectionCount();
 
@@ -444,14 +448,20 @@
 
         // 分析收藏品類型
         function analyzeCollectionType(collection) {
-            const name = collection.name || '';
+            // 優先使用 collection.category，如果有的話
+            if (collection.category && ['url', 'video', 'image', 'text'].includes(collection.category)) {
+                return collection.category;
+            }
+
+            const title = collection.title || '';
             const description = collection.description || '';
+            const content = collection.content || {};
 
             // 檢查是否為網址
-            if (name.includes('http') || name.includes('www.') || name.includes('.com') || name.includes('.tw')) {
-                if (name.includes('youtube.com') || name.includes('youtu.be') || name.includes('vimeo.com')) {
+            if (title.includes('http') || title.includes('www.') || title.includes('.com') || title.includes('.tw') || content.url) {
+                if (title.includes('youtube.com') || title.includes('youtu.be') || title.includes('vimeo.com')) {
                     return 'video';
-                } else if (name.includes('.jpg') || name.includes('.png') || name.includes('.gif') || name.includes('.jpeg') || description.includes('圖片')) {
+                } else if (title.includes('.jpg') || title.includes('.png') || title.includes('.gif') || title.includes('.jpeg') || description.includes('圖片')) {
                     return 'image';
                 } else {
                     return 'url';
@@ -459,12 +469,12 @@
             }
 
             // 檢查是否為影片
-            if (name.includes('影片') || name.includes('video') || description.includes('影片')) {
+            if (title.includes('影片') || title.includes('video') || description.includes('影片')) {
                 return 'video';
             }
 
             // 檢查是否為圖片
-            if (name.includes('圖片') || name.includes('照片') || name.includes('image') || description.includes('圖片')) {
+            if (title.includes('圖片') || title.includes('照片') || title.includes('image') || description.includes('圖片')) {
                 return 'image';
             }
 
@@ -474,7 +484,7 @@
 
         // 取得收藏品標題
         function getCollectionTitle(collection) {
-            let title = collection.name || '無標題收藏';
+            let title = collection.title || '無標題收藏';
 
             // 如果是網址，嘗試提取標題
             if (title.includes('http')) {
@@ -521,8 +531,7 @@
 
         // 取得用戶標籤
         function getUserTags(collection) {
-            const tag = collection.tag || '';
-            return tag ? [tag] : [];
+            return collection.tags || [];
         }
 
         // 篩選並顯示收藏品
@@ -664,10 +673,23 @@
         // 開啟收藏品
         function openCollection(collectionId) {
             const collection = collections.find(c => c.id == collectionId);
-            if (collection && collection.name.includes('http')) {
-                window.open(collection.name, '_blank');
-            } else {
-                alert('這個收藏品無法直接開啟');
+            if (collection) {
+                // 嘗試從不同地方獲取 URL
+                let url = null;
+
+                if (collection.content && collection.content.url) {
+                    url = collection.content.url;
+                } else if (collection.title && collection.title.includes('http')) {
+                    url = collection.title;
+                } else if (collection.description && collection.description.includes('http')) {
+                    url = collection.description;
+                }
+
+                if (url) {
+                    window.open(url, '_blank');
+                } else {
+                    alert('這個收藏品無法直接開啟');
+                }
             }
         }
 
@@ -678,20 +700,25 @@
             }
 
             try {
-                const response = await fetch(`/api/favorites/${collectionId}`, {
+                const response = await fetch(`/api/collections/${userId}/${collectionId}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ userId })
+                    }
                 });
 
-                if (response.ok) {
-                    console.log('✅ [收藏卡] 刪除收藏品成功');
-                    await loadCollections(); // 重新載入
-                } else {
-                    throw new Error('刪除失敗');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || '刪除失敗');
+                }
+
+                console.log('✅ [收藏卡] 刪除收藏品成功');
+                await loadCollections(); // 重新載入
+
             } catch (error) {
                 console.error('❌ [收藏卡] 刪除收藏品失敗:', error);
                 alert('刪除失敗，請稍後再試');
@@ -699,12 +726,49 @@
         }
 
         // 新增收藏品
-        function addCollection() {
-            const url = prompt('請輸入要收藏的網址：');
-            if (url && url.trim()) {
-                // 這裡可以實作新增收藏品的功能
-                // 暫時顯示訊息
-                alert('新增收藏品功能開發中...');
+        async function addCollection() {
+            const title = prompt('請輸入收藏標題：');
+            if (!title || !title.trim()) {
+                return;
+            }
+
+            const url = prompt('請輸入網址（可選）：');
+            const description = prompt('請輸入描述（可選）：');
+
+            try {
+                const collectionData = {
+                    title: title.trim(),
+                    description: description ? description.trim() : '',
+                    category: url ? 'url' : 'text',
+                    content: url ? { url: url.trim() } : {},
+                    tags: [],
+                    color: '#4169E1',
+                    icon: '📋'
+                };
+
+                const response = await fetch(`/api/collections/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(collectionData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || '新增失敗');
+                }
+
+                console.log('✅ [收藏卡] 新增收藏品成功');
+                await loadCollections(); // 重新載入
+
+            } catch (error) {
+                console.error('❌ [收藏卡] 新增收藏品失敗:', error);
+                alert('新增失敗，請稍後再試');
             }
         }
 
