@@ -141,13 +141,27 @@
         }
 
         .collection-title {
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 1.2rem;
+            font-weight: 700;
             color: #333;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             line-height: 1.4;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .collection-url {
+            font-size: 0.8rem;
+            font-weight: 400;
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.3;
+            word-break: break-all;
+            opacity: 0.8;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -240,11 +254,82 @@
             border-radius: 12px;
             font-size: 0.8rem;
             font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .user-tag:hover {
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .user-tag .bi-x {
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+
+        .tag-input-section {
+            margin-top: 8px;
+        }
+
+        .tag-input-section .form-control {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        .tag-input-section .form-control:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: white;
+            box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.15);
+        }
+
+        .tag-input-section .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .tag-input-section .btn-outline-light {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .tag-input-section .btn-outline-light:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .delete-btn:hover {
+            background: rgba(220, 53, 69, 1);
+            transform: scale(1.1);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
         }
 
         .collection-actions {
             position: absolute;
-            top: 10px;
+            bottom: 10px;
             right: 10px;
             display: flex;
             gap: 8px;
@@ -514,6 +599,11 @@
 
         // 取得收藏品標題
         function getCollectionTitle(collection) {
+            // 優先使用預覽標題
+            if (collection.content && collection.content.preview_title) {
+                return collection.content.preview_title.replace(' | Facebook', '').trim();
+            }
+
             let title = collection.title || '無標題收藏';
 
             // 如果是網址，嘗試提取標題
@@ -527,6 +617,20 @@
             title = title.replace(/^\([^)]*\)/, '').trim();
 
             return title;
+        }
+
+        // 取得原始URL（如果存在）
+        function getCollectionURL(collection) {
+            // 檢查是否有URL資訊
+            if (collection.content && collection.content.url) {
+                return collection.content.url;
+            }
+
+            if (collection.title && collection.title.includes('http')) {
+                return collection.title;
+            }
+
+            return null;
         }
 
         // 取得收藏品 AI 標籤
@@ -593,18 +697,19 @@
             grid.innerHTML = filteredCollections.map(collection => {
                 const type = analyzeCollectionType(collection);
                 const title = getCollectionTitle(collection);
+                const originalUrl = getCollectionURL(collection);
                 const aiTags = getAITags(collection);
                 const userTags = getUserTags(collection);
                 const date = new Date(collection.created_at).toLocaleDateString('zh-TW');
 
                 return `
                     <div class="collection-card" data-type="${type}">
+                        <button class="delete-btn" onclick="deleteCollection('${collection.id}')" title="刪除">
+                            <i class="bi bi-x"></i>
+                        </button>
                         <div class="collection-actions">
                             <button class="action-btn" onclick="openCollection('${collection.id}')" title="開啟">
                                 <i class="bi bi-box-arrow-up-right"></i>
-                            </button>
-                            <button class="action-btn text-danger" onclick="deleteCollection('${collection.id}')" title="刪除">
-                                <i class="bi bi-trash"></i>
                             </button>
                         </div>
 
@@ -614,6 +719,7 @@
 
                         <div class="collection-info">
                             <div class="collection-title">${title}</div>
+                            ${originalUrl ? `<div class="collection-url">${originalUrl}</div>` : ''}
 
                             <div class="collection-meta">
                                 <span class="collection-type type-${type}">
@@ -633,16 +739,25 @@
                                 </div>
                             ` : ''}
 
-                            ${userTags.length > 0 ? `
-                                <div class="user-tags-section">
-                                    <small class="text-white fw-bold mb-2 d-block">
-                                        <i class="bi bi-person"></i> 我的標籤
-                                    </small>
-                                    <div class="user-tags">
-                                        ${userTags.map(tag => `<span class="user-tag">${tag}</span>`).join('')}
-                                    </div>
+                            <div class="user-tags-section">
+                                <small class="text-white fw-bold mb-2 d-block d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-person"></i> 我的標籤</span>
+                                    <span class="badge bg-secondary">${userTags.length}/6</span>
+                                </small>
+                                <div class="user-tags">
+                                    ${userTags.map(tag => `<span class="user-tag" onclick="removeTag(${collection.id}, '${tag}')">${tag} <i class="bi bi-x"></i></span>`).join('')}
                                 </div>
-                            ` : ''}
+                                ${userTags.length < 6 ? `
+                                    <div class="tag-input-section mt-2">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control form-control-sm" id="tagInput${collection.id}" placeholder="添加標籤..." onkeypress="handleTagInput(event, ${collection.id})">
+                                            <button class="btn btn-outline-light btn-sm" type="button" onclick="addTag(${collection.id})">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -930,33 +1045,60 @@
 
         // 刪除收藏品
         async function deleteCollection(collectionId) {
+            console.log(`🗑️ [前端] 開始刪除收藏卡 ID: ${collectionId}`);
+            console.log(`🔍 [前端] 檢查變數 - userId: ${userId}, collectionId: ${collectionId}`);
+
+            // 檢查必要的變數
+            if (!userId) {
+                console.error('❌ [前端] userId 未定義');
+                alert('用戶ID錯誤，請重新整理頁面');
+                return;
+            }
+
+            if (!collectionId) {
+                console.error('❌ [前端] collectionId 未定義');
+                alert('收藏卡ID錯誤');
+                return;
+            }
+
             if (!confirm('確定要刪除這個收藏品嗎？')) {
+                console.log('🚫 [前端] 用戶取消刪除');
                 return;
             }
 
             try {
-                const response = await fetch(`/api/collections/${userId}/${collectionId}`, {
+                const deleteUrl = `/api/collections/${userId}/${collectionId}`;
+                console.log(`🔗 [前端] 發送DELETE請求到: ${deleteUrl}`);
+
+                const response = await fetch(deleteUrl, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
                     }
                 });
 
+                console.log(`📡 [前端] 收到回應，狀態碼: ${response.status}`);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error(`❌ [前端] HTTP錯誤: ${response.status} - ${errorText}`);
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
 
                 const result = await response.json();
+                console.log(`📋 [前端] 回應內容:`, result);
+
                 if (!result.success) {
                     throw new Error(result.error || '刪除失敗');
                 }
 
                 console.log('✅ [收藏卡] 刪除收藏品成功');
+                alert('收藏品已成功刪除');
                 await loadCollections(); // 重新載入
 
             } catch (error) {
                 console.error('❌ [收藏卡] 刪除收藏品失敗:', error);
-                alert('刪除失敗，請稍後再試');
+                alert(`刪除失敗: ${error.message}`);
             }
         }
 
@@ -1043,6 +1185,94 @@
                 checkForMissingPreviews();
             }
         });
+
+        // 標籤管理功能
+        async function addTag(collectionId) {
+            const input = document.getElementById(`tagInput${collectionId}`);
+            const tagText = input.value.trim();
+
+            if (!tagText) return;
+
+            try {
+                // 獲取當前收藏卡
+                const collection = collections.find(c => c.id === collectionId);
+                if (!collection) return;
+
+                // 檢查標籤數量限制
+                const currentTags = collection.tags || [];
+                if (currentTags.length >= 6) {
+                    alert('每個收藏卡最多只能添加6個標籤！');
+                    input.value = '';
+                    return;
+                }
+
+                // 檢查標籤是否已存在
+                if (currentTags.includes(tagText)) {
+                    alert('標籤已存在！');
+                    input.value = '';
+                    return;
+                }
+
+                // 更新標籤
+                const updatedTags = [...currentTags, tagText];
+                await updateCollectionTags(collectionId, updatedTags);
+
+                // 清空輸入框
+                input.value = '';
+            } catch (error) {
+                console.error('添加標籤失敗:', error);
+                alert('添加標籤失敗，請重試');
+            }
+        }
+
+        async function removeTag(collectionId, tagToRemove) {
+            try {
+                // 獲取當前收藏卡
+                const collection = collections.find(c => c.id === collectionId);
+                if (!collection) return;
+
+                // 移除標籤
+                const updatedTags = (collection.tags || []).filter(tag => tag !== tagToRemove);
+                await updateCollectionTags(collectionId, updatedTags);
+            } catch (error) {
+                console.error('移除標籤失敗:', error);
+                alert('移除標籤失敗，請重試');
+            }
+        }
+
+        async function updateCollectionTags(collectionId, tags) {
+            try {
+                const response = await fetch(`/api/collections/${userId}/${collectionId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ tags })
+                });
+
+                if (!response.ok) {
+                    throw new Error('更新標籤失敗');
+                }
+
+                // 更新本地collections陣列
+                const collectionIndex = collections.findIndex(c => c.id === collectionId);
+                if (collectionIndex !== -1) {
+                    collections[collectionIndex].tags = tags;
+                }
+
+                // 重新顯示收藏品
+                filterAndDisplayCollections();
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        function handleTagInput(event, collectionId) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addTag(collectionId);
+            }
+        }
     </script>
 </body>
 </html>

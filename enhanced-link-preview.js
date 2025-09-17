@@ -31,7 +31,6 @@ class EnhancedLinkPreview {
     async initializeScreenshotDir() {
         try {
             await fs.ensureDir(this.screenshotDir);
-            console.log('📁 [截圖服務] 截圖目錄已建立:', this.screenshotDir);
         } catch (error) {
             console.error('❌ [截圖服務] 建立目錄失敗:', error.message);
         }
@@ -53,7 +52,6 @@ class EnhancedLinkPreview {
                         '--disable-features=VizDisplayCompositor'
                     ]
                 });
-                console.log('🚀 [截圖服務] 瀏覽器已啟動');
             } catch (error) {
                 console.error('❌ [截圖服務] 瀏覽器啟動失敗:', error.message);
                 throw error;
@@ -93,14 +91,11 @@ class EnhancedLinkPreview {
      * 獲取增強預覽
      */
     async getEnhancedPreview(url) {
-        console.log('🔍 [增強預覽] 開始處理:', url);
 
         // 檢查是否為社交媒體連結
         if (this.isSocialMediaLink(url)) {
-            console.log('📱 [增強預覽] 檢測到社交媒體連結，使用截圖方案');
             return await this.getScreenshotPreview(url);
         } else {
-            console.log('🌐 [增強預覽] 一般網站，使用標準解析');
             return await this.getStandardPreview(url);
         }
     }
@@ -118,7 +113,6 @@ class EnhancedLinkPreview {
 
             // 檢查是否已有截圖快取
             if (await fs.pathExists(screenshotPath)) {
-                console.log('💾 [截圖服務] 使用快取截圖');
                 return {
                     title: this.extractTitleFromUrl(url),
                     description: '社交媒體內容預覽',
@@ -148,7 +142,6 @@ class EnhancedLinkPreview {
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
                 });
 
-                console.log('🌐 [截圖服務] 正在載入頁面...');
 
                 // 載入頁面，使用更寬鬆的等待條件
                 await page.goto(url, {

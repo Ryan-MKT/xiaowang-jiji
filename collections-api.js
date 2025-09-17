@@ -10,7 +10,6 @@ async function getUserCollections(userId, options = {}) {
       .from('dev_collections')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     // 可選過濾條件
@@ -100,30 +99,46 @@ async function updateCollection(userId, collectionId, updateData) {
   }
 }
 
-// 🗑️ 刪除收藏卡 (軟刪除)
+// 🗑️ 刪除收藏卡 (硬刪除 - 完全移除記錄)
 async function deleteCollection(userId, collectionId) {
   try {
-    const { data, error } = await supabase
+    console.log(`🗑️ [收藏卡] 開始硬刪除收藏卡 ID: ${collectionId}, User: ${userId}`);
+
+    // 先查詢要刪除的記錄，以便記錄日誌
+    const { data: targetRecord, error: queryError } = await supabase
       .from('dev_collections')
-      .update({
-        is_active: false,
-        updated_at: new Date().toISOString()
-      })
+      .select('title, id')
       .eq('id', collectionId)
       .eq('user_id', userId)
-      .select()
       .single();
 
-    if (error) {
-      console.error('❌ [收藏卡] 刪除失敗:', error);
-      return { success: false, error: error.message };
+    if (queryError) {
+      console.error('❌ [收藏卡] 查詢失敗:', queryError);
+      return { success: false, error: queryError.message };
     }
 
-    console.log(`✅ [收藏卡] 成功刪除: ${data.title} (ID: ${data.id})`);
-    return { success: true, data };
+    if (!targetRecord) {
+      console.error('❌ [收藏卡] 找不到要刪除的收藏卡');
+      return { success: false, error: '找不到要刪除的收藏卡' };
+    }
+
+    // 執行硬刪除
+    const { error: deleteError } = await supabase
+      .from('dev_collections')
+      .delete()
+      .eq('id', collectionId)
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      console.error('❌ [收藏卡] 硬刪除失敗:', deleteError);
+      return { success: false, error: deleteError.message };
+    }
+
+    console.log(`✅ [收藏卡] 成功硬刪除: ${targetRecord.title || '未知標題'} (ID: ${targetRecord.id})`);
+    return { success: true, data: targetRecord };
 
   } catch (error) {
-    console.error('❌ [收藏卡] 刪除異常:', error);
+    console.error('❌ [收藏卡] 硬刪除異常:', error);
     return { success: false, error: error.message };
   }
 }
@@ -134,8 +149,7 @@ async function getCollectionStats(userId) {
     const { data, error } = await supabase
       .from('dev_collections')
       .select('category, created_at')
-      .eq('user_id', userId)
-      .eq('is_active', true);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('❌ [收藏卡] 統計失敗:', error);
