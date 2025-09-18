@@ -15,11 +15,11 @@
 
     <style>
         body {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+            background: linear-gradient(135deg, #f5f5f5 0%, #d2d2d2 50%, #f5f5f5 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding-bottom: 80px;
-            color: #e0e0e0;
+            color: #1f1f1f;
         }
 
         .container {
@@ -29,13 +29,13 @@
         }
 
         .header-card {
-            background: rgba(45, 45, 45, 0.95);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             margin-bottom: 30px;
-            color: #ffffff;
+            color: #000000;
         }
 
         .collections-grid {
@@ -45,28 +45,28 @@
         }
 
         .collection-card {
-            background: rgba(35, 35, 35, 0.95);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             transition: all 0.3s ease;
             overflow: hidden;
             position: relative;
-            color: #ffffff;
+            color: #000000;
         }
 
         .collection-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
-            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+            border-color: rgba(0, 0, 0, 0.2);
         }
 
         .collection-card .card-header {
-            background: linear-gradient(45deg, #1a1a1a, #333333);
-            color: white;
+            background: linear-gradient(45deg, #e5e5e5, #cccccc);
+            color: black;
             border: none;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
             padding: 15px 20px;
             font-weight: 600;
         }
@@ -75,7 +75,7 @@
             height: 180px;
             overflow: hidden;
             position: relative;
-            background: #2a2a2a;
+            background: #d5d5d5;
         }
 
         .collection-preview img {
@@ -90,30 +90,30 @@
         }
 
         .url-preview {
-            background: linear-gradient(135deg, #3a3a3a, #4a4a4a);
+            background: linear-gradient(135deg, #c5c5c5, #b5b5b5);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #ffffff;
+            color: #000000;
         }
 
         .video-preview {
-            background: linear-gradient(135deg, #3a3a3a, #4a4a4a);
+            background: linear-gradient(135deg, #c5c5c5, #b5b5b5);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #ffffff;
+            color: #000000;
         }
 
         .text-preview {
-            background: linear-gradient(135deg, #3a3a3a, #4a4a4a);
+            background: linear-gradient(135deg, #c5c5c5, #b5b5b5);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #ffffff;
+            color: #000000;
         }
 
         /* 預覽圖片樣式 */
@@ -129,7 +129,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #cccccc;
+            color: #333333;
             font-size: 0.8rem;
         }
 
@@ -138,7 +138,7 @@
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #ffffff;
+            color: #000000;
         }
 
         .collection-info {
@@ -148,7 +148,7 @@
         .collection-title {
             font-size: 1.2rem;
             font-weight: 700;
-            color: #ffffff;
+            color: #000000;
             margin-bottom: 8px;
             line-height: 1.4;
             display: -webkit-box;
@@ -160,7 +160,7 @@
         .collection-url {
             font-size: 0.8rem;
             font-weight: 400;
-            color: #cccccc;
+            color: #333333;
             margin-bottom: 10px;
             line-height: 1.3;
             word-break: break-all;
@@ -190,26 +190,26 @@
 
         .type-url {
             background: rgba(25, 118, 210, 0.1);
-            color: #ffffff;
+            color: #000000;
         }
 
         .type-video {
             background: rgba(123, 31, 162, 0.1);
-            color: #ffffff;
+            color: #000000;
         }
 
         .type-image {
             background: rgba(255, 193, 7, 0.1);
-            color: #ffffff;
+            color: #000000;
         }
 
         .type-text {
             background: rgba(56, 142, 60, 0.1);
-            color: #ffffff;
+            color: #000000;
         }
 
         .collection-date {
-            color: #cccccc;
+            color: #333333;
             font-size: 0.8rem;
         }
 
@@ -365,7 +365,7 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: linear-gradient(45deg, #1a1a1a, #333333);
+            background: linear-gradient(45deg, #e5e5e5, #cccccc);
             border: none;
             color: white;
             font-size: 1.5rem;
@@ -399,15 +399,15 @@
             border: 1px solid #ddd;
             border-radius: 20px;
             background: white;
-            color: #cccccc;
+            color: #333333;
             font-size: 0.9rem;
             transition: all 0.3s ease;
         }
 
         .filter-btn.active {
-            background: linear-gradient(45deg, #1a1a1a, #333333);
+            background: linear-gradient(45deg, #e5e5e5, #cccccc);
             color: white;
-            border-color: #666666;
+            border-color: #999999;
         }
 
         .empty-state {
@@ -423,19 +423,131 @@
         }
 
         /* 隨機推薦區域樣式 */
-        .recommendation-section {
-            background: rgba(45, 45, 45, 0.95);
+        /* AI分析區域樣式 */
+        .ai-analysis-section {
+            margin-bottom: 20px;
+        }
+
+        .ai-analysis-card {
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .ai-analysis-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .ai-analysis-header {
+            background: linear-gradient(45deg, #e5e5e5, #cccccc);
+            padding: 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            color: #000000;
+        }
+
+        .ai-analysis-body {
+            padding: 20px;
+            color: #000000;
+        }
+
+        .analysis-results {
+            background: rgba(240, 248, 255, 0.8);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .result-header h6 {
+            color: #000000;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .result-tag {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .result-tag:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
+
+        .result-summary {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            padding: 12px;
+            border-left: 4px solid #007bff;
+            color: #000000;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+
+        .analysis-loading {
+            text-align: center;
+            padding: 20px;
+            color: #007bff;
+            font-weight: 500;
+        }
+
+        #aiAnalysisText {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        #textCounter {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #000000;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
+
+        .recommendation-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             margin-bottom: 20px;
             padding: 20px;
-            color: #ffffff;
+            color: #000000;
         }
 
         .recommendation-title {
-            color: #ffffff;
+            color: #000000;
             font-weight: 600;
             margin-bottom: 15px;
             display: flex;
@@ -450,7 +562,7 @@
             padding: 10px 0;
             /* 自定義滾動條 */
             scrollbar-width: thin;
-            scrollbar-color: #666666 transparent;
+            scrollbar-color: #999999 transparent;
         }
 
         .recommendation-container::-webkit-scrollbar {
@@ -463,12 +575,12 @@
         }
 
         .recommendation-container::-webkit-scrollbar-thumb {
-            background: linear-gradient(45deg, #1a1a1a, #333333);
+            background: linear-gradient(45deg, #e5e5e5, #cccccc);
             border-radius: 3px;
         }
 
         .recommendation-container::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(45deg, #555555, #777777);
+            background: linear-gradient(45deg, #aaaaaa, #888888);
         }
 
         .recommendation-cards {
@@ -521,7 +633,7 @@
         .recommendation-title-text {
             font-size: 0.9rem;
             font-weight: 600;
-            color: #ffffff;
+            color: #000000;
             margin-bottom: 4px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -553,7 +665,7 @@
         }
 
         .refresh-recommendations {
-            background: linear-gradient(45deg, #1a1a1a, #333333);
+            background: linear-gradient(45deg, #e5e5e5, #cccccc);
             border: none;
             border-radius: 50%;
             width: 36px;
@@ -602,6 +714,83 @@
                     收藏卡
                 </h2>
                 <p class="text-muted mb-0">管理您的珍貴收藏 - 網址、影片、圖文</p>
+            </div>
+        </div>
+
+        <!-- AI文字分析區域 -->
+        <div class="ai-analysis-section" id="aiAnalysisSection">
+            <div class="ai-analysis-card">
+                <div class="ai-analysis-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-robot text-primary me-2"></i>
+                        AI文字分析
+                    </h5>
+                    <small class="text-muted">使用AI分析文字內容，生成重點標籤</small>
+                </div>
+                <div class="ai-analysis-body">
+                    <div class="mb-3">
+                        <label for="aiAnalysisText" class="form-label">輸入要分析的文字內容：</label>
+                        <textarea
+                            class="form-control"
+                            id="aiAnalysisText"
+                            rows="4"
+                            placeholder="請輸入您想要分析的文字內容...&#10;例如：文章段落、筆記內容、網頁摘要等"
+                            maxlength="2000">
+                        </textarea>
+                        <div class="form-text">
+                            <span id="textCounter">0</span>/2000 字
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="aiAnalysisTitle" class="form-label">標題（選填）：</label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="aiAnalysisTitle"
+                            placeholder="可輸入相關標題以提高分析準確度"
+                            maxlength="100">
+                    </div>
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-primary" onclick="analyzeText()" id="analyzeBtn">
+                            <i class="bi bi-magic"></i>
+                            開始分析
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="clearAnalysis()">
+                            <i class="bi bi-trash"></i>
+                            清除
+                        </button>
+                    </div>
+
+                    <!-- 分析結果區域 -->
+                    <div class="analysis-results d-none" id="analysisResults">
+                        <div class="result-header">
+                            <h6><i class="bi bi-lightbulb text-warning me-2"></i>分析結果</h6>
+                        </div>
+                        <div class="result-tags mb-3" id="resultTags">
+                            <!-- 標籤將動態生成 -->
+                        </div>
+                        <div class="result-summary" id="resultSummary">
+                            <!-- 摘要將動態生成 -->
+                        </div>
+                        <div class="result-actions mt-3">
+                            <button class="btn btn-success btn-sm" onclick="saveAnalysisAsCollection()">
+                                <i class="bi bi-save"></i>
+                                儲存為收藏
+                            </button>
+                            <small class="text-muted ms-2" id="analysisMethod"></small>
+                        </div>
+                    </div>
+
+                    <!-- 載入狀態 -->
+                    <div class="analysis-loading d-none" id="analysisLoading">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                <span class="visually-hidden">分析中...</span>
+                            </div>
+                            <span>AI正在分析您的文字內容...</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -827,39 +1016,80 @@
 
         // 取得收藏品 AI 標籤
         function getAITags(collection) {
-            // 這裡應該是從 collection.ai_tags 或其他欄位讀取
-            // 暫時使用假資料示例
-            const aiTags = [];
+            // 🤖 優先從 collection.tags 中讀取 AI 生成的標籤
+            if (collection.tags && Array.isArray(collection.tags) && collection.tags.length > 0) {
+                console.log(`✅ [AI標籤] 從收藏品讀取AI標籤: ${collection.tags.join(', ')}`);
+                return collection.tags.slice(0, 5); // 最多返回5個標籤
+            }
 
+            // 🔄 備用方案：從 content.autoTags 讀取（如果存在）
+            if (collection.content && collection.content.autoTags && Array.isArray(collection.content.autoTags)) {
+                console.log(`✅ [AI標籤] 從content.autoTags讀取: ${collection.content.autoTags.join(', ')}`);
+                return collection.content.autoTags.slice(0, 5);
+            }
+
+            // 📝 最後備用：基於內容的簡單關鍵詞提取（降級機制）
+            const aiTags = [];
             const type = analyzeCollectionType(collection);
             const title = (collection.title || '').toLowerCase();
             const description = (collection.description ||
                                (collection.content && collection.content.preview_description) ||
                                (collection.content && collection.content.description) || '').toLowerCase();
 
-            switch (type) {
-                case 'video':
-                    aiTags.push('影片', '多媒體');
-                    break;
-                case 'image':
-                    aiTags.push('圖片', '視覺');
-                    break;
-                case 'url':
-                    if (title.includes('facebook') || description.includes('facebook')) {
-                        aiTags.push('社群', '分享');
-                    } else if (title.includes('github') || description.includes('github')) {
-                        aiTags.push('程式', '開發');
-                    } else if (title.includes('youtube') || description.includes('youtube')) {
-                        aiTags.push('影片', '娛樂');
-                    } else {
-                        aiTags.push('網站', '連結');
-                    }
-                    break;
-                default:
-                    aiTags.push('文字', '內容');
+            // 🔍 特殊處理：如果有URL相關內容，使用URL標籤邏輯（不論type為何）
+            const hasUrl = (collection.content && collection.content.url) || title.includes('http');
+            const shouldUseUrlLogic = (type === 'url') || hasUrl;
+
+            if (shouldUseUrlLogic) {
+                console.log(`🔍 [AI標籤] 檢測到URL相關內容 (type: ${type}, hasUrl: ${hasUrl})，使用URL標籤邏輯`);
+
+                if (title.includes('教學') || description.includes('教學') || description.includes('tutorial')) {
+                    aiTags.push('教學');
+                }
+                if (title.includes('seo') || description.includes('seo')) {
+                    aiTags.push('SEO');
+                }
+                if (title.includes('商業') || description.includes('商業') || description.includes('business')) {
+                    aiTags.push('商業');
+                }
+                if (title.includes('技術') || description.includes('技術') || description.includes('tech')) {
+                    aiTags.push('技術');
+                }
+                if (title.includes('facebook') || description.includes('facebook')) {
+                    aiTags.push('社群媒體');
+                }
+                if (title.includes('github') || description.includes('github')) {
+                    aiTags.push('程式開發');
+                }
+                if (title.includes('youtube') || description.includes('youtube')) {
+                    aiTags.push('影片內容');
+                }
+                if (title.includes('部落格') || description.includes('部落格') || description.includes('blog')) {
+                    aiTags.push('部落格');
+                }
+                if (title.includes('網站') || description.includes('網站') || description.includes('website')) {
+                    aiTags.push('網站');
+                }
+
+                // 如果沒有找到特定標籤，使用通用標籤
+                if (aiTags.length === 0) {
+                    aiTags.push('網站', '內容');
+                }
+            } else if (type === 'video') {
+                aiTags.push('影片', '多媒體');
+            } else if (type === 'image') {
+                aiTags.push('圖片', '視覺');
+            } else {
+                aiTags.push('文字', '內容');
             }
 
-            return aiTags;
+            if (aiTags.length > 0) {
+                console.log(`⚠️ [AI標籤] 使用降級關鍵詞: ${aiTags.join(', ')}`);
+            } else {
+                console.log(`⚠️ [AI標籤] 無法為收藏品 "${collection.title}" 生成標籤`);
+            }
+
+            return aiTags.slice(0, 5); // 最多返回5個標籤
         }
 
         // 取得用戶標籤
@@ -1303,16 +1533,59 @@
             const url = prompt('請輸入網址（可選）：');
             const description = prompt('請輸入描述（可選）：');
 
+            let autoTags = [];
+            let autoDescription = description ? description.trim() : '';
+
+            // 🤖 如果有URL，自動獲取預覽和AI標籤
+            if (url && url.trim()) {
+                try {
+                    console.log('🔍 [自動標籤] 開始獲取網頁預覽和AI標籤...');
+
+                    const previewResponse = await fetch('/api/url-preview', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ url: url.trim() })
+                    });
+
+                    if (previewResponse.ok) {
+                        const previewResult = await previewResponse.json();
+                        if (previewResult.success && previewResult.data) {
+                            // 如果沒有手動輸入描述，使用自動獲取的描述
+                            if (!autoDescription && previewResult.data.description) {
+                                autoDescription = previewResult.data.description;
+                            }
+
+                            // 使用AI生成的標籤
+                            if (previewResult.data.autoTags && previewResult.data.autoTags.length > 0) {
+                                autoTags = previewResult.data.autoTags;
+                                console.log(`✅ [自動標籤] 獲得AI標籤: ${autoTags.join(', ')}`);
+                            }
+                        }
+                    }
+                } catch (previewError) {
+                    console.log('⚠️ [自動標籤] 預覽獲取失敗，繼續新增收藏:', previewError.message);
+                }
+            }
+
             try {
                 const collectionData = {
                     title: title.trim(),
-                    description: description ? description.trim() : '',
+                    description: autoDescription,
                     category: url ? 'url' : 'text',
                     content: url ? { url: url.trim() } : {},
-                    tags: [],
+                    tags: autoTags, // 🤖 使用AI生成的標籤
                     color: '#4169E1',
                     icon: '📋'
                 };
+
+                console.log('📦 [新增收藏] 收藏數據:', {
+                    title: collectionData.title,
+                    hasDescription: !!collectionData.description,
+                    tags: collectionData.tags,
+                    hasUrl: !!url
+                });
 
                 const response = await fetch(`/api/collections/${userId}`, {
                     method: 'POST',
@@ -1332,6 +1605,14 @@
                 }
 
                 console.log('✅ [收藏卡] 新增收藏品成功');
+
+                // 🎉 顯示成功訊息，包含AI標籤資訊
+                if (autoTags.length > 0) {
+                    alert(`收藏已新增！\n🤖 AI自動生成標籤: ${autoTags.join(', ')}`);
+                } else {
+                    alert('收藏已成功新增！');
+                }
+
                 await loadCollections(); // 重新載入
 
             } catch (error) {
@@ -1577,6 +1858,204 @@
                 case 'video': return '影片';
                 case 'image': return '圖片';
                 default: return '文字';
+            }
+        }
+
+        // ========== AI分析功能 ==========
+        let currentAnalysisResult = null;
+
+        // 文字計數器
+        document.addEventListener('DOMContentLoaded', function() {
+            const textArea = document.getElementById('aiAnalysisText');
+            const counter = document.getElementById('textCounter');
+
+            if (textArea && counter) {
+                textArea.addEventListener('input', function() {
+                    const count = textArea.value.length;
+                    counter.textContent = count;
+
+                    if (count > 1800) {
+                        counter.style.color = '#dc3545';
+                    } else if (count > 1500) {
+                        counter.style.color = '#ffc107';
+                    } else {
+                        counter.style.color = '#666';
+                    }
+                });
+            }
+        });
+
+        // AI文字分析函數
+        async function analyzeText() {
+            const textInput = document.getElementById('aiAnalysisText');
+            const titleInput = document.getElementById('aiAnalysisTitle');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const loadingDiv = document.getElementById('analysisLoading');
+            const resultsDiv = document.getElementById('analysisResults');
+
+            const text = textInput.value.trim();
+            const title = titleInput.value.trim();
+
+            if (!text) {
+                alert('請輸入要分析的文字內容');
+                return;
+            }
+
+            if (text.length < 10) {
+                alert('文字內容太短，請輸入至少10個字元');
+                return;
+            }
+
+            try {
+                // 顯示載入狀態
+                analyzeBtn.disabled = true;
+                analyzeBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 分析中...';
+                loadingDiv.classList.remove('d-none');
+                resultsDiv.classList.add('d-none');
+
+                console.log('🤖 [AI分析] 開始分析文字...');
+
+                const response = await fetch('/api/ai-analysis', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        title: title
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API錯誤: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ [AI分析] 分析完成:', result);
+
+                if (result.success) {
+                    currentAnalysisResult = result.data;
+                    displayAnalysisResults(result.data);
+                } else {
+                    throw new Error(result.error || '分析失敗');
+                }
+
+            } catch (error) {
+                console.error('❌ [AI分析] 分析失敗:', error);
+                alert(`分析失敗：${error.message}`);
+            } finally {
+                // 恢復按鈕狀態
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = '<i class="bi bi-magic"></i> 開始分析';
+                loadingDiv.classList.add('d-none');
+            }
+        }
+
+        // 顯示分析結果
+        function displayAnalysisResults(data) {
+            const resultsDiv = document.getElementById('analysisResults');
+            const tagsDiv = document.getElementById('resultTags');
+            const summaryDiv = document.getElementById('resultSummary');
+            const methodSpan = document.getElementById('analysisMethod');
+
+            // 顯示標籤
+            tagsDiv.innerHTML = '';
+            if (data.tags && data.tags.length > 0) {
+                data.tags.forEach(tag => {
+                    const tagSpan = document.createElement('span');
+                    tagSpan.className = 'result-tag';
+                    tagSpan.textContent = tag;
+                    tagsDiv.appendChild(tagSpan);
+                });
+            } else {
+                tagsDiv.innerHTML = '<span class="text-muted">未能生成標籤</span>';
+            }
+
+            // 顯示摘要
+            if (data.summary) {
+                summaryDiv.innerHTML = `<strong>摘要：</strong>${data.summary}`;
+            } else {
+                summaryDiv.innerHTML = '<span class="text-muted">未生成摘要</span>';
+            }
+
+            // 顯示分析方法
+            const methodText = data.analysisMethod === 'openai' ? 'AI分析' : '關鍵詞提取';
+            const confidenceText = data.confidence ? `(置信度: ${data.confidence}%)` : '';
+            methodSpan.textContent = `${methodText} ${confidenceText}`;
+
+            if (data.note) {
+                methodSpan.textContent += ` - ${data.note}`;
+                methodSpan.style.color = '#ffc107';
+            }
+
+            // 顯示結果區域
+            resultsDiv.classList.remove('d-none');
+
+            // 滾動到結果區域
+            resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // 清除分析
+        function clearAnalysis() {
+            document.getElementById('aiAnalysisText').value = '';
+            document.getElementById('aiAnalysisTitle').value = '';
+            document.getElementById('textCounter').textContent = '0';
+            document.getElementById('analysisResults').classList.add('d-none');
+            currentAnalysisResult = null;
+        }
+
+        // 儲存分析結果為收藏
+        async function saveAnalysisAsCollection() {
+            if (!currentAnalysisResult) {
+                alert('沒有分析結果可以儲存');
+                return;
+            }
+
+            if (!userId) {
+                alert('請先登入');
+                return;
+            }
+
+            const title = document.getElementById('aiAnalysisTitle').value.trim() || '文字分析結果';
+            const content = currentAnalysisResult.originalText;
+            const tags = currentAnalysisResult.tags || [];
+
+            if (content.length > 2000) {
+                alert('文字內容過長，無法儲存為收藏（最多2000字）');
+                return;
+            }
+
+            try {
+                console.log('💾 [儲存] 開始儲存分析結果為收藏...');
+
+                const response = await fetch(`/api/collections/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: title,
+                        description: currentAnalysisResult.summary || content.substring(0, 100) + '...',
+                        type: 'text',
+                        content: content,
+                        tags: tags
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log('✅ [儲存] 儲存成功');
+                    alert('分析結果已儲存為收藏！');
+                    clearAnalysis();
+                    await loadCollections(); // 重新載入收藏列表
+                } else {
+                    throw new Error(result.error || '儲存失敗');
+                }
+
+            } catch (error) {
+                console.error('❌ [儲存] 儲存失敗:', error);
+                alert(`儲存失敗：${error.message}`);
             }
         }
     </script>

@@ -610,6 +610,29 @@ async function handleEvent(event) {
               const previewResult = await preview.getEnhancedPreview(url);
 
               if (previewResult.image) {
+                  // 🤖 生成AI標籤（與前端保持一致）
+                  let aiTags = [];
+                  try {
+                    console.log('🤖 [LINE Bot AI標籤] 開始生成AI標籤...');
+
+                    // 直接調用URL預覽API獲取AI標籤（與前端保持一致）
+                    const response = await fetch('http://localhost:3011/api/url-preview', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ url: url })
+                    });
+
+                    if (response.ok) {
+                      const apiResult = await response.json();
+                      if (apiResult.success && apiResult.data && apiResult.data.autoTags && apiResult.data.autoTags.length > 0) {
+                        aiTags = apiResult.data.autoTags.slice(0, 5); // 最多5個標籤
+                        console.log(`✅ [LINE Bot AI標籤] 生成標籤: ${aiTags.join(', ')}`);
+                      }
+                    }
+                  } catch (aiError) {
+                    console.log(`⚠️ [LINE Bot AI標籤] AI分析失敗: ${aiError.message}`);
+                  }
+
                   const updateData = {
                     content: {
                       ...content,
@@ -620,8 +643,10 @@ async function handleEvent(event) {
                       extraction_method: previewResult.type,
                       auto_processed: true,
                       linebot_processed: true,
-                      extraction_date: new Date().toISOString()
-                    }
+                      extraction_date: new Date().toISOString(),
+                      autoTags: aiTags // 存儲AI標籤到content.autoTags
+                    },
+                    tags: aiTags // 同時存儲到主要tags欄位
                   };
 
                   const collectionsAPI = require('./collections-api');
@@ -629,6 +654,8 @@ async function handleEvent(event) {
 
                   if (!updateResult.success) {
                     console.error(`LINE Bot預覽更新失敗 (${result.data.id}): ${updateResult.error}`);
+                  } else if (aiTags.length > 0) {
+                    console.log(`✅ [LINE Bot AI標籤] 收藏卡 ${result.data.id} 已更新AI標籤: [${aiTags.join(', ')}]`);
                   }
                 }
 
@@ -1273,52 +1300,62 @@ app.post('/api/collections/:userId', async (req, res) => {
       const content = collectionData.content || {};
       const url = content.url || title;
 
-      // 檢測是否為需要預覽的URL
-      const needsPreview = url && (
-        url.includes('http') && (
-          url.includes('facebook.com') ||
-          url.includes('instagram.com') ||
-          url.includes('youtube.com') ||
-          url.includes('twitter.com') ||
-          url.includes('github.com') ||
-          url.includes('medium.com')
-        )
-      );
+      // 🔥 檢測是否為需要AI分析的URL（所有網址都進行AI標籤分析）
+      const needsPreview = url && url.includes('http');
 
       if (needsPreview) {
-        // 背景處理URL預覽，不阻塞API回應
+        // 🤖 背景處理完整AI分析，包括預覽和標籤生成
         setImmediate(async () => {
           try {
-            // 統一使用 EnhancedLinkPreview 處理所有 URL（包括 Facebook）
-            const EnhancedLinkPreview = require('./enhanced-link-preview');
-            const preview = new EnhancedLinkPreview();
-            const previewResult = await preview.getEnhancedPreview(url);
+            console.log(`🔄 [背景AI分析] 開始處理收藏卡 ${result.data.id} 的URL: ${url}`);
 
-            if (previewResult.image) {
+            // 調用完整的URL預覽API獲取AI分析結果
+            const axios = require('axios');
+            const apiResponse = await axios.post('http://localhost:3011/api/url-preview', {
+              url: url
+            }, {
+              headers: { 'Content-Type': 'application/json' },
+              timeout: 60000
+            });
+
+            if (apiResponse.data.success && apiResponse.data.data) {
+              const analysisResult = apiResponse.data.data;
+
+              // 準備更新數據，同時更新content和tags
               const updateData = {
-                  content: {
-                    ...content,
-                    url: url,
-                    preview_image: previewResult.image,
-                    preview_title: previewResult.title || '預覽標題',
-                    preview_description: previewResult.description || '預覽描述',
-                    extraction_method: previewResult.type,
-                    auto_processed: true,
-                    extraction_date: new Date().toISOString()
-                  }
-                };
-
-                const collectionsAPI = require('./collections-api');
-                const updateResult = await collectionsAPI.updateCollection(userId, result.data.id, updateData);
-
-                if (!updateResult.success) {
-                  console.error(`API預覽更新失敗 (${result.data.id}): ${updateResult.error}`);
+                content: {
+                  ...content,
+                  url: url,
+                  preview_image: analysisResult.image,
+                  preview_title: analysisResult.title || '預覽標題',
+                  preview_description: analysisResult.description || '預覽描述',
+                  extraction_method: analysisResult.type,
+                  autoTags: analysisResult.autoTags || [], // 🤖 AI生成的標籤
+                  auto_processed: true,
+                  extraction_date: new Date().toISOString()
                 }
+              };
+
+              // 🔥 重要：如果AI生成了標籤，更新tags欄位
+              if (analysisResult.autoTags && analysisResult.autoTags.length > 0) {
+                updateData.tags = analysisResult.autoTags;
+                console.log(`🤖 [背景AI分析] 收藏卡 ${result.data.id} 更新AI標籤: ${analysisResult.autoTags.join(', ')}`);
               }
 
-              await preview.cleanup();
+              const collectionsAPI = require('./collections-api');
+              const updateResult = await collectionsAPI.updateCollection(userId, result.data.id, updateData);
+
+              if (updateResult.success) {
+                console.log(`✅ [背景AI分析] 收藏卡 ${result.data.id} 更新成功`);
+              } else {
+                console.error(`❌ [背景AI分析] 收藏卡 ${result.data.id} 更新失敗: ${updateResult.error}`);
+              }
+            } else {
+              console.log(`⚠️ [背景AI分析] 收藏卡 ${result.data.id} AI分析未返回有效數據`);
+            }
+
           } catch (autoError) {
-            console.error(`API自動預覽背景處理失敗: ${autoError.message}`);
+            console.error(`❌ [背景AI分析] 收藏卡 ${result.data.id} 處理失敗: ${autoError.message}`);
           }
         });
       }
@@ -1400,6 +1437,10 @@ const EnhancedLinkPreview = require('./enhanced-link-preview');
 // 創建Enhanced Link Preview實例
 const enhancedPreview = new EnhancedLinkPreview();
 
+// 創建AI標籤生成器實例
+const AITagGenerator = require('./ai-tag-generator');
+const aiTagGenerator = new AITagGenerator();
+
 // 🔍 獲取網址預覽
 app.post('/api/url-preview', async (req, res) => {
   try {
@@ -1425,6 +1466,144 @@ app.post('/api/url-preview', async (req, res) => {
     console.log(`📱 [API] 使用Enhanced Preview處理連結: ${linkType}`);
     const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
 
+    // 🤖 自動進行AI深度分析生成標籤
+    let autoTags = [];
+    try {
+      // 優先使用完整文章內容進行AI分析
+      const contentForAnalysis = enhancedResult.description || enhancedResult.title || '';
+      const hasSubstantialContent = contentForAnalysis.length > 200;
+
+      if (contentForAnalysis) {
+        console.log(`🤖 [自動標籤] 開始AI深度分析生成標籤... (內容長度: ${contentForAnalysis.length} 字符)`);
+
+        // 🔥 增強版AI分析 - 使用更多內容和更詳細的提示詞
+        const aiAnalysisResult = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: `你是專業的內容分析師，擅長從文章中提取核心概念並生成精準標籤。
+
+你的任務：
+1. 深度理解文章內容的核心主題和重要概念
+2. 識別關鍵的技術術語、方法論、工具、領域
+3. 生成能夠快速讓讀者理解文章重點的精準標籤
+4. 避免太寬泛的詞彙，要具體且有辨識度
+
+標籤要求：
+- 每個標籤2-6個中文字
+- 標籤要具體且有意義
+- 優先技術名詞、專業術語、核心概念
+- 避免「內容」、「文章」、「資訊」等通用詞`
+            },
+            {
+              role: "user",
+              content: `請仔細分析以下${hasSubstantialContent ? '文章內容' : '網頁資訊'}，生成5個最能代表其核心重點的中文標籤：
+
+${hasSubstantialContent ? '文章正文：' : '標題：'}${enhancedResult.title || ''}
+
+${hasSubstantialContent && enhancedResult.description ? `內容摘要：${enhancedResult.description.substring(0, 1500)}` : ''}
+
+要求：
+1. 生成5個精準的中文標籤，每個標籤2-6個字
+2. 標籤要反映文章的核心主題和重要概念
+3. 優先提取：技術名詞、工具名稱、方法論、重要概念、主題領域
+4. 確保標籤具有區別性和識別度，避免過於通用的詞彙
+5. 標籤應該能讓人快速理解這篇文章在講什麼
+
+請直接輸出5個標籤，用逗號分隔，不要額外說明：`
+            }
+          ],
+          max_tokens: 100,
+          temperature: 0.3
+        });
+
+        const aiResponse = aiAnalysisResult.choices[0]?.message?.content?.trim();
+        if (aiResponse) {
+          const aiTags = aiResponse
+            .split(/[,，、]/)
+            .map(tag => tag.trim().replace(/[「」'"]/g, ''))
+            .filter(tag => tag.length >= 2 && tag.length <= 6)
+            .filter(tag => tag.length > 0);
+
+          autoTags = [...new Set(aiTags)].slice(0, 5); // 去除重複標籤，最多5個
+          console.log(`✅ [自動標籤] AI深度分析生成標籤: ${autoTags.join(', ')}`);
+        }
+      }
+    } catch (aiError) {
+      console.log('⚠️ [自動標籤] AI分析失敗，使用關鍵詞提取...');
+
+      // 降級到關鍵詞提取
+      if (enhancedResult.title && enhancedResult.description) {
+        const combinedText = `${enhancedResult.title} ${enhancedResult.description}`.toLowerCase();
+
+        // 技術關鍵詞庫
+        const techKeywords = {
+          'blog': '部落格', 'blogging': '部落格', 'website': '網站建置', 'platform': '平台',
+          'wordpress': 'WordPress', 'medium': 'Medium', 'ghost': 'Ghost',
+          'cms': 'CMS', 'seo': 'SEO', 'design': '設計', 'web design': '網頁設計',
+          'marketing': '行銷', 'content': '內容創作', 'social': '社群',
+          'tech': '科技', 'ai': '人工智慧', 'react': 'React',
+          'javascript': 'JavaScript', 'python': 'Python', 'tutorial': '教學',
+          'guide': '指南', 'tool': '工具', 'free': '免費', 'best': '推薦',
+          'review': '評測', 'comparison': '比較', '2024': '2024', '2025': '2025'
+        };
+
+        // 提取匹配的關鍵詞
+        const foundKeywords = [];
+        for (const [eng, chi] of Object.entries(techKeywords)) {
+          if (combinedText.includes(eng)) {
+            foundKeywords.push(chi);
+          }
+        }
+
+        // 提取中文關鍵詞 - 改良版
+        const titleText = enhancedResult.title || '';
+        const descText = enhancedResult.description || '';
+
+        // 特定模式識別
+        const specificPatterns = [
+          /(\d+個?\w*平台)/g,  // "8個部落格平台" -> "部落格平台"
+          /(部落格\w*)/g,     // 部落格相關
+          /(網站\w*)/g,       // 網站相關
+          /(平台\w*)/g,       // 平台相關
+          /(架設|建置|製作)/g, // 動作詞
+          /(推薦|評測|比較)/g, // 評價詞
+        ];
+
+        const validChineseKeywords = [];
+
+        // 優先從標題提取關鍵概念
+        for (const pattern of specificPatterns) {
+          const matches = titleText.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              // 清理匹配結果
+              let cleaned = match.replace(/\d+個?/, ''); // 移除數字前綴
+              if (cleaned.length >= 2 && cleaned.length <= 6) {
+                validChineseKeywords.push(cleaned);
+              }
+            });
+          }
+        }
+
+        // 如果沒有找到足夠標籤，從描述中提取
+        if (validChineseKeywords.length < 5) {
+          const chineseWords = descText.match(/[\u4e00-\u9fff]{2,6}/g) || [];
+          const filtered = chineseWords
+            .filter(word => !['的是', '和或', '與及', '等也', '而但', '如在', '網站', '內容', '文章', '資料', '一個', '可以', '自己', '這些', '以下', '各位'].includes(word))
+            .slice(0, 5 - validChineseKeywords.length);
+          validChineseKeywords.push(...filtered);
+        }
+
+        // 合併並去重標籤，確保每個標籤都是唯一的
+        const allTags = [...foundKeywords, ...validChineseKeywords];
+        const uniqueTags = [...new Set(allTags)]; // 去除重複標籤
+        autoTags = uniqueTags.slice(0, 5); // 🔥 改為最多生成5個標籤
+        console.log(`✅ [自動標籤] 關鍵詞提取: ${autoTags.join(', ')}`);
+      }
+    }
+
     // 轉換為標準格式
     const result = {
       success: true,
@@ -1433,7 +1612,8 @@ app.post('/api/url-preview', async (req, res) => {
         description: enhancedResult.description,
         image: enhancedResult.image,
         url: enhancedResult.url,
-        type: enhancedResult.type
+        type: enhancedResult.type,
+        autoTags: autoTags // 新增自動生成的標籤
       }
     };
 
@@ -1443,6 +1623,124 @@ app.post('/api/url-preview', async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
+
+// 🤖 AI文字分析 - 生成重點標籤
+app.post('/api/ai-analysis', async (req, res) => {
+  try {
+    const { text, title } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ success: false, error: '缺少文字內容' });
+    }
+
+    console.log(`🤖 [AI分析] 開始分析文字內容: ${text.substring(0, 100)}...`);
+
+    // 使用OpenAI進行文字分析生成重點標籤
+    const analysisResult = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "你是一個專業的內容分析師，擅長從文字中提取關鍵重點並生成實用的標籤。"
+        },
+        {
+          role: "user",
+          content: `請分析以下文字內容，生成5個精準的中文重點標籤：
+
+標題：${title || '無標題'}
+內容：${text}
+
+要求：
+1. 生成5個中文標籤，每個標籤2-4個字
+2. 標籤要反映文字的核心主題和重點
+3. 標籤要實用，適合做為分類和搜尋使用
+4. 避免過於籠統的詞彙
+5. 優先提取技術名詞、關鍵概念、主題領域
+
+請只輸出5個標籤，用逗號分隔：`
+        }
+      ],
+      max_tokens: 100,
+      temperature: 0.7
+    });
+
+    const aiResponse = analysisResult.choices[0]?.message?.content?.trim();
+    if (!aiResponse) {
+      throw new Error('AI分析回應為空');
+    }
+
+    // 解析標籤
+    const tags = aiResponse.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+
+    // 生成摘要（取前100字）
+    const summary = text.length > 100 ? text.substring(0, 100) + '...' : text;
+
+    const result = {
+      success: true,
+      data: {
+        tags: tags.slice(0, 5), // 確保只返回5個標籤
+        summary: summary,
+        originalText: text,
+        analysisMethod: 'openai',
+        confidence: 85 // 使用OpenAI的固定置信度
+      }
+    };
+
+    console.log(`✅ [AI分析] 成功生成標籤: ${tags.join(', ')}`);
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ [AI分析] 分析失敗:', error);
+
+    // 降級到簡單關鍵詞提取
+    try {
+      const { text, title } = req.body;
+      const fallbackTags = extractSimpleKeywords(text, title);
+      const summary = text.length > 100 ? text.substring(0, 100) + '...' : text;
+
+      res.json({
+        success: true,
+        data: {
+          tags: fallbackTags,
+          summary: summary,
+          originalText: text,
+          analysisMethod: 'fallback',
+          confidence: 60,
+          note: 'AI分析不可用，使用關鍵詞提取'
+        }
+      });
+    } catch (fallbackError) {
+      res.status(500).json({
+        success: false,
+        error: '文字分析失敗',
+        details: error.message
+      });
+    }
+  }
+});
+
+// 簡單關鍵詞提取函數（降級方案）
+function extractSimpleKeywords(text, title = '') {
+  const combinedText = `${title} ${text}`.toLowerCase();
+
+  // 常用停用詞
+  const stopWords = ['的', '是', '和', '或', '與', '及', '等', '也', '而', '但', '如', '在', '上', '下', '中', '內', '外', '可以', '使用', '這個', '如何', '什麼', '怎麼'];
+
+  // 提取中文詞彙 (2-4字)
+  const chineseWords = combinedText.match(/[\u4e00-\u9fff]{2,4}/g) || [];
+
+  // 過濾停用詞並去重
+  const keywords = [...new Set(chineseWords)]
+    .filter(word => !stopWords.includes(word))
+    .slice(0, 5);
+
+  // 如果關鍵詞不足，添加通用標籤
+  if (keywords.length < 3) {
+    keywords.push('內容', '資訊', '參考');
+  }
+
+  return keywords.slice(0, 5);
+}
 
 // 路由設定
 app.get('/', (req, res) => {

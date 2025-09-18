@@ -200,29 +200,83 @@ class EnhancedLinkPreview {
                 }
             }
 
-            // === 通用OpenGraph提取 (備用) ===
+            // === 通用OpenGraph提取 + 文章正文提取 ===
             if (!extractedText || !extractedImage) {
                 console.log('📝 [文字提取] 使用通用OpenGraph方法...');
 
-                const ogData = await page.evaluate(() => {
+                const contentData = await page.evaluate(() => {
+                    // OpenGraph meta標籤
                     const title = document.querySelector('meta[property="og:title"]');
                     const description = document.querySelector('meta[property="og:description"]');
                     const image = document.querySelector('meta[property="og:image"]');
 
+                    // 🆕 提取文章正文內容
+                    const articleSelectors = [
+                        'article',
+                        '[role="main"]',
+                        '.content',
+                        '.post-content',
+                        '.entry-content',
+                        '.article-content',
+                        '.blog-content',
+                        '.main-content',
+                        'main',
+                        '.text-content'
+                    ];
+
+                    let articleText = '';
+
+                    // 嘗試從文章容器中提取文字
+                    for (const selector of articleSelectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            // 移除script, style, nav等不相關元素
+                            const clone = element.cloneNode(true);
+                            const unwantedElements = clone.querySelectorAll('script, style, nav, header, footer, aside, .sidebar, .navigation, .menu, .ads, .advertisement');
+                            unwantedElements.forEach(el => el.remove());
+
+                            const text = clone.textContent || clone.innerText || '';
+                            if (text.trim().length > 200) {
+                                articleText = text.trim();
+                                break;
+                            }
+                        }
+                    }
+
+                    // 如果沒有找到文章容器，嘗試從段落中提取
+                    if (!articleText) {
+                        const paragraphs = document.querySelectorAll('p');
+                        const allParagraphs = Array.from(paragraphs)
+                            .map(p => p.textContent || p.innerText || '')
+                            .filter(text => text.trim().length > 30)
+                            .join(' ');
+
+                        if (allParagraphs.trim().length > 200) {
+                            articleText = allParagraphs.trim();
+                        }
+                    }
+
                     return {
                         title: title ? title.getAttribute('content') : null,
                         description: description ? description.getAttribute('content') : null,
-                        image: image ? image.getAttribute('content') : null
+                        image: image ? image.getAttribute('content') : null,
+                        fullContent: articleText
                     };
                 });
 
-                if (!extractedText && ogData.description) {
-                    extractedText = ogData.description;
-                    console.log('✅ [通用文字] OpenGraph描述:', extractedText.substring(0, 50) + '...');
+                // 優先使用完整文章內容，如果沒有則使用OpenGraph描述
+                if (!extractedText) {
+                    if (contentData.fullContent && contentData.fullContent.length > 200) {
+                        extractedText = contentData.fullContent.substring(0, 2000); // 限制為2000字符
+                        console.log(`✅ [文章正文] 成功提取文章內容: ${extractedText.length} 字符`);
+                    } else if (contentData.description) {
+                        extractedText = contentData.description;
+                        console.log('✅ [通用文字] OpenGraph描述:', extractedText.substring(0, 50) + '...');
+                    }
                 }
 
-                if (!extractedImage && ogData.image) {
-                    extractedImage = ogData.image;
+                if (!extractedImage && contentData.image) {
+                    extractedImage = contentData.image;
                     console.log('✅ [通用圖片] OpenGraph圖片:', extractedImage);
                 }
             }
