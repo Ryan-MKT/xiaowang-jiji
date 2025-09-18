@@ -1287,24 +1287,307 @@ app.get('/api/collections/:userId', async (req, res) => {
 });
 
 // ➕ 建立收藏卡
+// 🔥 新增：支援不帶 userId 參數的收藏卡創建 API（userId 在 body 中）
+app.post('/api/collections', async (req, res) => {
+  try {
+    const collectionData = req.body;
+    const userId = collectionData.userId;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing userId in request body'
+      });
+    }
+
+    // 🔧 預處理URL並檢測社群平台
+    const title = collectionData.title || '';
+    const content = collectionData.content || {};
+    const url = content.url || collectionData.url || title;
+    const needsPreview = url && url.includes('http');
+
+    // 🔥 檢測是否為社群平台URL（需要即時處理以顯示帳號資訊）
+    const isSocialUrl = url && (
+      url.includes('facebook.com') ||
+      url.includes('instagram.com') ||
+      url.includes('twitter.com') ||
+      url.includes('x.com') ||
+      url.includes('threads.net') ||
+      url.includes('linkedin.com')
+    );
+
+    let result;
+    if (isSocialUrl) {
+      // 🚀 社群平台URL：立即處理並包含社群帳號資訊
+      console.log(`🔥 [即時處理] 檢測到社群平台URL: ${url}`);
+
+      try {
+        // 立即調用AI標籤生成器獲取社群帳號資訊（使用全局實例）
+
+        // 🔍 先使用URL預覽API獲取完整內容數據
+        console.log(`🔄 [即時處理] 先獲取完整內容數據...`);
+        const axios = require('axios');
+        const previewResponse = await axios.post('http://localhost:3011/api/url-preview', {
+          url: url
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 30000
+        });
+
+        let analysisResult;
+        if (previewResponse.data.success && previewResponse.data.data) {
+          // 使用完整的預覽數據
+          analysisResult = previewResponse.data.data;
+          console.log(`✅ [即時處理] 成功獲取完整分析結果`);
+        } else {
+          // 回退到簡化版本
+          console.log(`⚠️ [即時處理] 預覽失敗，使用簡化分析`);
+          let domain = '';
+          try {
+            const urlObj = new URL(url);
+            domain = urlObj.hostname;
+          } catch (error) {
+            console.log('⚠️ [即時處理] 無法解析URL domain:', error.message);
+          }
+
+          const contentData = {
+            url: url,
+            domain: domain,
+            title: title,
+            description: '',
+            meta: {},
+            metaTags: {}
+          };
+
+          analysisResult = await aiTagGenerator.generateTags(contentData);
+        }
+
+        // 更新 content 包含社群帳號資訊
+        const enhancedContent = {
+          ...content,
+          url: url,
+          socialAccount: analysisResult.socialAccount || null,
+          autoTags: analysisResult.autoTags || [],
+          preview_image: analysisResult.image,
+          preview_title: analysisResult.title || title,
+          preview_description: analysisResult.description || '',
+          extraction_method: analysisResult.type || 'instant',
+          auto_processed: true,
+          extraction_date: new Date().toISOString()
+        };
+
+        // 創建包含社群帳號資訊的收藏卡
+        const enhancedCollectionData = {
+          ...collectionData,
+          content: enhancedContent
+        };
+
+        if (analysisResult.autoTags && analysisResult.autoTags.length > 0) {
+          enhancedCollectionData.tags = analysisResult.autoTags;
+        }
+
+        result = await collectionsAPI.createCollection(userId, enhancedCollectionData);
+
+        if (analysisResult.socialAccount) {
+          console.log(`👥 [即時處理] 成功提取社群帳號: ${analysisResult.socialAccount.platform} - ${analysisResult.socialAccount.accountName || '無名稱'}`);
+        }
+
+      } catch (socialError) {
+        console.error(`❌ [即時處理] 社群帳號分析失敗: ${socialError.message}`);
+        // 失敗時仍創建普通收藏卡
+        result = await collectionsAPI.createCollection(userId, collectionData);
+      }
+    } else {
+      // 🔄 非社群平台URL：正常創建，背景處理AI分析
+      result = await collectionsAPI.createCollection(userId, collectionData);
+    }
+
+    if (result.success) {
+      // 🤖 背景處理完整AI分析（對所有URL，但社群平台已經處理過帳號資訊）
+      if (needsPreview && !isSocialUrl) {
+        setImmediate(async () => {
+          try {
+            console.log(`🔄 [背景AI分析] 開始處理收藏卡 ${result.data.id} 的URL: ${url}`);
+
+            // 調用完整的URL預覽API獲取AI分析結果
+            const axios = require('axios');
+            const apiResponse = await axios.post('http://localhost:3011/api/url-preview', {
+              url: url
+            }, {
+              headers: { 'Content-Type': 'application/json' },
+              timeout: 60000
+            });
+
+            if (apiResponse.data.success && apiResponse.data.data) {
+              const analysisResult = apiResponse.data.data;
+
+              // 準備更新數據，同時更新content和tags
+              const updateData = {
+                content: {
+                  ...content,
+                  url: url,
+                  socialAccount: analysisResult.socialAccount || null,
+                  autoTags: analysisResult.autoTags || [],
+                  preview_image: analysisResult.image,
+                  preview_title: analysisResult.title || title,
+                  preview_description: analysisResult.description || '',
+                  extraction_method: analysisResult.type || 'background',
+                  auto_processed: true,
+                  extraction_date: new Date().toISOString()
+                }
+              };
+
+              // 如果有自動標籤，也更新 tags 欄位
+              if (analysisResult.autoTags && analysisResult.autoTags.length > 0) {
+                updateData.tags = analysisResult.autoTags;
+              }
+
+              // 更新資料庫
+              const updateResult = await collectionsAPI.updateCollection(userId, result.data.id, updateData);
+
+              if (updateResult.success) {
+                console.log(`✅ [背景AI分析] 收藏卡 ${result.data.id} 處理完成`);
+                if (analysisResult.socialAccount) {
+                  console.log(`👥 [背景AI分析] 發現社群帳號: ${analysisResult.socialAccount.platform} - ${analysisResult.socialAccount.accountName || '無名稱'}`);
+                }
+              } else {
+                console.error(`❌ [背景AI分析] 收藏卡 ${result.data.id} 更新失敗:`, updateResult.error);
+              }
+
+            } else {
+              console.log(`⚠️ [背景AI分析] 收藏卡 ${result.data.id} API 分析失敗`);
+            }
+
+          } catch (error) {
+            console.error(`❌ [背景AI分析] 收藏卡 ${result.data.id} 處理出錯:`, error.message);
+          }
+        });
+      }
+
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+
+  } catch (error) {
+    console.error('創建收藏卡失敗:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.post('/api/collections/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
     const collectionData = req.body;
 
-    const result = await collectionsAPI.createCollection(userId, collectionData);
+    // 🔧 預處理URL並檢測社群平台
+    const title = collectionData.title || '';
+    const content = collectionData.content || {};
+    const url = content.url || collectionData.url || title;
+    const needsPreview = url && url.includes('http');
+
+    // 🔥 檢測是否為社群平台URL（需要即時處理以顯示帳號資訊）
+    const isSocialUrl = url && (
+      url.includes('facebook.com') ||
+      url.includes('instagram.com') ||
+      url.includes('twitter.com') ||
+      url.includes('x.com') ||
+      url.includes('threads.net') ||
+      url.includes('linkedin.com')
+    );
+
+    let result;
+    if (isSocialUrl) {
+      // 🚀 社群平台URL：立即處理並包含社群帳號資訊
+      console.log(`🔥 [即時處理] 檢測到社群平台URL: ${url}`);
+
+      try {
+        // 立即調用AI標籤生成器獲取社群帳號資訊（使用全局實例）
+
+        // 🔍 先使用URL預覽API獲取完整內容數據
+        console.log(`🔄 [即時處理] 先獲取完整內容數據...`);
+        const axios = require('axios');
+        const previewResponse = await axios.post('http://localhost:3011/api/url-preview', {
+          url: url
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 30000
+        });
+
+        let analysisResult;
+        if (previewResponse.data.success && previewResponse.data.data) {
+          // 使用完整的預覽數據
+          analysisResult = previewResponse.data.data;
+          console.log(`✅ [即時處理] 成功獲取完整分析結果`);
+        } else {
+          // 回退到簡化版本
+          console.log(`⚠️ [即時處理] 預覽失敗，使用簡化分析`);
+          let domain = '';
+          try {
+            const urlObj = new URL(url);
+            domain = urlObj.hostname;
+          } catch (error) {
+            console.log('⚠️ [即時處理] 無法解析URL domain:', error.message);
+          }
+
+          const contentData = {
+            url: url,
+            domain: domain,
+            title: title,
+            description: '',
+            meta: {},
+            metaTags: {}
+          };
+
+          analysisResult = await aiTagGenerator.generateTags(contentData);
+        }
+
+        // 更新 content 包含社群帳號資訊
+        const enhancedContent = {
+          ...content,
+          url: url,
+          socialAccount: analysisResult.socialAccount || null,
+          autoTags: analysisResult.autoTags || [],
+          preview_image: analysisResult.image,
+          preview_title: analysisResult.title || title,
+          preview_description: analysisResult.description || '',
+          extraction_method: analysisResult.type || 'instant',
+          auto_processed: true,
+          extraction_date: new Date().toISOString()
+        };
+
+        // 創建包含社群帳號資訊的收藏卡
+        const enhancedCollectionData = {
+          ...collectionData,
+          content: enhancedContent
+        };
+
+        if (analysisResult.autoTags && analysisResult.autoTags.length > 0) {
+          enhancedCollectionData.tags = analysisResult.autoTags;
+        }
+
+        result = await collectionsAPI.createCollection(userId, enhancedCollectionData);
+
+        if (analysisResult.socialAccount) {
+          console.log(`👥 [即時處理] 成功提取社群帳號: ${analysisResult.socialAccount.platform} - ${analysisResult.socialAccount.accountName || '無名稱'}`);
+        }
+
+      } catch (socialError) {
+        console.error(`❌ [即時處理] 社群帳號分析失敗: ${socialError.message}`);
+        // 失敗時仍創建普通收藏卡
+        result = await collectionsAPI.createCollection(userId, collectionData);
+      }
+    } else {
+      // 🔄 非社群平台URL：正常創建，背景處理AI分析
+      result = await collectionsAPI.createCollection(userId, collectionData);
+    }
 
     if (result.success) {
-      // 🔧 自動處理URL預覽生成
-      const title = collectionData.title || '';
-      const content = collectionData.content || {};
-      const url = content.url || title;
-
-      // 🔥 檢測是否為需要AI分析的URL（所有網址都進行AI標籤分析）
-      const needsPreview = url && url.includes('http');
-
-      if (needsPreview) {
-        // 🤖 背景處理完整AI分析，包括預覽和標籤生成
+      // 🤖 背景處理完整AI分析（對所有URL，但社群平台已經處理過帳號資訊）
+      if (needsPreview && !isSocialUrl) {
         setImmediate(async () => {
           try {
             console.log(`🔄 [背景AI分析] 開始處理收藏卡 ${result.data.id} 的URL: ${url}`);
@@ -1331,6 +1614,7 @@ app.post('/api/collections/:userId', async (req, res) => {
                   preview_description: analysisResult.description || '預覽描述',
                   extraction_method: analysisResult.type,
                   autoTags: analysisResult.autoTags || [], // 🤖 AI生成的標籤
+                  socialAccount: analysisResult.socialAccount || null, // 👥 社群帳號資訊
                   auto_processed: true,
                   extraction_date: new Date().toISOString()
                 }
@@ -1340,6 +1624,11 @@ app.post('/api/collections/:userId', async (req, res) => {
               if (analysisResult.autoTags && analysisResult.autoTags.length > 0) {
                 updateData.tags = analysisResult.autoTags;
                 console.log(`🤖 [背景AI分析] 收藏卡 ${result.data.id} 更新AI標籤: ${analysisResult.autoTags.join(', ')}`);
+              }
+
+              // 👥 如果檢測到社群帳號，記錄日誌
+              if (analysisResult.socialAccount) {
+                console.log(`👥 [背景AI分析] 收藏卡 ${result.data.id} 檢測到社群帳號: ${analysisResult.socialAccount.platform} - ${analysisResult.socialAccount.accountName || '無名稱'}`);
               }
 
               const collectionsAPI = require('./collections-api');
@@ -1466,74 +1755,48 @@ app.post('/api/url-preview', async (req, res) => {
     console.log(`📱 [API] 使用Enhanced Preview處理連結: ${linkType}`);
     const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
 
-    // 🤖 自動進行AI深度分析生成標籤
+    // 🤖 使用AI標籤生成器進行分析（包含社群帳號提取）
     let autoTags = [];
+    let socialAccount = null;
     try {
-      // 優先使用完整文章內容進行AI分析
-      const contentForAnalysis = enhancedResult.description || enhancedResult.title || '';
-      const hasSubstantialContent = contentForAnalysis.length > 200;
+      console.log(`🤖 [AI分析] 開始使用AI標籤生成器分析 ${url}...`);
 
-      if (contentForAnalysis) {
-        console.log(`🤖 [自動標籤] 開始AI深度分析生成標籤... (內容長度: ${contentForAnalysis.length} 字符)`);
-
-        // 🔥 增強版AI分析 - 使用更多內容和更詳細的提示詞
-        const aiAnalysisResult = await openai.chat.completions.create({
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content: `你是專業的內容分析師，擅長從文章中提取核心概念並生成精準標籤。
-
-你的任務：
-1. 深度理解文章內容的核心主題和重要概念
-2. 識別關鍵的技術術語、方法論、工具、領域
-3. 生成能夠快速讓讀者理解文章重點的精準標籤
-4. 避免太寬泛的詞彙，要具體且有辨識度
-
-標籤要求：
-- 每個標籤2-6個中文字
-- 標籤要具體且有意義
-- 優先技術名詞、專業術語、核心概念
-- 避免「內容」、「文章」、「資訊」等通用詞`
-            },
-            {
-              role: "user",
-              content: `請仔細分析以下${hasSubstantialContent ? '文章內容' : '網頁資訊'}，生成5個最能代表其核心重點的中文標籤：
-
-${hasSubstantialContent ? '文章正文：' : '標題：'}${enhancedResult.title || ''}
-
-${hasSubstantialContent && enhancedResult.description ? `內容摘要：${enhancedResult.description.substring(0, 1500)}` : ''}
-
-要求：
-1. 生成5個精準的中文標籤，每個標籤2-6個字
-2. 標籤要反映文章的核心主題和重要概念
-3. 優先提取：技術名詞、工具名稱、方法論、重要概念、主題領域
-4. 確保標籤具有區別性和識別度，避免過於通用的詞彙
-5. 標籤應該能讓人快速理解這篇文章在講什麼
-
-請直接輸出5個標籤，用逗號分隔，不要額外說明：`
-            }
-          ],
-          max_tokens: 100,
-          temperature: 0.3
-        });
-
-        const aiResponse = aiAnalysisResult.choices[0]?.message?.content?.trim();
-        if (aiResponse) {
-          const aiTags = aiResponse
-            .split(/[,，、]/)
-            .map(tag => tag.trim().replace(/[「」'"]/g, ''))
-            .filter(tag => tag.length >= 2 && tag.length <= 6)
-            .filter(tag => tag.length > 0);
-
-          autoTags = [...new Set(aiTags)].slice(0, 5); // 去除重複標籤，最多5個
-          console.log(`✅ [自動標籤] AI深度分析生成標籤: ${autoTags.join(', ')}`);
-        }
+      // 準備分析數據（AI標籤生成器需要的格式）
+      let domain = '';
+      try {
+        const urlObj = new URL(url);
+        domain = urlObj.hostname;
+      } catch (error) {
+        console.log('⚠️ [AI分析] 無法解析URL domain:', error.message);
       }
-    } catch (aiError) {
-      console.log('⚠️ [自動標籤] AI分析失敗，使用關鍵詞提取...');
 
-      // 降級到關鍵詞提取
+      const contentData = {
+        url: url,
+        domain: domain,
+        title: enhancedResult.title,
+        description: enhancedResult.description,
+        image: enhancedResult.image,
+        meta: enhancedResult.meta || {},
+        metaTags: enhancedResult.meta || {}
+      };
+
+      // 調用AI標籤生成器
+      const analysisResult = await aiTagGenerator.generateTags(contentData);
+
+      if (analysisResult.tags && analysisResult.tags.length > 0) {
+        autoTags = analysisResult.tags.slice(0, 5); // 最多5個標籤
+        console.log(`✅ [AI分析] 生成標籤: ${autoTags.join(', ')}`);
+      }
+
+      if (analysisResult.socialAccount) {
+        socialAccount = analysisResult.socialAccount;
+        console.log(`👥 [社群分析] 檢測到社群帳號: ${socialAccount.platform} - ${socialAccount.accountName || '無名稱'}`);
+      }
+
+    } catch (aiError) {
+      console.log('⚠️ [AI分析] AI標籤生成器失敗，使用關鍵詞提取...', aiError.message);
+
+      // 降級到簡單關鍵詞提取
       if (enhancedResult.title && enhancedResult.description) {
         const combinedText = `${enhancedResult.title} ${enhancedResult.description}`.toLowerCase();
 
@@ -1557,50 +1820,8 @@ ${hasSubstantialContent && enhancedResult.description ? `內容摘要：${enhanc
           }
         }
 
-        // 提取中文關鍵詞 - 改良版
-        const titleText = enhancedResult.title || '';
-        const descText = enhancedResult.description || '';
-
-        // 特定模式識別
-        const specificPatterns = [
-          /(\d+個?\w*平台)/g,  // "8個部落格平台" -> "部落格平台"
-          /(部落格\w*)/g,     // 部落格相關
-          /(網站\w*)/g,       // 網站相關
-          /(平台\w*)/g,       // 平台相關
-          /(架設|建置|製作)/g, // 動作詞
-          /(推薦|評測|比較)/g, // 評價詞
-        ];
-
-        const validChineseKeywords = [];
-
-        // 優先從標題提取關鍵概念
-        for (const pattern of specificPatterns) {
-          const matches = titleText.match(pattern);
-          if (matches) {
-            matches.forEach(match => {
-              // 清理匹配結果
-              let cleaned = match.replace(/\d+個?/, ''); // 移除數字前綴
-              if (cleaned.length >= 2 && cleaned.length <= 6) {
-                validChineseKeywords.push(cleaned);
-              }
-            });
-          }
-        }
-
-        // 如果沒有找到足夠標籤，從描述中提取
-        if (validChineseKeywords.length < 5) {
-          const chineseWords = descText.match(/[\u4e00-\u9fff]{2,6}/g) || [];
-          const filtered = chineseWords
-            .filter(word => !['的是', '和或', '與及', '等也', '而但', '如在', '網站', '內容', '文章', '資料', '一個', '可以', '自己', '這些', '以下', '各位'].includes(word))
-            .slice(0, 5 - validChineseKeywords.length);
-          validChineseKeywords.push(...filtered);
-        }
-
-        // 合併並去重標籤，確保每個標籤都是唯一的
-        const allTags = [...foundKeywords, ...validChineseKeywords];
-        const uniqueTags = [...new Set(allTags)]; // 去除重複標籤
-        autoTags = uniqueTags.slice(0, 5); // 🔥 改為最多生成5個標籤
-        console.log(`✅ [自動標籤] 關鍵詞提取: ${autoTags.join(', ')}`);
+        autoTags = foundKeywords.slice(0, 5);
+        console.log(`✅ [關鍵詞提取] 生成標籤: ${autoTags.join(', ')}`);
       }
     }
 
@@ -1613,7 +1834,8 @@ ${hasSubstantialContent && enhancedResult.description ? `內容摘要：${enhanc
         image: enhancedResult.image,
         url: enhancedResult.url,
         type: enhancedResult.type,
-        autoTags: autoTags // 新增自動生成的標籤
+        autoTags: autoTags, // 新增自動生成的標籤
+        socialAccount: socialAccount // 新增社群帳號資訊
       }
     };
 

@@ -25,8 +25,17 @@ class AITagGenerator {
         try {
             console.log('🏷️ [標籤生成] 開始生成標籤，優先使用智能爬蟲方案');
 
+            // 提取社群平台帳號資訊
+            const socialInfo = this.extractSocialAccountInfo(contentData);
+
             // 直接使用增強版基礎標籤生成（智能爬蟲方案）
-            return this.generateEnhancedBasicTags(contentData);
+            const tagResult = this.generateEnhancedBasicTags(contentData);
+
+            // 將社群帳號資訊附加到結果中
+            return {
+                ...tagResult,
+                socialAccount: socialInfo
+            };
 
         } catch (error) {
             console.error('❌ [標籤生成] 生成失敗:', error.message);
@@ -894,6 +903,439 @@ class AITagGenerator {
         };
 
         return typeTags[pageType] || ['社群', '分享'];
+    }
+
+    /**
+     * 提取社群平台帳號資訊（帳號名稱和頭貼）
+     * @param {Object} contentData - 網頁內容分析結果
+     * @returns {Object|null} 社群帳號資訊
+     */
+    extractSocialAccountInfo(contentData) {
+        const { url, domain, title, description, mainContent, metaTags } = contentData;
+
+        if (!url || !domain) return null;
+
+        console.log('👥 [社群帳號提取] 開始提取帳號資訊...');
+
+        try {
+            // Facebook
+            if (domain.includes('facebook.com')) {
+                return this.extractFacebookAccountInfo(url, contentData);
+            }
+
+            // Instagram
+            if (domain.includes('instagram.com')) {
+                return this.extractInstagramAccountInfo(url, contentData);
+            }
+
+            // Twitter/X
+            if (domain.includes('twitter.com') || domain.includes('x.com')) {
+                return this.extractTwitterAccountInfo(url, contentData);
+            }
+
+            // Threads
+            if (domain.includes('threads.net')) {
+                return this.extractThreadsAccountInfo(url, contentData);
+            }
+
+            // LinkedIn
+            if (domain.includes('linkedin.com')) {
+                return this.extractLinkedInAccountInfo(url, contentData);
+            }
+
+            console.log('🔍 [社群帳號提取] 非社群平台URL，跳過');
+            return null;
+
+        } catch (error) {
+            console.error('❌ [社群帳號提取] 提取失敗:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * 提取Facebook帳號資訊
+     */
+    extractFacebookAccountInfo(url, contentData) {
+        console.log('📘 [Facebook] 開始提取Facebook帳號資訊');
+
+        const { title, description, metaTags, mainContent } = contentData;
+
+        // 嘗試從多個來源提取帳號名稱
+        let accountName = null;
+        let profileImage = null;
+
+        // 1. 從標題提取（Facebook會在標題中包含粉專名稱）
+        if (title) {
+            // Facebook 標題格式: "帳號名稱 - Facebook" 或 "帳號名稱 | Facebook"
+            const titleMatch = title.match(/^(.+?)\s*[-|]\s*Facebook/i);
+            if (titleMatch) {
+                accountName = titleMatch[1].trim();
+            } else if (title && title.length > 0 && title.length <= 100 && !title.includes('Facebook')) {
+                // 如果標題看起來像是帳號名稱（不太長，不包含Facebook），直接使用
+                accountName = title.trim();
+            }
+        }
+
+        // 2. 從URL路徑嘗試提取
+        if (!accountName) {
+            try {
+                const urlObj = new URL(url);
+                const pathSegments = urlObj.pathname.split('/').filter(s => s);
+
+                if (pathSegments.length > 0) {
+                    // 排除一些通用路徑
+                    const excludePaths = ['share', 'p', 'posts', 'photos', 'videos', 'about', 'events'];
+                    const potentialAccount = pathSegments.find(segment =>
+                        !excludePaths.includes(segment) &&
+                        !segment.match(/^\d+$/) && // 排除純數字
+                        segment.length > 2
+                    );
+
+                    if (potentialAccount) {
+                        accountName = this.formatAccountName(potentialAccount);
+                    }
+                }
+            } catch (e) {
+                console.log('⚠️ [Facebook] URL解析失敗');
+            }
+        }
+
+        // 3. 從meta標籤提取頭貼
+        if (metaTags) {
+            // 尋找 og:image 或其他相關的圖片標籤
+            profileImage = metaTags['og:image'] ||
+                          metaTags['twitter:image'] ||
+                          metaTags['image'] ||
+                          null;
+        }
+
+        // 4. 從內容中使用智能分析提取帳號名稱
+        if (!accountName && mainContent) {
+            accountName = this.extractAccountNameFromContent(mainContent, 'facebook');
+        }
+
+        // 5. 後備方案：使用描述中的資訊
+        if (!accountName && description) {
+            const descMatch = description.match(/^([^.,。，]+)/);
+            if (descMatch) {
+                accountName = descMatch[1].trim();
+            }
+        }
+
+        if (accountName || profileImage) {
+            const result = {
+                platform: 'Facebook',
+                accountName: accountName,
+                profileImage: profileImage,
+                url: url
+            };
+
+            console.log('✅ [Facebook] 提取成功:', {
+                accountName: result.accountName,
+                hasProfileImage: !!result.profileImage
+            });
+
+            return result;
+        }
+
+        console.log('⚠️ [Facebook] 無法提取到有效的帳號資訊');
+        return null;
+    }
+
+    /**
+     * 提取Instagram帳號資訊
+     */
+    extractInstagramAccountInfo(url, contentData) {
+        console.log('📸 [Instagram] 開始提取Instagram帳號資訊');
+
+        const { title, description, metaTags } = contentData;
+
+        let accountName = null;
+        let profileImage = null;
+
+        // 1. 從URL提取用戶名
+        try {
+            const urlObj = new URL(url);
+            const pathMatch = urlObj.pathname.match(/^\/([^\/]+)/);
+            if (pathMatch && !['p', 'reel', 'tv', 'stories'].includes(pathMatch[1])) {
+                accountName = `@${pathMatch[1]}`;
+            }
+        } catch (e) {
+            console.log('⚠️ [Instagram] URL解析失敗');
+        }
+
+        // 2. 從標題提取
+        if (!accountName && title) {
+            // Instagram 標題格式通常包含用戶名
+            const titleMatch = title.match(/@([a-zA-Z0-9_.]+)/);
+            if (titleMatch) {
+                accountName = `@${titleMatch[1]}`;
+            }
+        }
+
+        // 3. 從meta標籤提取頭貼
+        if (metaTags) {
+            profileImage = metaTags['og:image'] ||
+                          metaTags['twitter:image'] ||
+                          null;
+        }
+
+        if (accountName || profileImage) {
+            const result = {
+                platform: 'Instagram',
+                accountName: accountName,
+                profileImage: profileImage,
+                url: url
+            };
+
+            console.log('✅ [Instagram] 提取成功:', {
+                accountName: result.accountName,
+                hasProfileImage: !!result.profileImage
+            });
+
+            return result;
+        }
+
+        console.log('⚠️ [Instagram] 無法提取到有效的帳號資訊');
+        return null;
+    }
+
+    /**
+     * 提取Twitter/X帳號資訊
+     */
+    extractTwitterAccountInfo(url, contentData) {
+        console.log('🐦 [Twitter/X] 開始提取Twitter帳號資訊');
+
+        const { title, description, metaTags } = contentData;
+
+        let accountName = null;
+        let profileImage = null;
+
+        // 1. 從URL提取用戶名
+        try {
+            const urlObj = new URL(url);
+            const pathMatch = urlObj.pathname.match(/^\/([^\/]+)/);
+            if (pathMatch && !['i', 'search', 'messages', 'notifications'].includes(pathMatch[1])) {
+                accountName = `@${pathMatch[1]}`;
+            }
+        } catch (e) {
+            console.log('⚠️ [Twitter] URL解析失敗');
+        }
+
+        // 2. 從標題提取
+        if (!accountName && title) {
+            // Twitter 標題格式: "用戶名 (@username) / X"
+            const titleMatch = title.match(/\(@([a-zA-Z0-9_]+)\)/);
+            if (titleMatch) {
+                accountName = `@${titleMatch[1]}`;
+            }
+        }
+
+        // 3. 從meta標籤提取頭貼
+        if (metaTags) {
+            profileImage = metaTags['og:image'] ||
+                          metaTags['twitter:image'] ||
+                          null;
+        }
+
+        if (accountName || profileImage) {
+            const result = {
+                platform: 'Twitter/X',
+                accountName: accountName,
+                profileImage: profileImage,
+                url: url
+            };
+
+            console.log('✅ [Twitter/X] 提取成功:', {
+                accountName: result.accountName,
+                hasProfileImage: !!result.profileImage
+            });
+
+            return result;
+        }
+
+        console.log('⚠️ [Twitter/X] 無法提取到有效的帳號資訊');
+        return null;
+    }
+
+    /**
+     * 提取Threads帳號資訊
+     */
+    extractThreadsAccountInfo(url, contentData) {
+        console.log('🧵 [Threads] 開始提取Threads帳號資訊');
+
+        const { title, description, metaTags } = contentData;
+
+        let accountName = null;
+        let profileImage = null;
+
+        // 1. 從URL提取用戶名
+        try {
+            const urlObj = new URL(url);
+            const pathMatch = urlObj.pathname.match(/^\/(@[^\/]+)/);
+            if (pathMatch) {
+                accountName = pathMatch[1];
+            }
+        } catch (e) {
+            console.log('⚠️ [Threads] URL解析失敗');
+        }
+
+        // 2. 從標題提取
+        if (!accountName && title) {
+            const titleMatch = title.match(/(@[a-zA-Z0-9_.]+)/);
+            if (titleMatch) {
+                accountName = titleMatch[1];
+            }
+        }
+
+        // 3. 從meta標籤提取頭貼
+        if (metaTags) {
+            profileImage = metaTags['og:image'] ||
+                          metaTags['twitter:image'] ||
+                          null;
+        }
+
+        if (accountName || profileImage) {
+            const result = {
+                platform: 'Threads',
+                accountName: accountName,
+                profileImage: profileImage,
+                url: url
+            };
+
+            console.log('✅ [Threads] 提取成功:', {
+                accountName: result.accountName,
+                hasProfileImage: !!result.profileImage
+            });
+
+            return result;
+        }
+
+        console.log('⚠️ [Threads] 無法提取到有效的帳號資訊');
+        return null;
+    }
+
+    /**
+     * 提取LinkedIn帳號資訊
+     */
+    extractLinkedInAccountInfo(url, contentData) {
+        console.log('💼 [LinkedIn] 開始提取LinkedIn帳號資訊');
+
+        const { title, description, metaTags } = contentData;
+
+        let accountName = null;
+        let profileImage = null;
+
+        // 1. 從標題提取（LinkedIn會在標題中包含用戶或公司名稱）
+        if (title) {
+            // LinkedIn 標題格式通常是: "Name | LinkedIn" 或 "Company Name | LinkedIn"
+            const titleMatch = title.match(/^(.+?)\s*\|\s*LinkedIn/i);
+            if (titleMatch) {
+                accountName = titleMatch[1].trim();
+            }
+        }
+
+        // 2. 從URL提取
+        if (!accountName) {
+            try {
+                const urlObj = new URL(url);
+                const pathSegments = urlObj.pathname.split('/').filter(s => s);
+
+                if (pathSegments.includes('in') && pathSegments.length >= 2) {
+                    // 個人檔案: /in/username
+                    accountName = this.formatAccountName(pathSegments[1]);
+                } else if (pathSegments.includes('company') && pathSegments.length >= 2) {
+                    // 公司頁面: /company/companyname
+                    accountName = this.formatAccountName(pathSegments[1]);
+                }
+            } catch (e) {
+                console.log('⚠️ [LinkedIn] URL解析失敗');
+            }
+        }
+
+        // 3. 從meta標籤提取頭貼
+        if (metaTags) {
+            profileImage = metaTags['og:image'] ||
+                          metaTags['twitter:image'] ||
+                          null;
+        }
+
+        if (accountName || profileImage) {
+            const result = {
+                platform: 'LinkedIn',
+                accountName: accountName,
+                profileImage: profileImage,
+                url: url
+            };
+
+            console.log('✅ [LinkedIn] 提取成功:', {
+                accountName: result.accountName,
+                hasProfileImage: !!result.profileImage
+            });
+
+            return result;
+        }
+
+        console.log('⚠️ [LinkedIn] 無法提取到有效的帳號資訊');
+        return null;
+    }
+
+    /**
+     * 從內容中智能提取帳號名稱
+     */
+    extractAccountNameFromContent(content, platform) {
+        if (!content) return null;
+
+        // 根據平台使用不同的提取策略
+        const strategies = {
+            facebook: [
+                // Facebook 常見模式
+                /歡迎來到\s*([^，。,.\n]{2,20})/,
+                /這裡是\s*([^，。,.\n]{2,20})/,
+                /([^，。,.\n]{2,20})\s*官方/,
+                /([^，。,.\n]{2,20})\s*粉絲專頁/
+            ],
+            instagram: [
+                // Instagram 常見模式
+                /@([a-zA-Z0-9_.]{2,30})/,
+                /Follow\s*@([a-zA-Z0-9_.]{2,30})/i
+            ],
+            general: [
+                // 通用模式
+                /^([^，。,.\n]{2,30})/
+            ]
+        };
+
+        const patterns = strategies[platform] || strategies.general;
+
+        for (const pattern of patterns) {
+            const match = content.match(pattern);
+            if (match && match[1]) {
+                return match[1].trim();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 格式化帳號名稱
+     */
+    formatAccountName(rawName) {
+        if (!rawName) return null;
+
+        // 移除URL編碼
+        let formatted = decodeURIComponent(rawName);
+
+        // 移除特殊字符，保留中文、英文、數字和基本符號
+        formatted = formatted.replace(/[^\u4e00-\u9fff\w\s\-_.@]/g, '');
+
+        // 限制長度
+        if (formatted.length > 50) {
+            formatted = formatted.substring(0, 50);
+        }
+
+        return formatted.trim();
     }
 }
 

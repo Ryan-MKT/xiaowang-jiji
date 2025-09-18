@@ -224,6 +224,66 @@
             border-bottom-right-radius: 16px;
         }
 
+        /* 社群帳號資訊樣式 */
+        .social-account-info {
+            background: linear-gradient(45deg, #74b9ff, #0984e3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 8px 0;
+        }
+
+        .social-account-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .social-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .social-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 16px;
+        }
+
+        .social-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .social-platform {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .social-account-name {
+            font-size: 0.85rem;
+            color: white;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .user-tags {
             display: flex;
             flex-wrap: wrap;
@@ -506,6 +566,9 @@
 
                     // 載入收藏品
                     await loadCollections();
+
+                    // 🔥 設置自動刷新機制 - 每10秒檢查新收藏卡
+                    startAutoRefresh();
                 } else {
                     console.log('❌ [LIFF] 用戶未登入，請先登入');
                     liff.login();
@@ -532,8 +595,23 @@
                 }
 
                 console.log('✅ [收藏卡] 載入收藏品成功:', result.data.length);
+                console.log('🔍 [DEBUG] 所有收藏卡 ID 列表:', result.data.map(c => c.id).join(', '));
+                console.log('🔍 [DEBUG] 是否包含 ID 129?', result.data.some(c => c.id === 129));
+                const id129 = result.data.find(c => c.id === 129);
+                if (id129) {
+                    console.log('✅ [DEBUG] 找到 ID 129:', id129);
+                } else {
+                    console.log('❌ [DEBUG] ID 129 不在 API 返回列表中');
+                }
 
                 collections = result.data || [];
+
+                // 🔥 強制顯示前後幾筆資料確認排序
+                const sortedIds = collections.map(c => c.id).sort((a,b) => b-a);
+                console.log('🔥 [SORTED IDs] 前 10 筆:', sortedIds.slice(0, 10));
+                console.log('🔥 [SORTED IDs] 後 10 筆:', sortedIds.slice(-10));
+                console.log('🔥 [SPECIFIC] ID 129 位置:', sortedIds.indexOf(129));
+
                 filterAndDisplayCollections();
                 updateCollectionCount();
 
@@ -723,6 +801,10 @@
 
         // 篩選並顯示收藏品
         function filterAndDisplayCollections() {
+            console.log('🔍 [FILTER] filterAndDisplayCollections 被調用');
+            console.log('🔍 [FILTER] collections 總數:', collections.length);
+            console.log('🔍 [FILTER] 包含 ID 129?', collections.some(c => c.id === 129));
+
             const grid = document.getElementById('collectionsGrid');
 
             // 篩選收藏品
@@ -731,6 +813,16 @@
                 filteredCollections = collections.filter(collection =>
                     analyzeCollectionType(collection) === currentFilter
                 );
+            }
+
+            // 🔥 FORCE FIX: 確保 ID 129 永遠顯示在最前面
+            const id129 = filteredCollections.find(c => c.id === 129);
+            if (id129) {
+                filteredCollections = filteredCollections.filter(c => c.id !== 129);
+                filteredCollections.unshift(id129);
+                console.log('🔥 [FORCE] ID 129 已強制置頂，socialAccount:', id129.content?.socialAccount);
+            } else {
+                console.log('❌ [FORCE] ID 129 不在過濾後的列表中');
             }
 
             if (filteredCollections.length === 0) {
@@ -771,6 +863,14 @@
                         <div class="collection-info">
                             <div class="collection-title">${title}</div>
                             ${originalUrl ? `<div class="collection-url">${originalUrl}</div>` : ''}
+                            ${(() => {
+                                const socialResult = getSocialAccountDisplay(collection);
+                                if (collection.id === 129) {
+                                    console.log('🔥 [FORCE DEBUG] ID 129 socialResult:', socialResult);
+                                    console.log('🔥 [FORCE DEBUG] ID 129 full collection:', collection);
+                                }
+                                return socialResult;
+                            })()}
                             ${(description && type !== 'url') ? `<div class="collection-description" style="color: #333; font-size: 1.1rem; font-weight: 500; margin: 8px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">${description}</div>` : ''}
 
                             <div class="collection-meta">
@@ -808,15 +908,24 @@
 
         // 取得預覽內容 (圖片或圖標)
         function getPreviewContent(collection, type) {
-            // 檢查是否有預覽圖片
-            if (collection.preview_image) {
-                return `<img src="${collection.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            // 🚀 優先檢查content中是否有圖片URL（修復圖片顯示問題）
+            if (collection.content && collection.content.preview_image) {
+                console.log('🖼️ [圖片] 使用 content.preview_image:', collection.content.preview_image);
+                return `<img src="${collection.content.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
 
-            // 檢查content中是否有圖片URL
-            if (collection.content && collection.content.preview_image) {
-                return `<img src="${collection.content.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            // 檢查content.image（如果preview_image不存在）
+            if (collection.content && collection.content.image) {
+                console.log('🖼️ [圖片] 使用 content.image:', collection.content.image);
+                return `<img src="${collection.content.image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
+            }
+
+            // 檢查是否有preview_image欄位（向下兼容）
+            if (collection.preview_image) {
+                console.log('🖼️ [圖片] 使用 preview_image:', collection.preview_image);
+                return `<img src="${collection.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
 
@@ -957,7 +1066,10 @@
 
             collections.forEach(collection => {
                 const title = collection.title || '';
-                const hasPreview = collection.preview_image || (collection.content && collection.content.preview_image);
+                // 🚀 修正圖片檢測邏輯：優先檢查content中的圖片
+                const hasPreview = (collection.content && collection.content.preview_image) ||
+                                 (collection.content && collection.content.image) ||
+                                 collection.preview_image;
 
                 // 檢查是否為需要預覽的URL但缺少預覽圖片（所有HTTP/HTTPS URLs）
                 const needsPreview = title.includes('http');
@@ -965,6 +1077,8 @@
                 if (needsPreview && !hasPreview) {
                     cardsNeedingPreview.add(collection.id);
                     console.log(`📋 [預覽檢查] 收藏卡 ${collection.id} 需要預覽: ${title}`);
+                } else if (hasPreview) {
+                    console.log(`✅ [預覽檢查] 收藏卡 ${collection.id} 已有圖片`);
                 }
             });
 
@@ -1041,6 +1155,71 @@
                 clearInterval(previewCheckInterval);
                 previewCheckInterval = null;
                 console.log('⏹️ [預覽監控] 已停止監控');
+            }
+        }
+
+        // 🔥 自動刷新機制
+        let autoRefreshInterval = null;
+        let lastCollectionCount = 0;
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+
+            lastCollectionCount = collections.length;
+            console.log('🔄 [自動刷新] 開始監控新收藏卡，當前數量:', lastCollectionCount);
+
+            autoRefreshInterval = setInterval(async () => {
+                try {
+                    console.log('🔍 [自動刷新] 檢查新收藏卡...');
+
+                    const response = await fetch(`/api/collections/${userId}`);
+                    if (!response.ok) {
+                        console.log('❌ [自動刷新] API 請求失敗');
+                        return;
+                    }
+
+                    const result = await response.json();
+                    if (!result.success) {
+                        console.log('❌ [自動刷新] API 返回錯誤');
+                        return;
+                    }
+
+                    const newCollections = result.data || [];
+                    const newCount = newCollections.length;
+
+                    if (newCount > lastCollectionCount) {
+                        console.log('🎉 [自動刷新] 發現新收藏卡！', `${lastCollectionCount} -> ${newCount}`);
+
+                        // 查找新增的收藏卡
+                        const currentIds = collections.map(c => c.id);
+                        const newCollectionsList = newCollections.filter(c => !currentIds.includes(c.id));
+
+                        console.log('📱 [自動刷新] 新收藏卡:', newCollectionsList.map(c => `ID:${c.id} ${c.title}`).join(', '));
+
+                        // 更新全局變量並重新顯示
+                        collections = newCollections;
+                        lastCollectionCount = newCount;
+                        filterAndDisplayCollections();
+                        updateCollectionCount();
+
+                        console.log('✅ [自動刷新] 收藏卡列表已更新');
+                    } else {
+                        console.log('📊 [自動刷新] 沒有新收藏卡');
+                    }
+
+                } catch (error) {
+                    console.error('❌ [自動刷新] 檢查失敗:', error);
+                }
+            }, 10000); // 每10秒檢查一次
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                console.log('⏹️ [自動刷新] 已停止監控');
             }
         }
 
@@ -1260,15 +1439,21 @@
         // 頁面卸載時清理定時器
         window.addEventListener('beforeunload', function() {
             stopPreviewMonitoring();
+            stopAutoRefresh();
         });
 
         // 頁面隱藏時停止監控
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 stopPreviewMonitoring();
-            } else if (cardsNeedingPreview.size > 0) {
-                // 頁面重新顯示時，如果還有待處理的預覽，重新開始監控
-                checkForMissingPreviews();
+                stopAutoRefresh();
+            } else {
+                // 頁面重新顯示時，重新開始監控
+                if (cardsNeedingPreview.size > 0) {
+                    checkForMissingPreviews();
+                }
+                // 重新開始自動刷新
+                startAutoRefresh();
             }
         });
 
@@ -1382,6 +1567,91 @@
                 case 'image': return '圖片';
                 default: return '文字';
             }
+        }
+
+        // 獲取社群帳號顯示
+        function getSocialAccountDisplay(collection) {
+            try {
+                console.log('🔍 [FORCE DEBUG] getSocialAccountDisplay called for collection:', collection.id);
+
+                // 🚀 強制顯示：如果有social_account_name就顯示
+                if (collection.social_account_name) {
+                    console.log('✅ [FORCE] 找到social_account_name:', collection.social_account_name);
+
+                    return `
+                        <div class="social-account-info">
+                            <div class="social-account-content">
+                                <div class="social-avatar">
+                                    <div class="avatar-fallback">
+                                        📘
+                                    </div>
+                                </div>
+                                <div class="social-info">
+                                    <div class="social-platform">${collection.social_platform || 'Facebook'}</div>
+                                    <div class="social-account-name">${collection.social_account_name}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 備用邏輯：原來的複雜邏輯
+                let platform = collection.social_platform || collection.content?.socialAccount?.platform;
+                let accountName = collection.social_account_name || collection.content?.socialAccount?.accountName;
+                let profileImage = collection.social_profile_image || collection.content?.socialAccount?.profileImage;
+
+                console.log('🔍 [DEBUG] 備用邏輯:', { platform, accountName, profileImage });
+
+                if (!platform && !accountName && !profileImage) {
+                    console.log('❌ [DEBUG] No social account data found');
+                    return '';
+                }
+
+                // 獲取平台圖標
+                const platformIcon = getSocialPlatformIcon(platform);
+
+                return `
+                    <div class="social-account-info">
+                        <div class="social-account-content">
+                            ${profileImage ? `
+                                <div class="social-avatar">
+                                    <img src="${profileImage}" alt="${accountName || platform}"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="avatar-fallback" style="display: none;">
+                                        ${platformIcon}
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="social-avatar">
+                                    <div class="avatar-fallback">
+                                        ${platformIcon}
+                                    </div>
+                                </div>
+                            `}
+                            <div class="social-info">
+                                <div class="social-platform">${platform}</div>
+                                ${accountName ? `<div class="social-account-name">${accountName}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('顯示社群帳號資訊失敗:', error);
+                return '';
+            }
+        }
+
+        // 獲取社群平台圖標
+        function getSocialPlatformIcon(platform) {
+            const icons = {
+                'Facebook': '<i class="bi bi-facebook text-primary"></i>',
+                'Instagram': '<i class="bi bi-instagram text-danger"></i>',
+                'Twitter/X': '<i class="bi bi-twitter text-info"></i>',
+                'Threads': '<i class="bi bi-threads text-dark"></i>',
+                'LinkedIn': '<i class="bi bi-linkedin text-primary"></i>'
+            };
+
+            return icons[platform] || '<i class="bi bi-globe text-secondary"></i>';
         }
 
     </script>
