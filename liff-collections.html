@@ -601,9 +601,25 @@
 
         // 取得收藏品標題
         function getCollectionTitle(collection) {
-            // 優先使用預覽標題
+            // 優先使用預覽描述作為標題（針對社交媒體連結）
+            if (collection.content && collection.content.preview_description) {
+                const description = collection.content.preview_description;
+                // 限制標題長度，取前50個字符
+                if (description.length > 50) {
+                    return description.substring(0, 50) + '...';
+                }
+                return description;
+            }
+
+            // 次要使用預覽標題
             if (collection.content && collection.content.preview_title) {
-                return collection.content.preview_title.replace(' | Facebook', '').trim();
+                let title = collection.content.preview_title.replace(' | Facebook', '').trim();
+                // 如果標題只是域名（如 "Instagram"），不使用
+                if (title.toLowerCase() === 'instagram' || title.toLowerCase() === 'facebook') {
+                    // 繼續到下面的邏輯
+                } else {
+                    return title;
+                }
             }
 
             let title = collection.title || '無標題收藏';
@@ -727,7 +743,7 @@
                         <div class="collection-info">
                             <div class="collection-title">${title}</div>
                             ${originalUrl ? `<div class="collection-url">${originalUrl}</div>` : ''}
-                            ${description ? `<div class="collection-description" style="color: #666; font-size: 0.9rem; margin: 8px 0; line-height: 1.4;">${description}</div>` : ''}
+                            ${description ? `<div class="collection-description" style="color: #333; font-size: 1.1rem; font-weight: 500; margin: 8px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">${description}</div>` : ''}
 
                             <div class="collection-meta">
                                 <span class="collection-type type-${type}">

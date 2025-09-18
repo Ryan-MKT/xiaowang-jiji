@@ -320,28 +320,227 @@ class EnhancedLinkPreview {
             let extractedText = '';
             let extractedImage = null;
 
-            // === 優先提取OpenGraph描述（最可靠） ===
-            console.log('📝 [文字提取] 嘗試提取OpenGraph描述...');
-            const ogContent = await page.evaluate(() => {
-                const ogDesc = document.querySelector('meta[property="og:description"]') ||
-                              document.querySelector('meta[name="description"]');
-                const ogImg = document.querySelector('meta[property="og:image"]') ||
-                             document.querySelector('meta[property="og:image:url"]');
+            // === 判斷平台並選擇提取策略 ===
+            const isInstagram = url.includes('instagram.com');
 
-                return {
-                    description: ogDesc ? ogDesc.getAttribute('content') : null,
-                    image: ogImg ? ogImg.getAttribute('content') : null
-                };
-            });
+            if (isInstagram) {
+                console.log('📱 [Instagram] 優先從頁面內容提取貼文文字...');
 
-            if (ogContent.description && ogContent.description.length > 10) {
-                extractedText = ogContent.description;
-                console.log('✅ [文字提取] OpenGraph描述:', extractedText.substring(0, 80) + '...');
-            }
+                // Instagram：優先提取貼文內容
+                let instagramContent = { description: null, image: null };
 
-            if (ogContent.image) {
-                extractedImage = ogContent.image;
-                console.log('✅ [圖片提取] OpenGraph圖片:', extractedImage);
+                try {
+                    instagramContent = await page.evaluate(() => {
+                        try {
+                            // Instagram 貼文內容選擇器 - 簡化版本
+                            const textSelectors = [
+                                'article h1',
+                                'article span[dir="auto"]',
+                                'span[dir="auto"]',
+                                'article div span',
+                                'span',
+                                'div span'
+                            ];
+
+                            let bestText = '';
+
+                            for (const selector of textSelectors) {
+                                try {
+                                    const elements = document.querySelectorAll(selector);
+
+                                    for (let i = 0; i < elements.length; i++) {
+                                        const el = elements[i];
+                                        const content = el.textContent || el.innerText || '';
+
+                                        // 簡化過濾邏輯
+                                        // 先檢查是否為不要的內容
+                                        const isUnwantedContent = content.includes('likes') ||
+                                            content.includes('comments') ||
+                                            content.includes('followers') ||
+                                            content.includes('Sign up') ||
+                                            content.includes('Log in') ||
+                                            content.includes('Terms of Use') ||
+                                            content.includes('Privacy Policy') ||
+                                            content.includes('By continuing') ||
+                                            content.includes('you agree to') ||
+                                            content.includes('Never miss a post') ||
+                                            content.match(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]/); // "mkter_salon 16w" 開頭格式
+
+                                        // 清理用戶名和時間標記，但保留內容
+                                        let cleanedContent = content;
+                                        // 移除所有用戶名和時間標記格式
+                                        cleanedContent = cleanedContent
+                                            .replace(/^[a-zA-Z0-9_.]+\s+Edited•\d+[wdhms]\s*/, '') // ryan_ryan_lin Edited•2w
+                                            .replace(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]\s*/, '') // mkter_salon 16w
+                                            .replace(/Edited•\d+[wdhms]\s*/, '') // Edited•2w
+                                            .trim();
+
+                                        if (!isUnwantedContent &&
+                                            cleanedContent.length > 20 &&
+                                            cleanedContent.length > bestText.length) {
+                                            bestText = cleanedContent;
+                                        }
+                                    }
+
+                                    if (bestText.length > 20) {
+                                        break;
+                                    }
+                                } catch (e) {
+                                    continue;
+                                }
+                            }
+
+                            // 提取圖片
+                            const ogImg = document.querySelector('meta[property="og:image"]');
+
+                            return {
+                                description: bestText || null,
+                                image: ogImg ? ogImg.getAttribute('content') : null
+                            };
+                        } catch (error) {
+                            return {
+                                description: null,
+                                image: null,
+                                error: error.message
+                            };
+                        }
+                    });
+                } catch (error) {
+                    console.log('❌ [Instagram] page.evaluate 執行失敗:', error.message);
+                    console.log('❌ [Instagram] 錯誤詳細:', error.stack);
+                    console.log('🔍 [Instagram] 嘗試使用備用提取方法...');
+                }
+
+                if (instagramContent.description) {
+                    extractedText = instagramContent.description;
+                    console.log('✅ [Instagram文字] 從頁面內容提取:', extractedText.substring(0, 50) + '...');
+                } else {
+                    console.log('⚠️ [Instagram] 專用提取失敗，使用通用方法...');
+                    // 使用與測試成功相同的通用提取邏輯
+                    try {
+                        const generalExtraction = await page.evaluate(() => {
+                            const textSelectors = [
+                                'article span[dir="auto"]',
+                                'article h1',
+                                'span[dir="auto"]',
+                                'article div span',
+                                '[role="article"] span',
+                                'span',
+                                'div span'
+                            ];
+
+                            let bestText = '';
+
+                            for (const selector of textSelectors) {
+                                try {
+                                    const elements = document.querySelectorAll(selector);
+
+                                    for (let i = 0; i < elements.length; i++) {
+                                        const el = elements[i];
+                                        const content = el.textContent || el.innerText || '';
+
+                                        // 先檢查是否為不要的內容
+                                        const isUnwantedContent = content.includes('likes') ||
+                                            content.includes('comments') ||
+                                            content.includes('followers') ||
+                                            content.includes('Sign up') ||
+                                            content.includes('Log in') ||
+                                            content.includes('Terms of Use') ||
+                                            content.includes('Privacy Policy') ||
+                                            content.includes('By continuing') ||
+                                            content.includes('you agree to') ||
+                                            content.includes('Never miss a post') ||
+                                            content.match(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]/); // "mkter_salon 16w" 開頭格式
+
+                                        // 清理用戶名和時間標記，但保留內容
+                                        let cleanedContent = content;
+                                        // 移除所有用戶名和時間標記格式
+                                        cleanedContent = cleanedContent
+                                            .replace(/^[a-zA-Z0-9_.]+\s+Edited•\d+[wdhms]\s*/, '') // ryan_ryan_lin Edited•2w
+                                            .replace(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]\s*/, '') // mkter_salon 16w
+                                            .replace(/Edited•\d+[wdhms]\s*/, '') // Edited•2w
+                                            .trim();
+
+                                        if (!isUnwantedContent &&
+                                            cleanedContent.length > 20 &&
+                                            cleanedContent.length > bestText.length) {
+                                            bestText = cleanedContent;
+                                        }
+                                    }
+
+                                    if (bestText.length > 20) {
+                                        break;
+                                    }
+                                } catch (e) {
+                                    continue;
+                                }
+                            }
+
+                            return bestText || null;
+                        });
+
+                        if (generalExtraction) {
+                            extractedText = generalExtraction;
+                            console.log('✅ [Instagram文字-備用] 成功提取:', extractedText.substring(0, 50) + '...');
+                        }
+                    } catch (backupError) {
+                        console.log('❌ [Instagram-備用] 備用提取也失敗:', backupError.message);
+                    }
+                }
+
+                if (instagramContent.image) {
+                    extractedImage = instagramContent.image;
+                    console.log('✅ [Instagram圖片] OpenGraph圖片:', extractedImage);
+                }
+
+                // 如果頁面內容提取失敗，回退到OpenGraph描述
+                if (!extractedText) {
+                    console.log('⚠️ [Instagram] 頁面內容提取失敗，回退到OpenGraph...');
+                    const ogDesc = await page.evaluate(() => {
+                        const meta = document.querySelector('meta[property="og:description"]');
+                        return meta ? meta.getAttribute('content') : null;
+                    });
+
+                    if (ogDesc && ogDesc.length > 10) {
+                        // 檢查OpenGraph描述是否為統計信息格式
+                        const isStatisticalContent = ogDesc.match(/^\d+\s+(likes?|comments?)/i) ||
+                                                   ogDesc.includes('likes') && ogDesc.includes('comments') ||
+                                                   ogDesc.match(/\d+\s+(likes?|comments?)[^。]*-\s*\w+\s+on\s+/i);
+
+                        if (!isStatisticalContent) {
+                            extractedText = ogDesc;
+                            console.log('✅ [Instagram] OpenGraph描述(回退):', extractedText.substring(0, 50) + '...');
+                        } else {
+                            console.log('⚠️ [Instagram] OpenGraph描述為統計信息，跳過:', ogDesc.substring(0, 50) + '...');
+                        }
+                    }
+                }
+
+            } else {
+                console.log('📝 [其他平台] 使用OpenGraph策略...');
+
+                // 其他平台：優先提取OpenGraph描述
+                const ogContent = await page.evaluate(() => {
+                    const ogDesc = document.querySelector('meta[property="og:description"]') ||
+                                  document.querySelector('meta[name="description"]');
+                    const ogImg = document.querySelector('meta[property="og:image"]') ||
+                                 document.querySelector('meta[property="og:image:url"]');
+
+                    return {
+                        description: ogDesc ? ogDesc.getAttribute('content') : null,
+                        image: ogImg ? ogImg.getAttribute('content') : null
+                    };
+                });
+
+                if (ogContent.description && ogContent.description.length > 10) {
+                    extractedText = ogContent.description;
+                    console.log('✅ [文字提取] OpenGraph描述:', extractedText.substring(0, 80) + '...');
+                }
+
+                if (ogContent.image) {
+                    extractedImage = ogContent.image;
+                    console.log('✅ [圖片提取] OpenGraph圖片:', extractedImage);
+                }
             }
 
             // === 如果沒有OpenGraph描述，嘗試從頁面內容提取文字 ===
