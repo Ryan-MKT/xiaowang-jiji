@@ -167,16 +167,20 @@ class EnhancedLinkPreview {
                 // 獲取頁面標題
                 const title = await page.title().catch(() => '');
 
-                // 嘗試提取Facebook貼文的主要圖片
-                console.log('🔍 [圖片提取] 嘗試提取Facebook貼文圖片...');
-                const extractedImage = await this.extractFacebookImage(page, url);
+                // 嘗試提取社交媒體貼文的內容（圖片和文字）
+                console.log('🔍 [內容提取] 開始提取社交媒體內容...');
+                const extractedContent = await this.extractSocialMediaContent(page, url);
 
-                if (extractedImage) {
-                    console.log('✅ [圖片提取] 成功提取Facebook圖片:', extractedImage);
+                if (extractedContent && (extractedContent.image || extractedContent.description)) {
+                    console.log('✅ [內容提取] 成功提取內容:', {
+                        hasImage: !!extractedContent.image,
+                        hasDescription: !!extractedContent.description,
+                        descriptionPreview: extractedContent.description ? extractedContent.description.substring(0, 50) + '...' : 'N/A'
+                    });
                     return {
                         title: title || this.extractTitleFromUrl(url),
-                        description: '社交媒體內容預覽',
-                        image: extractedImage,
+                        description: extractedContent.description || '社交媒體內容預覽',
+                        image: extractedContent.image,
                         domain: new URL(url).hostname,
                         url: url,
                         type: 'extracted'
@@ -304,52 +308,100 @@ class EnhancedLinkPreview {
     }
 
     /**
-     * 提取Facebook貼文的主要圖片
+     * 提取社交媒體內容（文字和圖片）
      */
-    async extractFacebookImage(page, url) {
+    async extractSocialMediaContent(page, url) {
         try {
-            // 等待圖片載入
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log('🔍 [社交媒體] 開始提取內容...');
 
-            // 嘗試多種Facebook圖片選擇器
-            const imageSelectors = [
-                // Facebook貼文主要圖片
-                'img[data-imgperflogname="profileCoverPhoto"]',
-                'img[data-testid="post-image"]',
-                'div[data-pagelet="MediaViewer"] img',
-                'div[data-testid="photo-viewer"] img',
-                'div[role="dialog"] img',
+            // 等待內容載入
+            await new Promise(resolve => setTimeout(resolve, 3000));
 
-                // OpenGraph圖片 meta 標籤
-                'meta[property="og:image"]',
-                'meta[property="og:image:url"]',
+            let extractedText = '';
+            let extractedImage = null;
 
-                // 一般大尺寸圖片（過濾掉小的icon和頭像）
-                'img[src*="fbcdn"]',
-                'img[src*="facebook"]',
+            // === 優先提取OpenGraph描述（最可靠） ===
+            console.log('📝 [文字提取] 嘗試提取OpenGraph描述...');
+            const ogContent = await page.evaluate(() => {
+                const ogDesc = document.querySelector('meta[property="og:description"]') ||
+                              document.querySelector('meta[name="description"]');
+                const ogImg = document.querySelector('meta[property="og:image"]') ||
+                             document.querySelector('meta[property="og:image:url"]');
 
-                // 任何足夠大的圖片
-                'img'
-            ];
-
-            // 嘗試從頁面HTML直接提取OpenGraph圖片
-            const ogImage = await page.evaluate(() => {
-                const ogImageMeta = document.querySelector('meta[property="og:image"]') ||
-                                  document.querySelector('meta[property="og:image:url"]');
-                return ogImageMeta ? ogImageMeta.getAttribute('content') : null;
+                return {
+                    description: ogDesc ? ogDesc.getAttribute('content') : null,
+                    image: ogImg ? ogImg.getAttribute('content') : null
+                };
             });
 
-            if (ogImage && ogImage.length > 0) {
-                console.log('📸 [圖片提取] 找到OpenGraph圖片:', ogImage);
-                return ogImage;
+            if (ogContent.description && ogContent.description.length > 10) {
+                extractedText = ogContent.description;
+                console.log('✅ [文字提取] OpenGraph描述:', extractedText.substring(0, 80) + '...');
             }
 
-            // 如果沒有OpenGraph，嘗試尋找頁面中的大圖片
-            for (const selector of imageSelectors) {
-                if (selector.startsWith('meta')) continue; // 跳過已處理的meta標籤
+            if (ogContent.image) {
+                extractedImage = ogContent.image;
+                console.log('✅ [圖片提取] OpenGraph圖片:', extractedImage);
+            }
 
-                const images = await page.evaluate((sel) => {
-                    const imgs = document.querySelectorAll(sel);
+            // === 如果沒有OpenGraph描述，嘗試從頁面內容提取文字 ===
+            if (!extractedText) {
+                console.log('📝 [文字提取] OpenGraph無內容，嘗試從頁面提取...');
+
+                const textSelectors = [
+                    // Facebook特定選擇器
+                    'div[data-testid="post_message"]',
+                    'div[data-ad-preview="message"]',
+                    'div[role="article"] span',
+                    '[data-testid="post-text"]',
+
+                    // Instagram特定選擇器
+                    'article h1',
+                    'article span[dir="auto"]',
+
+                    // 通用選擇器
+                    '[role="article"] h1',
+                    'h1',
+                    'span[style*="break-word"]',
+                    'p'
+                ];
+
+                for (const selector of textSelectors) {
+                    const text = await page.evaluate((sel) => {
+                        const elements = document.querySelectorAll(sel);
+                        let bestText = '';
+
+                        elements.forEach(el => {
+                            const content = el.textContent || el.innerText || '';
+                            // 尋找較長且有意義的文字
+                            if (content.length > bestText.length &&
+                                content.length > 15 &&
+                                !content.match(/^[\d\s\.\,]*$/) && // 排除純數字
+                                !content.includes('Cookie') &&
+                                !content.includes('登入') &&
+                                !content.includes('Sign in') &&
+                                !content.includes('Log in')) {
+                                bestText = content;
+                            }
+                        });
+
+                        return bestText;
+                    }, selector);
+
+                    if (text && text.length > 15) {
+                        extractedText = text;
+                        console.log(`✅ [文字提取] 透過 "${selector}" 找到:`, text.substring(0, 80) + '...');
+                        break;
+                    }
+                }
+            }
+
+            // === 如果還沒有圖片，嘗試從頁面提取 ===
+            if (!extractedImage) {
+                console.log('🖼️ [圖片提取] 嘗試從頁面提取圖片...');
+
+                const images = await page.evaluate(() => {
+                    const imgs = document.querySelectorAll('img');
                     const results = [];
 
                     imgs.forEach(img => {
@@ -357,8 +409,10 @@ class EnhancedLinkPreview {
                         const width = img.naturalWidth || img.width || 0;
                         const height = img.naturalHeight || img.height || 0;
 
-                        // 過濾掉太小的圖片（可能是icon或頭像）
-                        if (src && width > 200 && height > 200) {
+                        // 過濾掉太小的圖片
+                        if (src && width > 200 && height > 200 &&
+                            !src.includes('emoji') &&
+                            !src.includes('icon')) {
                             results.push({
                                 src: src,
                                 width: width,
@@ -368,54 +422,37 @@ class EnhancedLinkPreview {
                         }
                     });
 
-                    // 按圖片大小排序，返回最大的
                     return results.sort((a, b) => b.size - a.size);
-                }, selector);
+                });
 
                 if (images && images.length > 0) {
-                    console.log(`📸 [圖片提取] 透過選擇器 "${selector}" 找到 ${images.length} 張圖片`);
-                    return images[0].src; // 返回最大的圖片
+                    extractedImage = images[0].src;
+                    console.log('✅ [圖片提取] 找到頁面圖片:', extractedImage);
                 }
             }
 
-            // 最後嘗試：查找任何合理大小的圖片
-            const fallbackImage = await page.evaluate(() => {
-                const allImages = document.querySelectorAll('img');
-                let bestImage = null;
-                let maxSize = 0;
-
-                allImages.forEach(img => {
-                    const src = img.src || img.getAttribute('src');
-                    const width = img.naturalWidth || img.width || 0;
-                    const height = img.naturalHeight || img.height || 0;
-                    const size = width * height;
-
-                    // 尋找足夠大的圖片，但排除明顯的UI元素
-                    if (src &&
-                        size > 50000 && // 至少 224x224 px
-                        !src.includes('emoji') &&
-                        !src.includes('icon') &&
-                        !src.includes('logo') &&
-                        size > maxSize) {
-                        bestImage = src;
-                        maxSize = size;
-                    }
-                });
-
-                return bestImage;
-            });
-
-            if (fallbackImage) {
-                console.log('📸 [圖片提取] 找到備用圖片:', fallbackImage);
-                return fallbackImage;
+            // === 清理文字 ===
+            if (extractedText) {
+                extractedText = extractedText.replace(/\s+/g, ' ').trim();
+                if (extractedText.length > 150) {
+                    extractedText = extractedText.substring(0, 150) + '...';
+                }
             }
 
-            console.log('⚠️ [圖片提取] 未找到合適的圖片');
-            return null;
+            console.log('📊 [提取結果] 文字:', extractedText ? extractedText.substring(0, 50) + '...' : '未找到');
+            console.log('📊 [提取結果] 圖片:', extractedImage ? '已提取' : '未找到');
+
+            return {
+                description: extractedText || null,
+                image: extractedImage || null
+            };
 
         } catch (error) {
-            console.error('❌ [圖片提取] 提取Facebook圖片失敗:', error.message);
-            return null;
+            console.error('❌ [內容提取] 失敗:', error.message);
+            return {
+                description: null,
+                image: null
+            };
         }
     }
 

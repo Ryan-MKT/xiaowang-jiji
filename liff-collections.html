@@ -569,7 +569,9 @@
             }
 
             const title = collection.title || '';
-            const description = collection.description || '';
+            const description = collection.description ||
+                              (collection.content && collection.content.preview_description) ||
+                              (collection.content && collection.content.description) || '';
             const content = collection.content || {};
 
             // 檢查是否為網址
@@ -641,7 +643,9 @@
 
             const type = analyzeCollectionType(collection);
             const title = (collection.title || '').toLowerCase();
-            const description = (collection.description || '').toLowerCase();
+            const description = (collection.description ||
+                               (collection.content && collection.content.preview_description) ||
+                               (collection.content && collection.content.description) || '').toLowerCase();
 
             switch (type) {
                 case 'video':
@@ -698,6 +702,9 @@
                 const type = analyzeCollectionType(collection);
                 const title = getCollectionTitle(collection);
                 const originalUrl = getCollectionURL(collection);
+                const description = collection.description ||
+                                  (collection.content && collection.content.preview_description) ||
+                                  (collection.content && collection.content.description) || '';
                 const aiTags = getAITags(collection);
                 const userTags = getUserTags(collection);
                 const date = new Date(collection.created_at).toLocaleDateString('zh-TW');
@@ -720,6 +727,7 @@
                         <div class="collection-info">
                             <div class="collection-title">${title}</div>
                             ${originalUrl ? `<div class="collection-url">${originalUrl}</div>` : ''}
+                            ${description ? `<div class="collection-description" style="color: #666; font-size: 0.9rem; margin: 8px 0; line-height: 1.4;">${description}</div>` : ''}
 
                             <div class="collection-meta">
                                 <span class="collection-type type-${type}">
