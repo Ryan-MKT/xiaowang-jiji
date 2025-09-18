@@ -609,36 +609,16 @@ async function handleEvent(event) {
           )
         );
 
-        console.log(`🔍 [LINE Bot自動預覽調試] needsPreview: ${needsPreview}`);
-
         if (needsPreview) {
-          console.log(`🔧 [LINE Bot自動預覽] 檢測到URL需要預覽: ${url}`);
-
           // 背景處理URL預覽，不阻塞LINE Bot回應
           setImmediate(async () => {
             try {
-              if (url.includes('facebook.com')) {
-                // Facebook特殊處理
-                const { UniversalFacebookProcessor } = require('./universal-facebook-processor');
-                const processor = new UniversalFacebookProcessor();
+              // 統一使用 EnhancedLinkPreview 處理所有 URL（包括 Facebook）
+              const EnhancedLinkPreview = require('./enhanced-link-preview');
+              const preview = new EnhancedLinkPreview();
+              const previewResult = await preview.getEnhancedPreview(url);
 
-                console.log(`🔧 [LINE Bot自動預覽] 開始處理收藏卡 ${result.data.id} 的Facebook預覽`);
-                const processingResult = await processor.processSingleFacebookUrl(url);
-
-                if (processingResult.success) {
-                  console.log(`✅ [LINE Bot自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理成功`);
-                } else {
-                  console.log(`⚠️ [LINE Bot自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理失敗: ${processingResult.error}`);
-                }
-              } else {
-                // 一般URL預覽處理
-                console.log(`🔧 [LINE Bot自動預覽] 開始處理收藏卡 ${result.data.id} 的一般URL預覽`);
-
-                const EnhancedLinkPreview = require('./enhanced-link-preview');
-                const preview = new EnhancedLinkPreview();
-                const previewResult = await preview.getEnhancedPreview(url);
-
-                if (previewResult.image) {
+              if (previewResult.image) {
                   const updateData = {
                     content: {
                       ...content,
@@ -656,19 +636,14 @@ async function handleEvent(event) {
                   const collectionsAPI = require('./collections-api');
                   const updateResult = await collectionsAPI.updateCollection(userId, result.data.id, updateData);
 
-                  if (updateResult.success) {
-                    console.log(`✅ [LINE Bot自動預覽] 收藏卡 ${result.data.id} 一般URL預覽處理成功`);
-                  } else {
-                    console.log(`⚠️ [LINE Bot自動預覽] 收藏卡 ${result.data.id} 更新失敗: ${updateResult.error}`);
+                  if (!updateResult.success) {
+                    console.error(`LINE Bot預覽更新失敗 (${result.data.id}): ${updateResult.error}`);
                   }
-                } else {
-                  console.log(`⚠️ [LINE Bot自動預覽] 收藏卡 ${result.data.id} 無法獲取預覽圖片`);
                 }
 
                 await preview.cleanup();
-              }
             } catch (autoError) {
-              console.error(`❌ [LINE Bot自動預覽] 背景處理失敗: ${autoError.message}`);
+              console.error(`LINE Bot自動預覽背景處理失敗: ${autoError.message}`);
             }
           });
         }
@@ -1320,34 +1295,16 @@ app.post('/api/collections/:userId', async (req, res) => {
       );
 
       if (needsPreview) {
-        console.log(`🔧 [自動預覽] 檢測到URL需要預覽: ${url}`);
-
         // 背景處理URL預覽，不阻塞API回應
         setImmediate(async () => {
           try {
-            if (url.includes('facebook.com')) {
-              // Facebook特殊處理
-              const { UniversalFacebookProcessor } = require('./universal-facebook-processor');
-              const processor = new UniversalFacebookProcessor();
+            // 統一使用 EnhancedLinkPreview 處理所有 URL（包括 Facebook）
+            const EnhancedLinkPreview = require('./enhanced-link-preview');
+            const preview = new EnhancedLinkPreview();
+            const previewResult = await preview.getEnhancedPreview(url);
 
-              console.log(`🔧 [自動預覽] 開始處理收藏卡 ${result.data.id} 的Facebook預覽`);
-              const processingResult = await processor.processSingleFacebookUrl(url);
-
-              if (processingResult.success) {
-                console.log(`✅ [自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理成功`);
-              } else {
-                console.log(`⚠️ [自動預覽] 收藏卡 ${result.data.id} Facebook預覽處理失敗: ${processingResult.error}`);
-              }
-            } else {
-              // 一般URL預覽處理
-              console.log(`🔧 [自動預覽] 開始處理收藏卡 ${result.data.id} 的一般URL預覽`);
-
-              const EnhancedLinkPreview = require('./enhanced-link-preview');
-              const preview = new EnhancedLinkPreview();
-              const previewResult = await preview.getEnhancedPreview(url);
-
-              if (previewResult.image) {
-                const updateData = {
+            if (previewResult.image) {
+              const updateData = {
                   content: {
                     ...content,
                     url: url,
@@ -1363,19 +1320,14 @@ app.post('/api/collections/:userId', async (req, res) => {
                 const collectionsAPI = require('./collections-api');
                 const updateResult = await collectionsAPI.updateCollection(userId, result.data.id, updateData);
 
-                if (updateResult.success) {
-                  console.log(`✅ [自動預覽] 收藏卡 ${result.data.id} 一般URL預覽處理成功`);
-                } else {
-                  console.log(`⚠️ [自動預覽] 收藏卡 ${result.data.id} 更新失敗: ${updateResult.error}`);
+                if (!updateResult.success) {
+                  console.error(`API預覽更新失敗 (${result.data.id}): ${updateResult.error}`);
                 }
-              } else {
-                console.log(`⚠️ [自動預覽] 收藏卡 ${result.data.id} 無法獲取預覽圖片`);
               }
 
               await preview.cleanup();
-            }
           } catch (autoError) {
-            console.error(`❌ [自動預覽] 背景處理失敗: ${autoError.message}`);
+            console.error(`API自動預覽背景處理失敗: ${autoError.message}`);
           }
         });
       }
@@ -1416,15 +1368,19 @@ app.delete('/api/collections/:userId/:collectionId', async (req, res) => {
     const userId = req.params.userId;
     const collectionId = req.params.collectionId;
 
+    console.log(`🗑️ [API] 收到刪除收藏卡請求 - User: ${userId}, Collection: ${collectionId}`);
+
     const result = await collectionsAPI.deleteCollection(userId, collectionId);
 
     if (result.success) {
+      console.log(`✅ [API] 刪除收藏卡成功 - Collection: ${collectionId}`);
       res.json({ success: true, data: result.data });
     } else {
+      console.log(`❌ [API] 刪除收藏卡失敗 - Error: ${result.error}`);
       res.status(400).json({ success: false, error: result.error });
     }
   } catch (error) {
-    console.error('❌ [API] 刪除收藏卡失敗:', error);
+    console.error('❌ [API] 刪除收藏卡異常:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
@@ -1448,7 +1404,6 @@ app.get('/api/collections/:userId/stats', async (req, res) => {
 });
 
 // 網址預覽 API
-const urlPreviewAPI = require('./url-preview-api');
 const EnhancedLinkPreview = require('./enhanced-link-preview');
 
 // 創建Enhanced Link Preview實例
@@ -1472,35 +1427,23 @@ app.post('/api/url-preview', async (req, res) => {
 
     console.log(`🔍 [API] 請求網址預覽: ${url}`);
 
-    // 檢查是否為社交媒體連結，使用Enhanced Preview
-    if (enhancedPreview.isSocialMediaLink(url)) {
-      console.log(`📱 [API] 使用Enhanced Preview處理社交媒體連結`);
-      const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+    // 使用 Enhanced Preview 處理所有連結（社交媒體和非社交媒體）
+    console.log(`📱 [API] 使用Enhanced Preview處理連結: ${enhancedPreview.isSocialMediaLink(url) ? '社交媒體' : '一般網站'}`);
+    const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
 
-      // 轉換為標準格式
-      const result = {
-        success: true,
-        data: {
-          title: enhancedResult.title,
-          description: enhancedResult.description,
-          image: enhancedResult.image,
-          url: enhancedResult.url,
-          type: enhancedResult.type
-        }
-      };
+    // 轉換為標準格式
+    const result = {
+      success: true,
+      data: {
+        title: enhancedResult.title,
+        description: enhancedResult.description,
+        image: enhancedResult.image,
+        url: enhancedResult.url,
+        type: enhancedResult.type
+      }
+    };
 
-      res.json(result);
-      return;
-    }
-
-    // 對於非社交媒體連結，使用標準預覽
-    const result = await urlPreviewAPI.fetchUrlPreview(url);
-
-    if (result.success) {
-      res.json({ success: true, data: result.data });
-    } else {
-      res.json({ success: false, error: result.error, data: result.data });
-    }
+    res.json(result);
   } catch (error) {
     console.error('❌ [API] 網址預覽失敗:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -2324,4 +2267,4 @@ app.get('/api/messages', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🤖 LINE Bot server running on port ${PORT}`);
   console.log(`📅 Started at: ${new Date().toISOString()}`);
-});
+});// 強制重啟 西元2025年09月18日 (星期四) 13時03分19秒    
