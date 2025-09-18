@@ -15,10 +15,11 @@
 
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding-bottom: 80px;
+            color: #e0e0e0;
         }
 
         .container {
@@ -28,12 +29,13 @@
         }
 
         .header-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(45, 45, 45, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            border: none;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             margin-bottom: 30px;
+            color: #ffffff;
         }
 
         .collections-grid {
@@ -43,25 +45,28 @@
         }
 
         .collection-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(35, 35, 35, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 16px;
-            border: none;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             transition: all 0.3s ease;
             overflow: hidden;
             position: relative;
+            color: #ffffff;
         }
 
         .collection-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(31, 38, 135, 0.3);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         .collection-card .card-header {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #1a1a1a, #333333);
             color: white;
             border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding: 15px 20px;
             font-weight: 600;
         }
@@ -70,7 +75,7 @@
             height: 180px;
             overflow: hidden;
             position: relative;
-            background: #f8f9fa;
+            background: #2a2a2a;
         }
 
         .collection-preview img {
@@ -85,30 +90,30 @@
         }
 
         .url-preview {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            background: linear-gradient(135deg, #3a3a3a, #4a4a4a);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #1976d2;
+            color: #ffffff;
         }
 
         .video-preview {
-            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+            background: linear-gradient(135deg, #3a3a3a, #4a4a4a);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #7b1fa2;
+            color: #ffffff;
         }
 
         .text-preview {
-            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            background: linear-gradient(135deg, #3a3a3a, #4a4a4a);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #388e3c;
+            color: #ffffff;
         }
 
         /* 預覽圖片樣式 */
@@ -124,7 +129,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #666;
+            color: #cccccc;
             font-size: 0.8rem;
         }
 
@@ -133,7 +138,7 @@
             align-items: center;
             justify-content: center;
             font-size: 2rem;
-            color: #1976d2;
+            color: #ffffff;
         }
 
         .collection-info {
@@ -143,7 +148,7 @@
         .collection-title {
             font-size: 1.2rem;
             font-weight: 700;
-            color: #333;
+            color: #ffffff;
             margin-bottom: 8px;
             line-height: 1.4;
             display: -webkit-box;
@@ -155,7 +160,7 @@
         .collection-url {
             font-size: 0.8rem;
             font-weight: 400;
-            color: #666;
+            color: #cccccc;
             margin-bottom: 10px;
             line-height: 1.3;
             word-break: break-all;
@@ -185,26 +190,26 @@
 
         .type-url {
             background: rgba(25, 118, 210, 0.1);
-            color: #1976d2;
+            color: #ffffff;
         }
 
         .type-video {
             background: rgba(123, 31, 162, 0.1);
-            color: #7b1fa2;
+            color: #ffffff;
         }
 
         .type-image {
             background: rgba(255, 193, 7, 0.1);
-            color: #ff8f00;
+            color: #ffffff;
         }
 
         .type-text {
             background: rgba(56, 142, 60, 0.1);
-            color: #388e3c;
+            color: #ffffff;
         }
 
         .collection-date {
-            color: #666;
+            color: #cccccc;
             font-size: 0.8rem;
         }
 
@@ -360,7 +365,7 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #1a1a1a, #333333);
             border: none;
             color: white;
             font-size: 1.5rem;
@@ -394,15 +399,15 @@
             border: 1px solid #ddd;
             border-radius: 20px;
             background: white;
-            color: #666;
+            color: #cccccc;
             font-size: 0.9rem;
             transition: all 0.3s ease;
         }
 
         .filter-btn.active {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #1a1a1a, #333333);
             color: white;
-            border-color: #667eea;
+            border-color: #666666;
         }
 
         .empty-state {
@@ -415,6 +420,156 @@
             font-size: 4rem;
             margin-bottom: 20px;
             opacity: 0.5;
+        }
+
+        /* 隨機推薦區域樣式 */
+        .recommendation-section {
+            background: rgba(45, 45, 45, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+            padding: 20px;
+            color: #ffffff;
+        }
+
+        .recommendation-title {
+            color: #ffffff;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .recommendation-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            padding: 10px 0;
+            /* 自定義滾動條 */
+            scrollbar-width: thin;
+            scrollbar-color: #666666 transparent;
+        }
+
+        .recommendation-container::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .recommendation-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .recommendation-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #1a1a1a, #333333);
+            border-radius: 3px;
+        }
+
+        .recommendation-container::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #555555, #777777);
+        }
+
+        .recommendation-cards {
+            display: inline-flex;
+            gap: 15px;
+            padding: 5px;
+        }
+
+        .recommendation-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.2);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            position: relative;
+            width: 280px;
+            flex-shrink: 0;
+            cursor: pointer;
+            white-space: normal;
+        }
+
+        .recommendation-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(31, 38, 135, 0.3);
+        }
+
+        .recommendation-preview {
+            height: 120px;
+            overflow: hidden;
+            position: relative;
+            background: #f8f9fa;
+        }
+
+        .recommendation-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .recommendation-preview:hover img {
+            transform: scale(1.05);
+        }
+
+        .recommendation-info {
+            padding: 12px;
+        }
+
+        .recommendation-title-text {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .recommendation-type {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: white;
+            display: inline-block;
+        }
+
+        .recommendation-type.type-url {
+            background: linear-gradient(45deg, #42a5f5, #1976d2);
+        }
+
+        .recommendation-type.type-video {
+            background: linear-gradient(45deg, #ab47bc, #7b1fa2);
+        }
+
+        .recommendation-type.type-image {
+            background: linear-gradient(45deg, #66bb6a, #388e3c);
+        }
+
+        .recommendation-type.type-text {
+            background: linear-gradient(45deg, #ff7043, #d84315);
+        }
+
+        .refresh-recommendations {
+            background: linear-gradient(45deg, #1a1a1a, #333333);
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: auto;
+        }
+
+        .refresh-recommendations:hover {
+            transform: rotate(180deg);
+            box-shadow: 0 4px 12px rgba(31, 38, 135, 0.3);
         }
 
         .loading-spinner {
@@ -447,6 +602,22 @@
                     收藏卡
                 </h2>
                 <p class="text-muted mb-0">管理您的珍貴收藏 - 網址、影片、圖文</p>
+            </div>
+        </div>
+
+        <!-- 隨機推薦區域 -->
+        <div class="recommendation-section d-none" id="recommendationSection">
+            <div class="recommendation-title">
+                <i class="bi bi-shuffle"></i>
+                隨機推薦
+                <button class="refresh-recommendations" onclick="refreshRecommendations()" title="重新推薦">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="recommendation-container">
+                <div class="recommendation-cards" id="recommendationCards">
+                    <!-- 推薦卡片將由JavaScript動態生成 -->
+                </div>
             </div>
         </div>
 
@@ -550,6 +721,9 @@
                 collections = result.data || [];
                 filterAndDisplayCollections();
                 updateCollectionCount();
+
+                // 生成隨機推薦
+                generateRecommendations();
 
                 // 檢查是否有需要預覽的收藏卡
                 checkForMissingPreviews();
@@ -1288,6 +1462,121 @@
             if (event.key === 'Enter') {
                 event.preventDefault();
                 addTag(collectionId);
+            }
+        }
+
+        // ===== 隨機推薦功能 =====
+
+        // 生成隨機推薦
+        function generateRecommendations() {
+            console.log('🔄 [隨機推薦] 開始生成推薦...');
+
+            if (!collections || collections.length === 0) {
+                console.log('📝 [隨機推薦] 沒有收藏品，隱藏推薦區域');
+                document.getElementById('recommendationSection').classList.add('d-none');
+                return;
+            }
+
+            // 如果收藏品少於3個，不顯示推薦
+            if (collections.length < 3) {
+                console.log('📝 [隨機推薦] 收藏品少於3個，隱藏推薦區域');
+                document.getElementById('recommendationSection').classList.add('d-none');
+                return;
+            }
+
+            // 隨機選擇5-8個收藏品作為推薦
+            const recommendationCount = Math.min(Math.max(5, Math.floor(collections.length * 0.3)), 8);
+            const shuffled = [...collections].sort(() => Math.random() - 0.5);
+            const recommendations = shuffled.slice(0, recommendationCount);
+
+            console.log(`✅ [隨機推薦] 生成${recommendations.length}個推薦`);
+
+            // 顯示推薦區域
+            document.getElementById('recommendationSection').classList.remove('d-none');
+            renderRecommendations(recommendations);
+        }
+
+        // 渲染推薦卡片
+        function renderRecommendations(recommendations) {
+            const container = document.getElementById('recommendationCards');
+
+            const html = recommendations.map(collection => {
+                const type = collection.type || 'text';
+                const title = collection.title || '無標題';
+                const originalUrl = collection.content?.url || collection.content?.originalUrl || '';
+
+                // 處理預覽圖片
+                let previewHtml = '';
+                const previewImage = collection.preview_image ||
+                                   (collection.content && collection.content.preview_image);
+
+                if (previewImage) {
+                    previewHtml = `<img src="${previewImage}" alt="預覽圖" onerror="this.parentElement.innerHTML='<div class=\\'${type}-preview\\'><i class=\\'bi bi-${getTypeIcon(type)}\\'></i></div>'">`;
+                } else {
+                    previewHtml = `<div class="${type}-preview"><i class="bi bi-${getTypeIcon(type)}"></i></div>`;
+                }
+
+                return `
+                    <div class="recommendation-card" onclick="openCollection(${collection.id})">
+                        <div class="recommendation-preview">
+                            ${previewHtml}
+                        </div>
+                        <div class="recommendation-info">
+                            <div class="recommendation-title-text" title="${title}">
+                                ${title}
+                            </div>
+                            <span class="recommendation-type type-${type}">
+                                ${getTypeDisplayName(type)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+        }
+
+        // 重新生成推薦（刷新按鈕功能）
+        function refreshRecommendations() {
+            console.log('🔄 [隨機推薦] 重新生成推薦...');
+            generateRecommendations();
+        }
+
+        // 點擊推薦卡片打開收藏品
+        function openCollection(collectionId) {
+            console.log('📱 [隨機推薦] 點擊收藏品:', collectionId);
+
+            const collection = collections.find(c => c.id === collectionId);
+            if (!collection) return;
+
+            const url = collection.content?.url || collection.content?.originalUrl || collection.title;
+
+            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                // 在新窗口打開URL
+                window.open(url, '_blank');
+            } else {
+                // 顯示收藏品詳情
+                alert(`收藏品: ${collection.title}\n內容: ${collection.content?.text || collection.title}`);
+            }
+        }
+
+        // 獲取類型圖標
+        function getTypeIcon(type) {
+            switch (type) {
+                case 'url': return 'link-45deg';
+                case 'video': return 'play-circle';
+                case 'image': return 'image';
+                default: return 'file-text';
+            }
+        }
+
+        // 獲取類型顯示名稱
+        function getTypeDisplayName(type) {
+            switch (type) {
+                case 'url': return '網址';
+                case 'video': return '影片';
+                case 'image': return '圖片';
+                default: return '文字';
             }
         }
     </script>
