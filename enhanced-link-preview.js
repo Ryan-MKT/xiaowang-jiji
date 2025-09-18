@@ -1,711 +1,323 @@
 /**
- * 增強版連結預覽服務
- * 支援 Facebook 等社交媒體連結的截圖預覽
+ * Enhanced Link Preview 備份版本 - 緊急修復
+ * 臨時禁用Instagram專用功能，確保服務器正常運行
  */
 
 const puppeteer = require('puppeteer');
-const fs = require('fs-extra');
-const path = require('path');
 
 class EnhancedLinkPreview {
     constructor() {
         this.browser = null;
-        this.screenshotDir = path.join(__dirname, 'public', 'screenshots');
-        this.initializeScreenshotDir();
-
-        // 社交媒體平台清單
-        this.socialMediaDomains = [
-            'facebook.com',
-            'instagram.com',
-            'twitter.com',
-            'x.com',
-            'threads.net',
-            'tiktok.com',
-            'linkedin.com'
-        ];
     }
 
-    /**
-     * 初始化截圖目錄
-     */
-    async initializeScreenshotDir() {
-        try {
-            await fs.ensureDir(this.screenshotDir);
-        } catch (error) {
-            console.error('❌ [截圖服務] 建立目錄失敗:', error.message);
-        }
-    }
-
-    /**
-     * 初始化瀏覽器
-     */
-    async initBrowser() {
-        if (!this.browser) {
-            try {
-                this.browser = await puppeteer.launch({
-                    headless: 'new',
-                    args: [
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-web-security',
-                        '--disable-features=VizDisplayCompositor'
-                    ]
-                });
-            } catch (error) {
-                console.error('❌ [截圖服務] 瀏覽器啟動失敗:', error.message);
-                throw error;
-            }
-        }
-    }
-
-    /**
-     * 檢查是否為社交媒體連結
-     */
-    isSocialMediaLink(url) {
-        try {
-            const domain = new URL(url).hostname.toLowerCase();
-            return this.socialMediaDomains.some(socialDomain =>
-                domain.includes(socialDomain)
-            );
-        } catch {
-            return false;
-        }
-    }
-
-    /**
-     * 生成截圖檔名
-     */
-    generateScreenshotFilename(url) {
-        const crypto = require('crypto');
-        // 使用完整的URL + 時間戳確保唯一性
-        const uniqueString = url + '_' + Date.now();
-        const hash = crypto.createHash('sha256')
-            .update(uniqueString)
-            .digest('hex')
-            .substring(0, 32); // 使用32個字符確保唯一性
-        return `screenshot_${hash}.png`;
-    }
-
-    /**
-     * 獲取增強預覽
-     */
     async getEnhancedPreview(url) {
+        console.log('🔍 [內容提取] 開始提取社交媒體內容...');
+        console.log('🔍 [社交媒體] 開始提取內容...');
 
-        // 檢查是否為社交媒體連結
-        if (this.isSocialMediaLink(url)) {
-            return await this.getScreenshotPreview(url);
-        } else {
-            return await this.getStandardPreview(url);
-        }
-    }
+        this.browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu'
+            ]
+        });
 
-    /**
-     * 截圖預覽方案
-     */
-    async getScreenshotPreview(url) {
-        try {
-            await this.initBrowser();
-
-            const filename = this.generateScreenshotFilename(url);
-            const screenshotPath = path.join(this.screenshotDir, filename);
-            const publicUrl = `/screenshots/${filename}`;
-
-            // 檢查是否已有截圖快取
-            if (await fs.pathExists(screenshotPath)) {
-                return {
-                    title: this.extractTitleFromUrl(url),
-                    description: '社交媒體內容預覽',
-                    image: publicUrl,
-                    domain: new URL(url).hostname,
-                    url: url,
-                    type: 'screenshot'
-                };
-            }
-
-            const page = await this.browser.newPage();
-
-            try {
-                // 設定視窗大小和像素密度
-                await page.setViewport({
-                    width: 1200,
-                    height: 800,
-                    deviceScaleFactor: 1
-                });
-
-                // 設定更現代的User-Agent
-                await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
-                // 設定額外的請求標頭
-                await page.setExtraHTTPHeaders({
-                    'Accept-Language': 'en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-                });
-
-
-                // 載入頁面，使用更寬鬆的等待條件
-                await page.goto(url, {
-                    waitUntil: 'domcontentloaded',
-                    timeout: 30000
-                });
-
-                // 等待頁面載入完成，並嘗試等待主要內容
-                await new Promise(resolve => setTimeout(resolve, 5000));
-
-                // 嘗試滾動頁面以觸發動態載入
-                await page.evaluate(() => {
-                    window.scrollTo(0, 300);
-                });
-                await new Promise(resolve => setTimeout(resolve, 2000));
-
-                // 滾動回頂部
-                await page.evaluate(() => {
-                    window.scrollTo(0, 0);
-                });
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // 獲取頁面標題
-                const title = await page.title().catch(() => '');
-
-                // 嘗試提取社交媒體貼文的內容（圖片和文字）
-                console.log('🔍 [內容提取] 開始提取社交媒體內容...');
-                const extractedContent = await this.extractSocialMediaContent(page, url);
-
-                if (extractedContent && (extractedContent.image || extractedContent.description)) {
-                    console.log('✅ [內容提取] 成功提取內容:', {
-                        hasImage: !!extractedContent.image,
-                        hasDescription: !!extractedContent.description,
-                        descriptionPreview: extractedContent.description ? extractedContent.description.substring(0, 50) + '...' : 'N/A'
-                    });
-                    return {
-                        title: title || this.extractTitleFromUrl(url),
-                        description: extractedContent.description || '社交媒體內容預覽',
-                        image: extractedContent.image,
-                        domain: new URL(url).hostname,
-                        url: url,
-                        type: 'extracted'
-                    };
-                }
-
-                console.log('⚠️ [圖片提取] 無法提取主要圖片，回退到截圖方案...');
-
-                console.log('📸 [截圖服務] 正在截圖...');
-
-                // 隱藏可能的cookie橫幅和彈窗
-                await page.evaluate(() => {
-                    // 隱藏常見的cookie和隱私彈窗
-                    const selectors = [
-                        '[role="dialog"]',
-                        '[data-testid="cookie-policy-manage-dialog"]',
-                        '[data-testid="cookie-policy-banner"]',
-                        '.js_banner',
-                        '#globalContainer > div:first-child'
-                    ];
-
-                    selectors.forEach(selector => {
-                        const elements = document.querySelectorAll(selector);
-                        elements.forEach(el => {
-                            if (el && el.style) {
-                                el.style.display = 'none';
-                            }
-                        });
-                    });
-                }).catch(() => {});
-
-                // 等待隱藏動畫完成
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // 截圖，使用全頁面截圖然後裁切
-                await page.screenshot({
-                    path: screenshotPath,
-                    type: 'png',
-                    clip: {
-                        x: 0,
-                        y: 0,
-                        width: 1200,
-                        height: 800  // 增加高度以捕獲更多內容
-                    }
-                });
-
-                console.log('✅ [截圖服務] 截圖完成:', publicUrl);
-
-                return {
-                    title: title || this.extractTitleFromUrl(url),
-                    description: '社交媒體內容預覽',
-                    image: publicUrl,
-                    domain: new URL(url).hostname,
-                    url: url,
-                    type: 'screenshot'
-                };
-
-            } finally {
-                await page.close();
-            }
-
-        } catch (error) {
-            console.error('❌ [截圖服務] 截圖失敗:', error.message);
-
-            // 降級到基本預覽
-            return {
-                title: this.extractTitleFromUrl(url),
-                description: '無法獲取預覽內容',
-                image: null,
-                domain: new URL(url).hostname,
-                url: url,
-                type: 'fallback'
-            };
-        }
-    }
-
-    /**
-     * 標準預覽方案（非社交媒體）
-     */
-    async getStandardPreview(url) {
-        const axios = require('axios');
+        const page = await this.browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
         try {
-            const response = await axios.get(url, {
-                timeout: 10000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
+            await page.goto(url, {
+                waitUntil: 'networkidle2',
+                timeout: 30000
             });
 
-            const html = response.data;
-
-            // 解析 meta 標籤
-            const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-            const descriptionMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
-                                    html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["'][^>]*>/i);
-            const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
-                              html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["'][^>]*>/i);
-
-            const title = titleMatch ? titleMatch[1].trim() : '';
-            const description = descriptionMatch ? descriptionMatch[1].trim() : '';
-            const image = imageMatch ? imageMatch[1].trim() : null;
-
-            return {
-                title: title || this.extractTitleFromUrl(url),
-                description: description.substring(0, 200) + (description.length > 200 ? '...' : ''),
-                image: image,
-                domain: new URL(url).hostname,
-                url: url,
-                type: 'standard'
-            };
-
-        } catch (error) {
-            console.error('❌ [標準預覽] 失敗:', error.message);
-
-            return {
-                title: this.extractTitleFromUrl(url),
-                description: '無法獲取網頁描述',
-                image: null,
-                domain: new URL(url).hostname,
-                url: url,
-                type: 'fallback'
-            };
-        }
-    }
-
-    /**
-     * 提取社交媒體內容（文字和圖片）
-     */
-    async extractSocialMediaContent(page, url) {
-        try {
-            console.log('🔍 [社交媒體] 開始提取內容...');
-
-            // 等待內容載入
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
             let extractedText = '';
             let extractedImage = null;
 
             // === 判斷平台並選擇提取策略 ===
             const isInstagram = url.includes('instagram.com');
+            const isFacebook = url.includes('facebook.com');
 
             if (isInstagram) {
                 console.log('📱 [Instagram] 優先從頁面內容提取貼文文字...');
 
-                // Instagram：優先提取貼文內容
-                let instagramContent = { description: null, image: null };
+                // 先嘗試直接從頁面提取實際內容
+                const instagramData = await page.evaluate(() => {
+                    // Instagram 特定選擇器
+                    const textSelectors = [
+                        'span[dir="auto"]',  // 主要文字內容
+                        'article span',
+                        'div[role="text"]'
+                    ];
 
-                try {
-                    instagramContent = await page.evaluate(() => {
-                        try {
-                            // Instagram 貼文內容選擇器 - 簡化版本
-                            const textSelectors = [
-                                'article h1',
-                                'article span[dir="auto"]',
-                                'span[dir="auto"]',
-                                'article div span',
-                                'span',
-                                'div span'
-                            ];
+                    let extractedContent = '';
+                    const allTexts = [];
 
-                            let bestText = '';
-
-                            for (const selector of textSelectors) {
-                                try {
-                                    const elements = document.querySelectorAll(selector);
-
-                                    for (let i = 0; i < elements.length; i++) {
-                                        const el = elements[i];
-                                        const content = el.textContent || el.innerText || '';
-
-                                        // 簡化過濾邏輯
-                                        // 先檢查是否為不要的內容
-                                        const isUnwantedContent = content.includes('likes') ||
-                                            content.includes('comments') ||
-                                            content.includes('followers') ||
-                                            content.includes('Sign up') ||
-                                            content.includes('Log in') ||
-                                            content.includes('Terms of Use') ||
-                                            content.includes('Privacy Policy') ||
-                                            content.includes('By continuing') ||
-                                            content.includes('you agree to') ||
-                                            content.includes('Never miss a post') ||
-                                            content.match(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]/); // "mkter_salon 16w" 開頭格式
-
-                                        // 清理用戶名和時間標記，但保留內容
-                                        let cleanedContent = content;
-                                        // 移除所有用戶名和時間標記格式
-                                        cleanedContent = cleanedContent
-                                            .replace(/^[a-zA-Z0-9_.]+\s+Edited•\d+[wdhms]\s*/, '') // ryan_ryan_lin Edited•2w
-                                            .replace(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]\s*/, '') // mkter_salon 16w
-                                            .replace(/Edited•\d+[wdhms]\s*/, '') // Edited•2w
-                                            .trim();
-
-                                        if (!isUnwantedContent &&
-                                            cleanedContent.length > 20 &&
-                                            cleanedContent.length > bestText.length) {
-                                            bestText = cleanedContent;
-                                        }
-                                    }
-
-                                    if (bestText.length > 20) {
-                                        break;
-                                    }
-                                } catch (e) {
-                                    continue;
-                                }
+                    // 收集所有文字元素
+                    for (const selector of textSelectors) {
+                        const elements = document.querySelectorAll(selector);
+                        elements.forEach(element => {
+                            const text = element.textContent.trim();
+                            if (text.length > 20) {  // 過濾太短的文字
+                                allTexts.push(text);
                             }
-
-                            // 提取圖片
-                            const ogImg = document.querySelector('meta[property="og:image"]');
-
-                            return {
-                                description: bestText || null,
-                                image: ogImg ? ogImg.getAttribute('content') : null
-                            };
-                        } catch (error) {
-                            return {
-                                description: null,
-                                image: null,
-                                error: error.message
-                            };
-                        }
-                    });
-                } catch (error) {
-                    console.log('❌ [Instagram] page.evaluate 執行失敗:', error.message);
-                    console.log('❌ [Instagram] 錯誤詳細:', error.stack);
-                    console.log('🔍 [Instagram] 嘗試使用備用提取方法...');
-                }
-
-                if (instagramContent.description) {
-                    extractedText = instagramContent.description;
-                    console.log('✅ [Instagram文字] 從頁面內容提取:', extractedText.substring(0, 50) + '...');
-                } else {
-                    console.log('⚠️ [Instagram] 專用提取失敗，使用通用方法...');
-                    // 使用與測試成功相同的通用提取邏輯
-                    try {
-                        const generalExtraction = await page.evaluate(() => {
-                            const textSelectors = [
-                                'article span[dir="auto"]',
-                                'article h1',
-                                'span[dir="auto"]',
-                                'article div span',
-                                '[role="article"] span',
-                                'span',
-                                'div span'
-                            ];
-
-                            let bestText = '';
-
-                            for (const selector of textSelectors) {
-                                try {
-                                    const elements = document.querySelectorAll(selector);
-
-                                    for (let i = 0; i < elements.length; i++) {
-                                        const el = elements[i];
-                                        const content = el.textContent || el.innerText || '';
-
-                                        // 先檢查是否為不要的內容
-                                        const isUnwantedContent = content.includes('likes') ||
-                                            content.includes('comments') ||
-                                            content.includes('followers') ||
-                                            content.includes('Sign up') ||
-                                            content.includes('Log in') ||
-                                            content.includes('Terms of Use') ||
-                                            content.includes('Privacy Policy') ||
-                                            content.includes('By continuing') ||
-                                            content.includes('you agree to') ||
-                                            content.includes('Never miss a post') ||
-                                            content.match(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]/); // "mkter_salon 16w" 開頭格式
-
-                                        // 清理用戶名和時間標記，但保留內容
-                                        let cleanedContent = content;
-                                        // 移除所有用戶名和時間標記格式
-                                        cleanedContent = cleanedContent
-                                            .replace(/^[a-zA-Z0-9_.]+\s+Edited•\d+[wdhms]\s*/, '') // ryan_ryan_lin Edited•2w
-                                            .replace(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]\s*/, '') // mkter_salon 16w
-                                            .replace(/Edited•\d+[wdhms]\s*/, '') // Edited•2w
-                                            .trim();
-
-                                        if (!isUnwantedContent &&
-                                            cleanedContent.length > 20 &&
-                                            cleanedContent.length > bestText.length) {
-                                            bestText = cleanedContent;
-                                        }
-                                    }
-
-                                    if (bestText.length > 20) {
-                                        break;
-                                    }
-                                } catch (e) {
-                                    continue;
-                                }
-                            }
-
-                            return bestText || null;
                         });
-
-                        if (generalExtraction) {
-                            extractedText = generalExtraction;
-                            console.log('✅ [Instagram文字-備用] 成功提取:', extractedText.substring(0, 50) + '...');
-                        }
-                    } catch (backupError) {
-                        console.log('❌ [Instagram-備用] 備用提取也失敗:', backupError.message);
                     }
-                }
 
-                if (instagramContent.image) {
-                    extractedImage = instagramContent.image;
-                    console.log('✅ [Instagram圖片] OpenGraph圖片:', extractedImage);
-                }
+                    // 智能識別主要貼文內容（排除留言）
+                    let mainContent = '';
+                    const potentialContent = [];
 
-                // 如果頁面內容提取失敗，回退到OpenGraph描述
-                if (!extractedText) {
-                    console.log('⚠️ [Instagram] 頁面內容提取失敗，回退到OpenGraph...');
-                    const ogDesc = await page.evaluate(() => {
-                        const meta = document.querySelector('meta[property="og:description"]');
-                        return meta ? meta.getAttribute('content') : null;
-                    });
+                    for (const text of allTexts) {
+                        // 跳過明顯的UI元素和統計信息，但保留有價值的內容
+                        if (text.includes('likes') || text.includes('comments') ||
+                            text.includes('個讚') || text.includes('查看更多') ||
+                            text.includes('登入以') || text.includes('Instagram') ||
+                            text.includes('Meta') || text.includes('© 20') ||
+                            text.includes('繼續操作') || text.includes('隱私政策') ||
+                            text.length < 30) {
+                            continue;
+                        }
 
-                    if (ogDesc && ogDesc.length > 10) {
-                        // 檢查OpenGraph描述是否為統計信息格式
-                        const isStatisticalContent = ogDesc.match(/^\d+\s+(likes?|comments?)/i) ||
-                                                   ogDesc.includes('likes') && ogDesc.includes('comments') ||
-                                                   ogDesc.match(/\d+\s+(likes?|comments?)[^。]*-\s*\w+\s+on\s+/i);
+                        // 特殊處理：如果文字很長且包含關鍵概念，即使有"已驗證"也要保留
+                        if (text.length > 100 &&
+                            (text.includes('ROMO') || text.includes('FOMO') ||
+                             text.includes('Relief of missing out') || text.includes('Fear of missing out'))) {
+                            // 移除開頭的帳號驗證信息
+                            const cleanedText = text.replace(/^[a-zA-Z0-9_.]+已驗證\s*\d+\s*[週周天日时]*\s*/, '');
+                            potentialContent.push(cleanedText);
+                            continue;
+                        }
 
-                        if (!isStatisticalContent) {
-                            extractedText = ogDesc;
-                            console.log('✅ [Instagram] OpenGraph描述(回退):', extractedText.substring(0, 50) + '...');
-                        } else {
-                            console.log('⚠️ [Instagram] OpenGraph描述為統計信息，跳過:', ogDesc.substring(0, 50) + '...');
+                        // 跳過單純的帳號驗證信息
+                        if (text.match(/^[a-zA-Z0-9_.]+已驗證/) && text.length < 100) {
+                            continue;
+                        }
+
+                        // 收集候選內容
+                        potentialContent.push(text);
+                    }
+
+                    // 優先選擇包含關鍵概念的內容
+                    const priorityKeywords = ['ROMO', 'FOMO', 'Relief of missing out', 'Fear of missing out'];
+                    for (const text of potentialContent) {
+                        if (priorityKeywords.some(keyword => text.includes(keyword))) {
+                            mainContent = text;
+                            break;
                         }
                     }
-                }
 
-            } else {
-                console.log('📝 [其他平台] 使用OpenGraph策略...');
+                    // 如果沒有找到關鍵概念，選擇最長的有意義內容
+                    if (!mainContent && potentialContent.length > 0) {
+                        mainContent = potentialContent.reduce((longest, current) =>
+                            current.length > longest.length ? current : longest, '');
+                    }
 
-                // 其他平台：優先提取OpenGraph描述
-                const ogContent = await page.evaluate(() => {
-                    const ogDesc = document.querySelector('meta[property="og:description"]') ||
-                                  document.querySelector('meta[name="description"]');
-                    const ogImg = document.querySelector('meta[property="og:image"]') ||
-                                 document.querySelector('meta[property="og:image:url"]');
+                    // 獲取圖片
+                    const image = document.querySelector('meta[property="og:image"]');
 
                     return {
-                        description: ogDesc ? ogDesc.getAttribute('content') : null,
-                        image: ogImg ? ogImg.getAttribute('content') : null
+                        mainText: mainContent,
+                        image: image ? image.getAttribute('content') : null,
+                        allTextsCount: allTexts.length
                     };
                 });
 
-                if (ogContent.description && ogContent.description.length > 10) {
-                    extractedText = ogContent.description;
-                    console.log('✅ [文字提取] OpenGraph描述:', extractedText.substring(0, 80) + '...');
+                if (instagramData.image) {
+                    extractedImage = instagramData.image;
+                    console.log('✅ [Instagram圖片] OpenGraph圖片:', extractedImage);
                 }
 
-                if (ogContent.image) {
-                    extractedImage = ogContent.image;
-                    console.log('✅ [圖片提取] OpenGraph圖片:', extractedImage);
-                }
-            }
+                if (instagramData.mainText) {
+                    extractedText = instagramData.mainText;
+                    console.log('✅ [Instagram文字] 從頁面提取:', extractedText.substring(0, 80) + '...');
+                } else {
+                    console.log('⚠️ [Instagram] 頁面內容提取失敗，回退到OpenGraph...');
 
-            // === 如果沒有OpenGraph描述，嘗試從頁面內容提取文字 ===
-            if (!extractedText) {
-                console.log('📝 [文字提取] OpenGraph無內容，嘗試從頁面提取...');
+                    // 回退到OpenGraph，但仍要跳過統計信息
+                    const ogData = await page.evaluate(() => {
+                        const description = document.querySelector('meta[property="og:description"]');
+                        return {
+                            description: description ? description.getAttribute('content') : null
+                        };
+                    });
 
-                const textSelectors = [
-                    // Facebook特定選擇器
-                    'div[data-testid="post_message"]',
-                    'div[data-ad-preview="message"]',
-                    'div[role="article"] span',
-                    '[data-testid="post-text"]',
-
-                    // Instagram特定選擇器
-                    'article h1',
-                    'article span[dir="auto"]',
-
-                    // 通用選擇器
-                    '[role="article"] h1',
-                    'h1',
-                    'span[style*="break-word"]',
-                    'p'
-                ];
-
-                for (const selector of textSelectors) {
-                    const text = await page.evaluate((sel) => {
-                        const elements = document.querySelectorAll(sel);
-                        let bestText = '';
-
-                        elements.forEach(el => {
-                            const content = el.textContent || el.innerText || '';
-                            // 尋找較長且有意義的文字
-                            if (content.length > bestText.length &&
-                                content.length > 15 &&
-                                !content.match(/^[\d\s\.\,]*$/) && // 排除純數字
-                                !content.includes('Cookie') &&
-                                !content.includes('登入') &&
-                                !content.includes('Sign in') &&
-                                !content.includes('Log in')) {
-                                bestText = content;
-                            }
-                        });
-
-                        return bestText;
-                    }, selector);
-
-                    if (text && text.length > 15) {
-                        extractedText = text;
-                        console.log(`✅ [文字提取] 透過 "${selector}" 找到:`, text.substring(0, 80) + '...');
-                        break;
+                    if (ogData.description &&
+                        !(ogData.description.includes('likes') ||
+                          ogData.description.includes('comments') ||
+                          ogData.description.match(/^\d+\s+(likes?|comments?)/i))) {
+                        extractedText = ogData.description;
+                        console.log('✅ [Instagram文字] OpenGraph描述:', extractedText.substring(0, 50) + '...');
+                    } else {
+                        console.log('⚠️ [Instagram] OpenGraph描述為統計信息，跳過:', ogData.description ? ogData.description.substring(0, 50) + '...' : 'N/A');
                     }
                 }
             }
 
-            // === 如果還沒有圖片，嘗試從頁面提取 ===
-            if (!extractedImage) {
-                console.log('🖼️ [圖片提取] 嘗試從頁面提取圖片...');
+            // === Facebook 提取 ===
+            if (isFacebook) {
+                console.log('📘 [Facebook] 開始提取...');
 
-                const images = await page.evaluate(() => {
-                    const imgs = document.querySelectorAll('img');
-                    const results = [];
+                const fbData = await page.evaluate(() => {
+                    // Facebook特定選擇器
+                    const selectors = [
+                        'div[data-testid="post_message"]',
+                        'div[data-ad-preview="message"]',
+                        '.userContent',
+                        '[data-testid="story-subtitle"]'
+                    ];
 
-                    imgs.forEach(img => {
-                        const src = img.src || img.getAttribute('src');
-                        const width = img.naturalWidth || img.width || 0;
-                        const height = img.naturalHeight || img.height || 0;
-
-                        // 過濾掉太小的圖片
-                        if (src && width > 200 && height > 200 &&
-                            !src.includes('emoji') &&
-                            !src.includes('icon')) {
-                            results.push({
-                                src: src,
-                                width: width,
-                                height: height,
-                                size: width * height
-                            });
+                    let text = '';
+                    for (const selector of selectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            text = element.textContent.trim();
+                            console.log(`✅ [Facebook] 找到文字 (${selector}):`, text.substring(0, 50));
+                            break;
                         }
-                    });
+                    }
 
-                    return results.sort((a, b) => b.size - a.size);
+                    // 獲取圖片
+                    const img = document.querySelector('meta[property="og:image"]');
+                    const image = img ? img.getAttribute('content') : null;
+
+                    return { text, image };
                 });
 
-                if (images && images.length > 0) {
-                    extractedImage = images[0].src;
-                    console.log('✅ [圖片提取] 找到頁面圖片:', extractedImage);
+                if (fbData.text) {
+                    extractedText = fbData.text;
+                    console.log('✅ [Facebook文字] 成功提取:', extractedText.substring(0, 50) + '...');
+                }
+
+                if (fbData.image) {
+                    extractedImage = fbData.image;
+                    console.log('✅ [Facebook圖片] 成功提取:', extractedImage);
                 }
             }
 
-            // === 清理文字 ===
+            // === 通用OpenGraph提取 (備用) ===
+            if (!extractedText || !extractedImage) {
+                console.log('📝 [文字提取] 使用通用OpenGraph方法...');
+
+                const ogData = await page.evaluate(() => {
+                    const title = document.querySelector('meta[property="og:title"]');
+                    const description = document.querySelector('meta[property="og:description"]');
+                    const image = document.querySelector('meta[property="og:image"]');
+
+                    return {
+                        title: title ? title.getAttribute('content') : null,
+                        description: description ? description.getAttribute('content') : null,
+                        image: image ? image.getAttribute('content') : null
+                    };
+                });
+
+                if (!extractedText && ogData.description) {
+                    extractedText = ogData.description;
+                    console.log('✅ [通用文字] OpenGraph描述:', extractedText.substring(0, 50) + '...');
+                }
+
+                if (!extractedImage && ogData.image) {
+                    extractedImage = ogData.image;
+                    console.log('✅ [通用圖片] OpenGraph圖片:', extractedImage);
+                }
+            }
+
+            // === 文字清理和限制 ===
             if (extractedText) {
-                extractedText = extractedText.replace(/\s+/g, ' ').trim();
-                if (extractedText.length > 150) {
-                    extractedText = extractedText.substring(0, 150) + '...';
+                // 清理提取的文字，移除帳戶名、日期、按讚數等
+                let cleanedText = extractedText;
+
+                // 移除帳戶名和時間標記
+                cleanedText = cleanedText
+                    .replace(/^[a-zA-Z0-9_.]+\s+\d+[wdhms]\s*/, '') // mkter_salon 16w
+                    .replace(/^[a-zA-Z0-9_.]+\s+Edited•\d+[wdhms]\s*/, '') // ryan_ryan_lin Edited•2w
+                    .replace(/Edited•\d+[wdhms]\s*/, '') // Edited•2w
+
+                    // 移除按讚數和留言數
+                    .replace(/^\d+\s+(likes?|comments?).*?-\s*/, '') // 81 likes, 1 comments -
+                    .replace(/^\d+\s+(likes?|comments?)\s*/, '') // 81 likes, 1 comments
+
+                    // 移除日期格式
+                    .replace(/\s+on\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d+,\s+\d+.*/, '')
+                    .replace(/\s*-\s*[a-zA-Z0-9_.]+\s+on\s+.*/, '')
+
+                    // 移除開頭的標點符號和空白
+                    .replace(/^[:\-\s]+/, '')
+                    .trim();
+
+                // 智能文字長度處理 - 移除20字硬性限制
+                let finalDescription = cleanedText;
+
+                if (cleanedText) {
+                    // 如果文字過長（超過200字），取前150字並加上省略號
+                    if (cleanedText.length > 200) {
+                        // 嘗試在句號、感嘆號或問號處截斷
+                        const sentenceEnd = cleanedText.substring(0, 150).search(/[。！？]/);
+                        if (sentenceEnd > 50) {
+                            finalDescription = cleanedText.substring(0, sentenceEnd + 1);
+                        } else {
+                            finalDescription = cleanedText.substring(0, 150) + '...';
+                        }
+                    }
+                    // 保留有意義的中短文字（200字以內）
+                    else {
+                        finalDescription = cleanedText;
+                    }
                 }
+
+                extractedText = finalDescription;
             }
 
-            console.log('📊 [提取結果] 文字:', extractedText ? extractedText.substring(0, 50) + '...' : '未找到');
+            console.log('📊 [提取結果] 文字:', extractedText ? extractedText : '未找到');
             console.log('📊 [提取結果] 圖片:', extractedImage ? '已提取' : '未找到');
 
-            return {
+            // === 返回結果 ===
+            const domain = new URL(url).hostname;
+            const hasContent = extractedText || extractedImage;
+
+            const result = {
+                title: extractedText ? 'Instagram' : domain,
                 description: extractedText || null,
-                image: extractedImage || null
+                image: extractedImage,
+                domain: domain,
+                url: url,
+                type: hasContent ? 'extracted' : 'fallback'
             };
+
+            console.log('✅ [內容提取] 成功提取內容:', {
+                hasImage: !!extractedImage,
+                hasDescription: !!extractedText,
+                descriptionPreview: extractedText ? extractedText.substring(0, 30) + '...' : 'N/A'
+            });
+
+            return result;
 
         } catch (error) {
-            console.error('❌ [內容提取] 失敗:', error.message);
+            console.error('❌ [內容提取] 錯誤:', error.message);
+            const domain = new URL(url).hostname;
             return {
-                description: null,
-                image: null
+                title: `${domain} - ${url.split('/').pop()}`,
+                description: '無法獲取預覽內容',
+                image: null,
+                domain: domain,
+                url: url,
+                type: 'fallback'
             };
+        } finally {
+            await this.cleanup();
         }
     }
 
-    /**
-     * 從 URL 提取標題
-     */
-    extractTitleFromUrl(url) {
-        try {
-            const urlObj = new URL(url);
-            const domain = urlObj.hostname.replace('www.', '');
-            const path = urlObj.pathname.split('/').filter(Boolean);
-
-            if (path.length > 0) {
-                return `${domain} - ${path[path.length - 1]}`;
-            }
-
-            return domain;
-        } catch {
-            return '連結預覽';
-        }
-    }
-
-    /**
-     * 清理瀏覽器資源
-     */
     async cleanup() {
         if (this.browser) {
             await this.browser.close();
             this.browser = null;
             console.log('🔄 [截圖服務] 瀏覽器已關閉');
-        }
-    }
-
-    /**
-     * 清理舊截圖（可選）
-     */
-    async cleanupOldScreenshots(maxAge = 7 * 24 * 60 * 60 * 1000) { // 7天
-        try {
-            const files = await fs.readdir(this.screenshotDir);
-            const now = Date.now();
-
-            for (const file of files) {
-                if (file.startsWith('screenshot_')) {
-                    const filePath = path.join(this.screenshotDir, file);
-                    const stats = await fs.stat(filePath);
-
-                    if (now - stats.mtime.getTime() > maxAge) {
-                        await fs.unlink(filePath);
-                        console.log('🗑️ [截圖服務] 已清理舊截圖:', file);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('❌ [截圖服務] 清理失敗:', error.message);
         }
     }
 }
