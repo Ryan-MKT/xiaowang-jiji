@@ -227,6 +227,28 @@ class EnhancedLinkPreview {
                 }
             }
 
+            // === 提取網頁標題 ===
+            let extractedTitle = '';
+            const titleData = await page.evaluate(() => {
+                // 優先順序：OpenGraph標題 > H1標籤 > title標籤
+                const ogTitle = document.querySelector('meta[property="og:title"]');
+                const h1Title = document.querySelector('h1');
+                const pageTitle = document.querySelector('title');
+
+                return {
+                    ogTitle: ogTitle ? ogTitle.getAttribute('content') : null,
+                    h1Title: h1Title ? h1Title.textContent.trim() : null,
+                    pageTitle: pageTitle ? pageTitle.textContent.trim() : null
+                };
+            });
+
+            // 選擇最佳標題
+            extractedTitle = titleData.ogTitle || titleData.h1Title || titleData.pageTitle || '';
+
+            if (extractedTitle) {
+                console.log('✅ [標題提取] 成功提取標題:', extractedTitle.substring(0, 50) + (extractedTitle.length > 50 ? '...' : ''));
+            }
+
             // === 文字清理和限制 ===
             if (extractedText) {
                 // 清理提取的文字，移除帳戶名、日期、按讚數等
@@ -273,6 +295,7 @@ class EnhancedLinkPreview {
                 extractedText = finalDescription;
             }
 
+            console.log('📊 [提取結果] 標題:', extractedTitle || '未找到');
             console.log('📊 [提取結果] 文字:', extractedText ? extractedText : '未找到');
             console.log('📊 [提取結果] 圖片:', extractedImage ? '已提取' : '未找到');
 
@@ -280,8 +303,20 @@ class EnhancedLinkPreview {
             const domain = new URL(url).hostname;
             const hasContent = extractedText || extractedImage;
 
+            // 智能選擇標題
+            let finalTitle = '';
+            if (extractedTitle) {
+                finalTitle = extractedTitle;
+            } else if (isInstagram && extractedText) {
+                finalTitle = 'Instagram';
+            } else if (isFacebook && extractedText) {
+                finalTitle = 'Facebook';
+            } else {
+                finalTitle = domain;
+            }
+
             const result = {
-                title: extractedText ? 'Instagram' : domain,
+                title: finalTitle,
                 description: extractedText || null,
                 image: extractedImage,
                 domain: domain,

@@ -743,7 +743,7 @@
                         <div class="collection-info">
                             <div class="collection-title">${title}</div>
                             ${originalUrl ? `<div class="collection-url">${originalUrl}</div>` : ''}
-                            ${description ? `<div class="collection-description" style="color: #333; font-size: 1.1rem; font-weight: 500; margin: 8px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">${description}</div>` : ''}
+                            ${(description && type !== 'url') ? `<div class="collection-description" style="color: #333; font-size: 1.1rem; font-weight: 500; margin: 8px 0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">${description}</div>` : ''}
 
                             <div class="collection-meta">
                                 <span class="collection-type type-${type}">
@@ -941,15 +941,8 @@
                 const title = collection.title || '';
                 const hasPreview = collection.preview_image || (collection.content && collection.content.preview_image);
 
-                // 檢查是否為需要預覽的URL但缺少預覽圖片
-                const needsPreview = title.includes('http') && (
-                    title.includes('facebook.com') ||
-                    title.includes('instagram.com') ||
-                    title.includes('youtube.com') ||
-                    title.includes('twitter.com') ||
-                    title.includes('github.com') ||
-                    title.includes('medium.com')
-                );
+                // 檢查是否為需要預覽的URL但缺少預覽圖片（所有HTTP/HTTPS URLs）
+                const needsPreview = title.includes('http');
 
                 if (needsPreview && !hasPreview) {
                     cardsNeedingPreview.add(collection.id);

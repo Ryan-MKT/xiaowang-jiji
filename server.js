@@ -597,17 +597,8 @@ async function handleEvent(event) {
         console.log(`  - content.url: ${content.url}`);
         console.log(`  - 最終url: ${url}`);
 
-        // 檢測是否為需要預覽的URL
-        const needsPreview = url && (
-          url.includes('http') && (
-            url.includes('facebook.com') ||
-            url.includes('instagram.com') ||
-            url.includes('youtube.com') ||
-            url.includes('twitter.com') ||
-            url.includes('github.com') ||
-            url.includes('medium.com')
-          )
-        );
+        // 檢測是否為需要預覽的URL（所有HTTP/HTTPS URLs）
+        const needsPreview = url && url.includes('http');
 
         if (needsPreview) {
           // 背景處理URL預覽，不阻塞LINE Bot回應
@@ -1428,7 +1419,10 @@ app.post('/api/url-preview', async (req, res) => {
     console.log(`🔍 [API] 請求網址預覽: ${url}`);
 
     // 使用 Enhanced Preview 處理所有連結（社交媒體和非社交媒體）
-    console.log(`📱 [API] 使用Enhanced Preview處理連結: ${enhancedPreview.isSocialMediaLink(url) ? '社交媒體' : '一般網站'}`);
+    const isInstagram = url.includes('instagram.com');
+    const isFacebook = url.includes('facebook.com');
+    const linkType = isInstagram ? 'Instagram' : isFacebook ? 'Facebook' : '一般網站';
+    console.log(`📱 [API] 使用Enhanced Preview處理連結: ${linkType}`);
     const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
 
     // 轉換為標準格式
