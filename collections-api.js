@@ -1,4 +1,4 @@
-// 收藏卡管理 API
+// 收藏卡管理 API - 新分離架構 v2.0
 // 提供 CRUD 操作給 LIFF 頁面使用
 
 // 確保載入環境變數
@@ -6,6 +6,8 @@ require('dotenv').config();
 
 const { supabase } = require('./supabase-client');
 const AITagGenerator = require('./ai-tag-generator');
+
+console.log('🚀 [系統] collections-api.js 已載入 - 使用新分離架構!');
 
 // 🔍 獲取用戶的所有收藏卡
 async function getUserCollections(userId, options = {}) {
@@ -69,72 +71,82 @@ async function createCollection(userId, collectionData) {
       try {
         // 🚀 第一步：調用 Enhanced Preview 獲取完整內容（圖片+文字）
         console.log('🔄 [即時處理] 步驟1: 呼叫 Enhanced Preview 獲取完整內容...');
-        const enhancedPreview = require('./enhanced-link-preview');
+        const EnhancedLinkPreview = require('./enhanced-link-preview');
+        const enhancedPreview = new EnhancedLinkPreview();
         const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
 
-        if (enhancedResult.success) {
+        if (enhancedResult && enhancedResult.title) {
           console.log('✅ [即時處理] Enhanced Preview 成功:', {
-            hasImage: enhancedResult.data.hasImage,
-            hasDescription: enhancedResult.data.hasDescription,
-            title: enhancedResult.data.title?.substring(0, 50) || '無標題'
+            hasImage: !!enhancedResult.image,
+            hasDescription: !!enhancedResult.description,
+            title: enhancedResult.title?.substring(0, 50) || '無標題'
           });
 
           // 將 Enhanced Preview 的內容加入 finalContent
           finalContent = {
             ...finalContent,
-            image: enhancedResult.data.image,
-            text: enhancedResult.data.text || enhancedResult.data.description,
-            title: enhancedResult.data.title,
-            description: enhancedResult.data.description
+            image: enhancedResult.image,
+            text: enhancedResult.text || enhancedResult.description,
+            title: enhancedResult.title,
+            description: enhancedResult.description
           };
         } else {
-          console.log('⚠️ [即時處理] Enhanced Preview 失敗:', enhancedResult.error);
+          console.log('⚠️ [即時處理] Enhanced Preview 失敗:', enhancedResult ? '格式錯誤' : '無返回數據');
         }
 
-        // 🚀 第二步：調用 AI 標籤生成器獲取社群帳號資訊
-        console.log('🔄 [即時處理] 步驟2: 呼叫 AI 標籤生成器獲取社群帳號...');
-        const aiTagGenerator = new AITagGenerator();
+        // 🚀 第二步：使用獨立的社群帳戶提取器 (新架構)
+        console.log('🔄 [即時處理] 步驟2: 呼叫獨立社群帳戶提取器 (新架構)...');
+        const SocialAccountExtractor = require('./social-account-extractor');
+        const socialExtractor = new SocialAccountExtractor();
 
         // 準備內容數據（包含 Enhanced Preview 的結果）
         const contentData = {
           url: url,
           domain: new URL(url).hostname,
-          title: enhancedResult.success ? enhancedResult.data.title : collectionData.title,
-          description: enhancedResult.success ? enhancedResult.data.description : collectionData.description || '',
+          title: (enhancedResult && enhancedResult.title) ? enhancedResult.title : collectionData.title,
+          description: (enhancedResult && enhancedResult.description) ? enhancedResult.description : collectionData.description || '',
           content: finalContent,
-          // 🚀 重要：為AI標籤生成器提供實際提取的內容
-          metaTags: enhancedResult.success ? enhancedResult.data.metaTags : {},
-          mainContent: enhancedResult.success ? enhancedResult.data.text : ''
+          metaTags: (enhancedResult && enhancedResult.metaTags) ? enhancedResult.metaTags : {},
+          mainContent: (enhancedResult && enhancedResult.text) ? enhancedResult.text : ''
         };
 
-        console.log('📋 [即時處理] 傳遞給AI標籤生成器的數據:', {
+        console.log('📋 [即時處理] 傳遞給社群帳戶提取器的數據:', {
           url: contentData.url,
           domain: contentData.domain,
           title: contentData.title,
+          hasDescription: !!contentData.description,
           hasMetaTags: !!contentData.metaTags,
           hasMainContent: !!contentData.mainContent
         });
 
-        console.log('🔥 [即時處理] 呼叫 AI 標籤生成器:', {
-          url: contentData.url,
-          domain: contentData.domain
-        });
+        // 🔥 並行處理：同時進行社群帳戶提取和AI標籤生成
+        const [socialResult, aiResult] = await Promise.allSettled([
+          socialExtractor.extractAccountInfo(contentData),
+          new AITagGenerator().generateTags(contentData)
+        ]);
 
-        // 呼叫 AI 標籤生成器
-        const aiResult = await aiTagGenerator.generateTags(contentData);
-
-        if (aiResult.success && aiResult.socialAccount) {
-          console.log('🎯 [即時處理] 成功提取社群帳號資訊:', aiResult.socialAccount);
+        // 處理社群帳戶提取結果
+        let socialAccount = null;
+        if (socialResult.status === 'fulfilled' && socialResult.value) {
+          socialAccount = socialResult.value;
+          console.log('🎯 [即時處理] 成功提取社群帳號資訊:', socialAccount);
 
           // 將社群帳號資訊加入 content
           finalContent = {
             ...finalContent,
-            socialAccount: aiResult.socialAccount
+            socialAccount: socialAccount
           };
 
           console.log('✅ [即時處理] 社群帳號資訊已加入 content');
         } else {
-          console.log('⚠️ [即時處理] 未能提取社群帳號資訊:', aiResult.error || '無錯誤訊息');
+          console.log('⚠️ [即時處理] 社群帳戶提取失敗:', socialResult.reason?.message || '無錯誤訊息');
+        }
+
+        // 處理AI標籤生成結果
+        if (aiResult.status === 'fulfilled' && aiResult.value) {
+          console.log('✅ [即時處理] AI標籤生成成功');
+        } else {
+          console.log('⚠️ [即時處理] AI標籤生成失敗:', aiResult.reason?.message || '無錯誤訊息');
         }
 
         console.log('🎉 [即時處理] 完整處理完成:', {
