@@ -639,7 +639,7 @@ async function handleEvent(event) {
         .eq('title', taskData.message_text)
         .eq('user_id', userId);
 
-      let imageUrl = 'https://picsum.photos/400/300'; // 預設圖片
+      let imageUrl = 'https://picsum.photos/400/400'; // 預設圖片（有效的圖片服務）
 
       if (collectionError) {
         console.log('ℹ️ 查詢收藏卡失敗，使用預設圖片:', collectionError);
@@ -653,7 +653,7 @@ async function handleEvent(event) {
       console.log(`🎨 最終使用圖片URL: ${imageUrl}`);
 
       // 生成單一 30px 圓角圖片，正方形尺寸
-      const roundedImageUrl = generateRoundedImageUrl(imageUrl, { radius: 35, size: '600x600' });
+      const roundedImageUrl = generateRoundedImageUrl(imageUrl, { radius: 30, size: '600x600' });
 
       // 建構 Flex Message - 單一 bubble 版本
       const flexMessage = {
@@ -668,24 +668,6 @@ async function handleEvent(event) {
             spacing: 'md',
             contents: [
               {
-                type: 'box',
-                layout: 'baseline',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '行銷人沙龍',
-                    size: 'xs',
-                    color: '#FFFFFF',
-                    align: 'start',
-                    flex: 0
-                  }
-                ],
-                backgroundColor: '#FF6B35',
-                paddingAll: 'xs',
-                cornerRadius: '4px',
-                margin: 'none'
-              },
-              {
                 type: 'image',
                 url: roundedImageUrl,
                 size: 'full',
@@ -695,21 +677,33 @@ async function handleEvent(event) {
               },
               {
                 type: 'text',
-                text: '如何成為站在風口上的行銷人?',
-                size: 'sm',
-                color: '#333333',
-                align: 'start',
-                wrap: true,
-                margin: 'md'
-              },
-              {
-                type: 'text',
-                text: '他叫沈道廷，人稱D大、沈大，操盤過無數課程老師',
+                text: '在人人斜槓、資訊爆炸的時代，你是否也想透過自媒體斜槓變現，但卻總是靈感枯竭、時間不夠',
                 size: 'sm',
                 color: '#666666',
                 align: 'start',
                 wrap: true,
                 margin: 'xs'
+              },
+              {
+                type: 'box',
+                layout: 'horizontal',
+                spacing: 'md',
+                margin: 'md',
+                contents: [
+                  {
+                    type: 'filler'
+                  },
+                  {
+                    type: 'button',
+                    style: 'primary',
+                    height: 'sm',
+                    action: {
+                      type: 'message',
+                      label: '功能',
+                      text: `功能選單_${taskId}`
+                    }
+                  }
+                ]
               }
             ]
           }
@@ -980,6 +974,19 @@ async function handleEvent(event) {
     return handlePostback(mockPostbackEvent);
   }
 
+  // 特殊指令：功能選單
+  if (userMessage.startsWith('功能選單_')) {
+    const taskId = parseInt(userMessage.replace('功能選單_', ''));
+    console.log(`🎛️ 用戶 ${userId} 點擊功能選單 ID: ${taskId}`);
+
+    // 發送功能選單回覆
+    const functionMenuMessage = {
+      type: 'text',
+      text: `🎛️ 任務功能選單 (ID: ${taskId})\n\n請選擇要執行的功能：\n• 編輯任務內容\n• 設定提醒時間\n• 移動到其他分類\n• 複製任務\n• 分享任務`
+    };
+
+    return client.replyMessage(event.replyToken, functionMenuMessage);
+  }
 
   // 特殊指令：任務更新完成，重新生成任務堆疊
   if (userMessage.includes('任務更新完成') || userMessage.includes('刷新任務列表') || userMessage.includes('SYNC_TASKS')) {
