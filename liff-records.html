@@ -573,12 +573,15 @@
                                     </div>
                                     <span class="task-text" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer; flex: 1;">${task.text || '未命名任務'}</span>
                                 </div>
-                                <span class="task-time" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer;">
-                                    ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    })}
-                                </span>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="rounded-image-icon" onclick="sendTaskRoundedImageMessage('${task.id}', '${task.collection_image_url || 'https://picsum.photos/400/300'}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer; color: #ff4757; font-size: 16px; padding: 4px; border: 1px solid #ff4757; border-radius: 4px; background: rgba(255, 71, 87, 0.1);" title="發送圓角圖片 ${task.collection_image_url ? '(有圖片)' : '(測試圖片)'}">🖼️</span>
+                                    <span class="task-time" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer;">
+                                        ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -787,6 +790,112 @@
             } catch (error) {
                 console.error('❌ [Edit Task] 跳轉編輯頁面失敗:', error);
                 showNotification('無法開啟編輯頁面');
+            }
+        }
+
+        // 產生圓角圖片URL的輔助函數
+        function generateRoundedImageUrl(originalUrl, options = {}) {
+            const {
+                radius = 15,
+                size = '300x200',
+                baseUrl = 'https://d80fd74ab881.ngrok-free.app'
+            } = options;
+
+            const params = new URLSearchParams({
+                url: originalUrl,
+                radius: radius.toString(),
+                size: size
+            });
+
+            return `${baseUrl}/rounded-image?${params.toString()}`;
+        }
+
+        // 發送任務圓角圖片訊息
+        async function sendTaskRoundedImageMessage(taskId, imageUrl, taskTitle) {
+            try {
+                console.log('🎨 [任務圓角圖片] 點擊事件觸發！');
+                console.log('🎨 [任務圓角圖片] 準備發送 task ID:', taskId);
+                console.log('🎨 [任務圓角圖片] 圖片URL:', imageUrl);
+                console.log('🎨 [任務圓角圖片] 任務標題:', decodeURIComponent(taskTitle));
+
+                alert(`🖼️ 測試圓角圖片功能\n任務ID: ${taskId}\n圖片URL: ${imageUrl}\n標題: ${decodeURIComponent(taskTitle)}`);
+
+                if (!liffProfile || !liffProfile.userId) {
+                    alert('無法取得用戶資訊，請重新整理頁面');
+                    return;
+                }
+
+                // 產生圓角圖片URL
+                const roundedImageUrl = generateRoundedImageUrl(imageUrl, {
+                    radius: 15,
+                    size: '400x300'
+                });
+
+                console.log('🎨 [任務圓角圖片] 圓角圖片URL:', roundedImageUrl);
+
+                // 建立Flex Message
+                const flexMessage = {
+                    type: "flex",
+                    altText: `任務圖片: ${decodeURIComponent(taskTitle)}`,
+                    contents: {
+                        type: "bubble",
+                        hero: {
+                            type: "image",
+                            url: roundedImageUrl,
+                            size: "full",
+                            aspectRatio: "4:3",
+                            aspectMode: "cover"
+                        },
+                        body: {
+                            type: "box",
+                            layout: "vertical",
+                            contents: [
+                                {
+                                    type: "text",
+                                    text: decodeURIComponent(taskTitle),
+                                    weight: "bold",
+                                    size: "lg",
+                                    wrap: true
+                                },
+                                {
+                                    type: "text",
+                                    text: "圓角處理版本",
+                                    size: "sm",
+                                    color: "#666666",
+                                    margin: "md"
+                                }
+                            ]
+                        }
+                    }
+                };
+
+                console.log('🎨 [任務圓角圖片] 發送 Flex Message:', flexMessage);
+
+                // 發送訊息
+                const response = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify({
+                        type: 'flex',
+                        message: flexMessage
+                    })
+                });
+
+                if (response.ok) {
+                    console.log('✅ [任務圓角圖片] 發送成功');
+                    alert('圓角圖片已發送！');
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ [任務圓角圖片] 發送失敗:', errorText);
+                    alert('發送失敗: ' + errorText);
+                }
+
+            } catch (error) {
+                console.error('❌ [任務圓角圖片] 發送失敗:', error);
+                alert('發送時發生錯誤: ' + error.message);
             }
         }
 

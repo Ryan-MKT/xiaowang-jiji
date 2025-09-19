@@ -11,6 +11,7 @@ const fs = require('fs-extra');
 const FormData = require('form-data');
 const axios = require('axios');
 const path = require('path');
+const { setupRoundedImageRoute, generateRoundedImageUrl } = require('./realtime-rounded-image-api');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
@@ -460,12 +461,275 @@ async function handleEvent(event) {
     console.log('⚠️ 訊息清理後為空，忽略處理');
     return Promise.resolve(null);
   }
+
+  // 特殊指令：測試高級卡片設計 (88測試) - 不保存到資料庫，不觸發任務堆疊
+  if (userMessage === '88測試' || userMessage === '99測試') {
+    console.log(`🎨 用戶 ${userId} 請求測試高級卡片設計 (跳過所有其他處理)`);
+
+    const imageUrl = "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop&crop=center";
+
+    const premiumCardMessage = {
+      type: "flex",
+      altText: "Premium Card Design - MKT演講大師",
+      contents: {
+        type: "bubble",
+        size: "kilo",
+        hero: {
+          type: "image",
+          url: imageUrl,
+          size: "full",
+          aspectRatio: "1.51:1",
+          aspectMode: "cover"
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "MKT 演講大師",
+              weight: "bold",
+              size: "xl",
+              color: "#000000",
+              wrap: true
+            },
+            {
+              type: "text",
+              text: "Master the Marketing",
+              size: "sm",
+              color: "#999999",
+              wrap: true,
+              margin: "xs"
+            },
+            {
+              type: "text",
+              text: "專業演講者，透過深度洞察與實戰經驗，啟發您的行銷思維突破。",
+              size: "sm",
+              color: "#666666",
+              wrap: true,
+              margin: "md"
+            }
+          ],
+          spacing: "sm",
+          paddingAll: "20px"
+        },
+        footer: {
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            {
+              type: "text",
+              text: "$299",
+              weight: "bold",
+              size: "xl",
+              color: "#000000",
+              flex: 1,
+              gravity: "center"
+            },
+            {
+              type: "button",
+              style: "primary",
+              height: "sm",
+              action: {
+                type: "message",
+                text: "立即預約演講 🎤"
+              },
+              color: "#000000",
+              flex: 2
+            }
+          ],
+          spacing: "sm",
+          paddingAll: "20px"
+        }
+      }
+    };
+
+    return client.replyMessage(event.replyToken, premiumCardMessage);
+  }
   
   console.log('🧹 原始訊息:', userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''));
   console.log('✨ 清理後訊息:', cleanedMessage.substring(0, 100) + (cleanedMessage.length > 100 ? '...' : ''));
   
   // 更新 userMessage 為清理後的版本
   userMessage = cleanedMessage;
+
+  // 🔧 優先檢查特殊指令：圓角圖片 (在儲存訊息之前)
+  if (userMessage.startsWith('圓角圖片_')) {
+    const taskId = parseInt(userMessage.replace('圓角圖片_', ''));
+    console.log(`🎨 用戶 ${userId} 點擊圓角圖片任務 ID: ${taskId}`);
+
+    try {
+      console.log(`🔍 [圓角圖片] 開始查詢任務 ID: ${taskId}, 用戶: ${userId}`);
+
+      // ⚠️ 由於 Flex Message 使用時間戳 ID，但資料庫使用自增 ID，先嘗試從記憶體中的任務堆疊查找
+      let taskData = null;
+      const userTasks = userTaskStacks.get(userId) || [];
+      const memoryTask = userTasks.find(task => task.id === taskId);
+
+      if (memoryTask) {
+        console.log(`🎯 [圓角圖片] 從記憶體找到任務: ${memoryTask.text}`);
+
+        // 根據任務內容從資料庫查詢實際的任務記錄
+        const { data: taskDataArray, error: taskError } = await supabase
+          .from('dev_messages')
+          .select('id, message_text, user_id, created_at')
+          .eq('message_text', memoryTask.text)
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (taskError) {
+          console.error('❌ 查詢任務失敗:', taskError);
+          throw taskError;
+        }
+
+        if (taskDataArray && taskDataArray.length > 0) {
+          taskData = taskDataArray[0];
+          console.log(`📋 [圓角圖片] 從資料庫找到對應任務: ID ${taskData.id}`);
+        }
+      }
+
+      // 如果記憶體中沒找到，直接嘗試用 ID 查詢資料庫
+      if (!taskData) {
+        console.log(`🔍 [圓角圖片] 記憶體中未找到，嘗試直接查詢資料庫 ID: ${taskId}`);
+        const { data: taskDataArray, error: taskError } = await supabase
+          .from('dev_messages')
+          .select('id, message_text, user_id, created_at')
+          .eq('id', taskId)
+          .eq('user_id', userId);
+
+        if (taskError) {
+          console.error('❌ 查詢任務失敗:', taskError);
+          throw taskError;
+        }
+
+        if (taskDataArray && taskDataArray.length > 0) {
+          taskData = taskDataArray[0];
+          console.log(`📋 [圓角圖片] 直接從資料庫找到任務:`, taskData);
+        }
+      }
+
+      if (!taskData) {
+        console.log('⚠️ 未找到任務或無權限');
+        // 讓我們查詢最近的一些任務來調試
+        console.log(`🔍 [調試] 查詢用戶 ${userId} 最近的10個任務...`);
+        const { data: recentTasks, error: recentError } = await supabase
+          .from('dev_messages')
+          .select('id, message_text, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (!recentError && recentTasks) {
+          console.log(`📋 [調試] 最近任務列表:`, recentTasks.map(t => ({ id: t.id, text: t.message_text.substring(0, 50) })));
+        }
+
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '❌ 找不到指定的任務'
+        });
+      }
+
+      console.log(`📝 找到任務: ${taskData.message_text}`);
+
+      // 查詢對應的收藏卡來獲取圖片
+      const { data: collectionDataArray, error: collectionError } = await supabase
+        .from('dev_collections')
+        .select('id, title, original_image_url')
+        .eq('title', taskData.message_text)
+        .eq('user_id', userId);
+
+      let imageUrl = 'https://picsum.photos/400/300'; // 預設圖片
+
+      if (collectionError) {
+        console.log('ℹ️ 查詢收藏卡失敗，使用預設圖片:', collectionError);
+      } else if (collectionDataArray && collectionDataArray.length > 0 && collectionDataArray[0].original_image_url) {
+        imageUrl = collectionDataArray[0].original_image_url;
+        console.log(`🖼️ 找到收藏卡圖片: ${imageUrl}`);
+      } else {
+        console.log('ℹ️ 未找到收藏卡或收藏卡無圖片，使用預設圖片');
+      }
+
+      console.log(`🎨 最終使用圖片URL: ${imageUrl}`);
+
+      // 生成單一 30px 圓角圖片，正方形尺寸
+      const roundedImageUrl = generateRoundedImageUrl(imageUrl, { radius: 35, size: '600x600' });
+
+      // 建構 Flex Message - 單一 bubble 版本
+      const flexMessage = {
+        type: 'flex',
+        altText: `📸 ${taskData.message_text || '任務'} - 圓角圖片`,
+        contents: {
+          type: 'bubble',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: 'md',
+            spacing: 'md',
+            contents: [
+              {
+                type: 'box',
+                layout: 'baseline',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '行銷人沙龍',
+                    size: 'xs',
+                    color: '#FFFFFF',
+                    align: 'start',
+                    flex: 0
+                  }
+                ],
+                backgroundColor: '#FF6B35',
+                paddingAll: 'xs',
+                cornerRadius: '4px',
+                margin: 'none'
+              },
+              {
+                type: 'image',
+                url: roundedImageUrl,
+                size: 'full',
+                aspectRatio: '1:1',
+                aspectMode: 'cover',
+                margin: 'md'
+              },
+              {
+                type: 'text',
+                text: '如何成為站在風口上的行銷人?',
+                size: 'sm',
+                color: '#333333',
+                align: 'start',
+                wrap: true,
+                margin: 'md'
+              },
+              {
+                type: 'text',
+                text: '他叫沈道廷，人稱D大、沈大，操盤過無數課程老師',
+                size: 'sm',
+                color: '#666666',
+                align: 'start',
+                wrap: true,
+                margin: 'xs'
+              }
+            ]
+          }
+        }
+      };
+
+      // 發送 Flex Message
+      await client.replyMessage(event.replyToken, flexMessage);
+      console.log(`✅ 圓角圖片 Flex Message 發送成功`);
+
+    } catch (error) {
+      console.error('❌ 圓角圖片處理失敗:', error);
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '❌ 圓角圖片處理失敗，請稍後再試'
+      });
+    }
+
+    return Promise.resolve(null);
+  }
 
   // 嘗試儲存到 Supabase - 加入標籤資訊
   if (supabase) {
@@ -514,6 +778,7 @@ async function handleEvent(event) {
   } else {
     console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
   }
+
 
   // 特殊指令：加入收藏卡
   if (userMessage.startsWith('加入收藏卡_')) {
@@ -703,7 +968,7 @@ async function handleEvent(event) {
   if (userMessage.startsWith('完成任務_')) {
     const taskId = parseInt(userMessage.replace('完成任務_', ''));
     console.log(`✅ 用戶 ${userId} 點擊完成任務 ID: ${taskId}`);
-    
+
     // 建立模擬的 postback 事件
     const mockPostbackEvent = {
       type: 'postback',
@@ -711,9 +976,10 @@ async function handleEvent(event) {
       source: { userId: userId },
       replyToken: event.replyToken
     };
-    
+
     return handlePostback(mockPostbackEvent);
   }
+
 
   // 特殊指令：任務更新完成，重新生成任務堆疊
   if (userMessage.includes('任務更新完成') || userMessage.includes('刷新任務列表') || userMessage.includes('SYNC_TASKS')) {
@@ -2776,6 +3042,9 @@ app.get('/api/messages', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// 設定圓角圖片API路由
+setupRoundedImageRoute(app);
 
 // 啟動伺服器
 app.listen(PORT, () => {

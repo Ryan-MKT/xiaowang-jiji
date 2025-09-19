@@ -122,7 +122,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://3c22a40d8ece.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+          uri: `https://d80fd74ab881.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
         }
       }
     ];
@@ -169,6 +169,27 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           layout: 'vertical',
           flex: 1,
           contents: taskBoxContents
+        },
+        {
+          type: 'text',
+          text: '🖼️',
+          size: 'md',
+          color: '#ff4757',
+          flex: 0,
+          margin: 'xs',
+          action: {
+            type: 'message',
+            label: '發送圓角圖片',
+            text: `圓角圖片_${task.id}`
+          }
+        },
+        {
+          type: 'text',
+          text: '𖤘',
+          size: 'md',
+          color: '#000000',
+          flex: 0,
+          margin: 'xs'
         },
         {
           type: 'text',
@@ -271,7 +292,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/records'
+                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/records'
                 }
               },
               {
@@ -283,7 +304,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/favorites'
+                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/favorites'
                 }
               },
               {
@@ -295,7 +316,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/account'
+                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/account'
                 }
               },
               {
@@ -307,7 +328,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/collections'
+                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/collections'
                 }
               }
             ]
@@ -669,7 +690,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://3c22a40d8ece.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
+          uri: `https://d80fd74ab881.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
         }
       }
     ];
@@ -699,6 +720,27 @@ function createTagBubble(tagName, tasks, userTags = null) {
           layout: 'vertical',
           flex: 1,
           contents: taskBoxContents
+        },
+        {
+          type: 'text',
+          text: '🖼️',
+          size: 'md',
+          color: '#ff4757',
+          flex: 0,
+          margin: 'xs',
+          action: {
+            type: 'message',
+            label: '發送圓角圖片',
+            text: `圓角圖片_${task.id}`
+          }
+        },
+        {
+          type: 'text',
+          text: '𖤘',
+          size: 'md',
+          color: '#000000',
+          flex: 0,
+          margin: 'xs'
         },
         {
           type: 'text',
@@ -832,7 +874,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           margin: 'none',
           action: {
             type: 'uri',
-            uri: `https://3c22a40d8ece.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+            uri: `https://d80fd74ab881.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
           }
         }
       ];
@@ -942,7 +984,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/records'
+            uri: 'https://d80fd74ab881.ngrok-free.app/liff/records'
           }
         },
         {
@@ -954,7 +996,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/favorites'
+            uri: 'https://d80fd74ab881.ngrok-free.app/liff/favorites'
           }
         },
         {
@@ -966,7 +1008,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/collections'
+            uri: 'https://d80fd74ab881.ngrok-free.app/liff/collections'
           }
         },
         {
@@ -978,7 +1020,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://3c22a40d8ece.ngrok-free.app/liff/account'
+            uri: 'https://d80fd74ab881.ngrok-free.app/liff/account'
           }
         }
       ]
@@ -1282,7 +1324,7 @@ function createCollectionsBubble() {
                 cornerRadius: '8px',
                 action: {
                   type: 'uri',
-                  uri: 'https://3c22a40d8ece.ngrok-free.app/liff/collections'
+                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/collections'
                 }
               }
             ]
