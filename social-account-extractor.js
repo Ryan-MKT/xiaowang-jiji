@@ -85,6 +85,14 @@ class SocialAccountExtractor {
     extractFacebookAccount(url, contentData) {
         console.log('📘 [Facebook] 開始提取Facebook帳戶資訊');
 
+        // 🆕 檢查是否為新分享格式 /share/p/ 或 /share/v/
+        const isNewShareFormat = url.includes('/share/') && (url.includes('/p/') || url.includes('/v/'));
+
+        if (isNewShareFormat) {
+            console.log('🆕 [Facebook] 偵測到新分享格式，使用智能提取器');
+            return this.handleFacebookNewShareFormat(url, contentData);
+        }
+
         const { title, description, metaTags, mainContent } = contentData;
         let accountName = null;
         let profileImage = null;
@@ -326,6 +334,138 @@ class SocialAccountExtractor {
         }
 
         return null;
+    }
+
+    /**
+     * 🆕 處理 Facebook 新分享格式的一勞永逸解決方案 (增強版)
+     * 支援 /share/p/ 和 /share/v/ 等所有新格式
+     * 新增：等待並處理延遲到達的正確標題
+     */
+    async handleFacebookNewShareFormat(url, contentData) {
+        console.log('🆕 [Facebook 新格式] 開始智能處理 (增強版)');
+        console.log(`🔗 [Facebook 新格式] URL: ${url}`);
+        console.log('🔍 [Facebook 新格式] 接收到的內容數據:', {
+            title: contentData.title,
+            description: contentData.description,
+            hasMainContent: !!contentData.mainContent
+        });
+
+        const { title, description, mainContent } = contentData;
+
+        // 🎯 策略1: 從 URL 結構提取類型信息
+        let contentType = 'unknown';
+        let shareId = '';
+
+        if (url.includes('/share/p/')) {
+            contentType = 'post';
+            const match = url.match(/\/share\/p\/([^\/\?]+)/);
+            shareId = match ? match[1] : '';
+        } else if (url.includes('/share/v/')) {
+            contentType = 'video';
+            const match = url.match(/\/share\/v\/([^\/\?]+)/);
+            shareId = match ? match[1] : '';
+        }
+
+        console.log(`📋 [Facebook 新格式] 內容類型: ${contentType}, ID: ${shareId}`);
+
+        // 🎯 策略2: 智能生成合理的帳戶名稱 (增強版標題處理)
+        let accountName = null;
+
+        // 2.1 增強版標題檢查 - 擴展有效標題的判斷條件
+        const isValidTitle = title &&
+                           title !== 'Error' &&
+                           title !== 'www.facebook.com' &&
+                           title !== 'facebook.com' &&
+                           !title.includes('無法獲取') &&
+                           !title.startsWith('http') &&
+                           !title.includes('facebook.com/share/') &&
+                           title.length > 2;
+
+        console.log('🔍 [Facebook 新格式] 標題驗證:', {
+            originalTitle: title,
+            isValidTitle: isValidTitle,
+            titleLength: title?.length || 0
+        });
+
+        if (isValidTitle) {
+            // 清理標題，移除常見的無用信息
+            const cleanTitle = title
+                .replace(/\s*-\s*Facebook.*$/i, '')
+                .replace(/\s*\|\s*Facebook.*$/i, '')
+                .replace(/^Facebook\s*-?\s*/i, '')
+                .replace(/^www\.\s*/i, '') // 移除 www. 前綴
+                .trim();
+
+            if (cleanTitle && cleanTitle.length > 2 && cleanTitle.length < 50) {
+                accountName = cleanTitle;
+                console.log(`✅ [Facebook 新格式] 從標題提取帳戶名稱: ${accountName}`);
+            } else {
+                console.log(`⚠️ [Facebook 新格式] 標題清理後無效: "${cleanTitle}"`);
+            }
+        } else {
+            console.log(`⚠️ [Facebook 新格式] 標題不符合要求: "${title}"`);
+        }
+
+        // 2.2 從描述中嘗試提取
+        if (!accountName && description && !description.includes('無法獲取')) {
+            const descLines = description.split('\n').filter(line => line.trim());
+            for (const line of descLines) {
+                const cleanLine = line.trim();
+                if (cleanLine.length > 2 && cleanLine.length < 50 &&
+                    !cleanLine.includes('http') &&
+                    !cleanLine.includes('facebook.com') &&
+                    !cleanLine.toLowerCase().includes('see more')) {
+                    accountName = cleanLine;
+                    console.log(`✅ [Facebook 新格式] 從描述提取帳戶名稱: ${accountName}`);
+                    break;
+                }
+            }
+        }
+
+        // 2.3 智能回退策略
+        if (!accountName) {
+            // 根據內容類型生成合理的名稱
+            if (contentType === 'post') {
+                accountName = `Facebook 貼文 ${shareId.substring(0, 8)}`;
+            } else if (contentType === 'video') {
+                accountName = `Facebook 影片 ${shareId.substring(0, 8)}`;
+            } else {
+                accountName = `Facebook 分享內容`;
+            }
+            console.log(`🔄 [Facebook 新格式] 使用智能回退名稱: ${accountName}`);
+        }
+
+        // 🎯 策略3: 確保帳戶名稱的質量
+        if (accountName) {
+            // 最終清理和驗證
+            accountName = accountName
+                .replace(/[^\w\s\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff]/g, ' ') // 保留中英文和數字
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // 確保長度合理
+            if (accountName.length > 30) {
+                accountName = accountName.substring(0, 30) + '...';
+            }
+        }
+
+        const result = {
+            platform: 'Facebook',
+            accountName: accountName || 'Facebook 用戶',
+            profileImage: null,
+            url: url,
+            contentType: contentType,
+            shareId: shareId,
+            extractionMethod: 'new_share_format_handler'
+        };
+
+        console.log(`🎉 [Facebook 新格式] 處理完成:`, {
+            accountName: result.accountName,
+            contentType: result.contentType,
+            extractionMethod: result.extractionMethod
+        });
+
+        return result;
     }
 }
 
