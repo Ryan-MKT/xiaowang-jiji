@@ -47,7 +47,7 @@
         .collection-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 16px;
+            border-radius: 30px;
             border: 1px solid rgba(0, 0, 0, 0.1);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             transition: all 0.3s ease;
@@ -176,6 +176,21 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .collection-meta-left {
+            flex: 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .collection-meta-right {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
         }
 
         .collection-type {
@@ -276,7 +291,7 @@
         }
 
         .social-account-name {
-            font-size: 0.85rem;
+            font-size: 1rem;
             color: white;
             font-weight: 600;
             white-space: nowrap;
@@ -415,6 +430,25 @@
         .floating-add-btn:hover {
             transform: scale(1.1);
             box-shadow: 0 12px 30px rgba(102, 126, 234, 0.6);
+        }
+
+        /* 功能按鈕樣式 */
+        .function-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .function-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
         .filter-bar {
@@ -873,16 +907,25 @@
                             })()}
 
                             <div class="collection-meta">
-                                <span class="collection-type type-${type}">
-                                    ${getTypeIcon(type)} ${getTypeName(type)}
-                                </span>
-                                <span class="collection-date">${date}</span>
+                                <div class="collection-meta-left">
+                                    <span class="collection-type type-${type}">
+                                        ${getTypeIcon(type)} ${getTypeName(type)}
+                                    </span>
+                                    <span class="collection-date">${date}</span>
+                                </div>
+                                <div class="collection-meta-right">
+                                    <button class="function-btn" onclick="openFunctionMenu('${collection.id}')" title="功能選單">
+                                        功能
+                                    </button>
+                                </div>
                             </div>
 
 
                             <div class="user-tags-section">
                                 <small class="text-white fw-bold mb-2 d-block d-flex justify-content-between align-items-center">
-                                    <span><i class="bi bi-person"></i> 我的標籤</span>
+                                    <span>
+                                        <i class="bi bi-person"></i> 我的標籤
+                                    </span>
                                     <span class="badge bg-secondary">${userTags.length}/6</span>
                                 </small>
                                 <div class="user-tags">
@@ -905,26 +948,40 @@
             }).join('');
         }
 
+        // 🎨 圓角圖片URL生成器
+        function generateRoundedImageUrl(originalUrl) {
+            const baseUrl = 'https://dc0b5faa3d06.ngrok-free.app';
+            const params = new URLSearchParams({
+                url: originalUrl,
+                radius: '15',
+                size: '300x200'
+            });
+            return `${baseUrl}/rounded-image?${params.toString()}`;
+        }
+
         // 取得預覽內容 (圖片或圖標)
         function getPreviewContent(collection, type) {
             // 🚀 優先檢查content中是否有圖片URL（修復圖片顯示問題）
             if (collection.content && collection.content.preview_image) {
                 console.log('🖼️ [圖片] 使用 content.preview_image:', collection.content.preview_image);
-                return `<img src="${collection.content.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                const roundedUrl = generateRoundedImageUrl(collection.content.preview_image);
+                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" data-original-url="${collection.content.preview_image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
 
             // 檢查content.image（如果preview_image不存在）
             if (collection.content && collection.content.image) {
                 console.log('🖼️ [圖片] 使用 content.image:', collection.content.image);
-                return `<img src="${collection.content.image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                const roundedUrl = generateRoundedImageUrl(collection.content.image);
+                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" data-original-url="${collection.content.image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
 
             // 檢查是否有preview_image欄位（向下兼容）
             if (collection.preview_image) {
                 console.log('🖼️ [圖片] 使用 preview_image:', collection.preview_image);
-                return `<img src="${collection.preview_image}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                const roundedUrl = generateRoundedImageUrl(collection.preview_image);
+                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" data-original-url="${collection.preview_image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
 
@@ -1254,6 +1311,13 @@
                     alert('這個收藏品無法直接開啟');
                 }
             }
+        }
+
+        // 功能選單
+        function openFunctionMenu(collectionId) {
+            console.log(`🎛️ 開啟功能選單 - Collection ID: ${collectionId}`);
+            // 這裡可以添加功能選單的邏輯，例如顯示下拉選單或彈出視窗
+            alert(`功能選單 - Collection ID: ${collectionId}`);
         }
 
         // 刪除收藏品
@@ -1652,6 +1716,7 @@
 
             return icons[platform] || '<i class="bi bi-globe text-secondary"></i>';
         }
+
 
     </script>
 </body>

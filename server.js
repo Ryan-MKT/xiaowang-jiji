@@ -32,7 +32,7 @@ const userFavoriteTasks = new Map();
 const userTagSelectionStates = new Map();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 console.log('🚀 小汪記記 with LINE Login starting...');
 
 // 初始化 OpenAI
@@ -632,22 +632,51 @@ async function handleEvent(event) {
 
       console.log(`📝 找到任務: ${taskData.message_text}`);
 
-      // 查詢對應的收藏卡來獲取圖片
-      const { data: collectionDataArray, error: collectionError } = await supabase
-        .from('dev_collections')
-        .select('id, title, original_image_url')
-        .eq('title', taskData.message_text)
-        .eq('user_id', userId);
-
+      // 🚀 使用 Open Graph API 直接獲取圖片（取代從收藏卡查詢）
       let imageUrl = 'https://picsum.photos/400/400'; // 預設圖片（有效的圖片服務）
 
-      if (collectionError) {
-        console.log('ℹ️ 查詢收藏卡失敗，使用預設圖片:', collectionError);
-      } else if (collectionDataArray && collectionDataArray.length > 0 && collectionDataArray[0].original_image_url) {
-        imageUrl = collectionDataArray[0].original_image_url;
-        console.log(`🖼️ 找到收藏卡圖片: ${imageUrl}`);
+      // 檢測任務內容是否為 URL
+      const taskText = taskData.message_text;
+      const isTaskUrl = taskText && taskText.includes('http');
+
+      if (isTaskUrl) {
+        console.log(`🔍 [圓角圖片] 偵測到 URL 任務，使用 Open Graph API: ${taskText}`);
+
+        try {
+          // 使用 Open Graph API 獲取圖片
+          const openGraphResult = await openGraphAPI.getPreview(taskText);
+
+          if (openGraphResult && openGraphResult.image) {
+            imageUrl = openGraphResult.image;
+            console.log(`🎯 [圓角圖片] Open Graph API 獲取圖片成功: ${imageUrl}`);
+          } else {
+            console.log(`⚠️ [圓角圖片] Open Graph API 無圖片，使用預設圖片`);
+          }
+
+        } catch (error) {
+          console.error(`❌ [圓角圖片] Open Graph API 失敗: ${error.message}`);
+          console.log(`🔄 [圓角圖片] 備用方案：查詢收藏卡圖片`);
+
+          // 備用方案：查詢收藏卡
+          const { data: collectionDataArray, error: collectionError } = await supabase
+            .from('dev_collections')
+            .select('id, title, content')
+            .eq('title', taskData.message_text)
+            .eq('user_id', userId);
+
+          if (!collectionError && collectionDataArray && collectionDataArray.length > 0) {
+            const collection = collectionDataArray[0];
+            if (collection.content && collection.content.image) {
+              imageUrl = collection.content.image;
+              console.log(`🖼️ [備用] 找到收藏卡圖片: ${imageUrl}`);
+            } else if (collection.content && collection.content.preview_image) {
+              imageUrl = collection.content.preview_image;
+              console.log(`🖼️ [備用] 找到收藏卡預覽圖片: ${imageUrl}`);
+            }
+          }
+        }
       } else {
-        console.log('ℹ️ 未找到收藏卡或收藏卡無圖片，使用預設圖片');
+        console.log(`📝 [圓角圖片] 非 URL 任務，使用預設圖片: ${taskText}`);
       }
 
       console.log(`🎨 最終使用圖片URL: ${imageUrl}`);
@@ -2023,6 +2052,7 @@ app.get('/api/collections/:userId/stats', async (req, res) => {
 
 // 網址預覽 API
 const EnhancedLinkPreview = require('./enhanced-link-preview');
+const { openGraphAPI } = require('./open-graph-api');
 
 // 創建Enhanced Link Preview實例
 const enhancedPreview = new EnhancedLinkPreview();
@@ -2049,12 +2079,22 @@ app.post('/api/url-preview', async (req, res) => {
 
     console.log(`🔍 [API] 請求網址預覽: ${url}`);
 
-    // 使用 Enhanced Preview 處理所有連結（社交媒體和非社交媒體）
+    // 🚀 優先使用 Open Graph API 處理所有連結（替代 Puppeteer）
     const isInstagram = url.includes('instagram.com');
     const isFacebook = url.includes('facebook.com');
     const linkType = isInstagram ? 'Instagram' : isFacebook ? 'Facebook' : '一般網站';
-    console.log(`📱 [API] 使用Enhanced Preview處理連結: ${linkType}`);
-    const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+    console.log(`🌐 [API] 使用Open Graph API處理連結: ${linkType}`);
+
+    let enhancedResult;
+    try {
+      // 使用 Open Graph API (快速、穩定、無資源問題)
+      enhancedResult = await openGraphAPI.getPreview(url);
+      console.log(`✅ [Open Graph] ${linkType} 處理成功`);
+    } catch (error) {
+      console.log(`⚠️ [Open Graph] ${linkType} 處理失敗，嘗試備用方案:`, error.message);
+      // 備用方案：使用 Enhanced Preview (Puppeteer)
+      enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+    }
 
     // 🤖 使用AI標籤生成器進行分析（包含社群帳號提取）
     let autoTags = [];
@@ -3083,6 +3123,6 @@ setupRoundedImageRoute(app);
 
 // 啟動伺服器
 app.listen(PORT, () => {
-  console.log(`🤖 LINE Bot server running on port ${PORT}`);
+  console.log(`🤖 LINE Bot server running on port ${PORT} with Open Graph API`);
   console.log(`📅 Started at: ${new Date().toISOString()}`);
 });// 強制重啟 西元2025年09月18日 (星期四) 13時03分19秒    

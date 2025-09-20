@@ -113,7 +113,7 @@ function generateRoundedImageUrl(originalUrl, options = {}) {
   const {
     radius = 20,
     size = '400x300',
-    baseUrl = process.env.BASE_URL || 'https://d80fd74ab881.ngrok-free.app'
+    baseUrl = process.env.BASE_URL || 'https://dc0b5faa3d06.ngrok-free.app'
   } = options;
 
   const params = new URLSearchParams({

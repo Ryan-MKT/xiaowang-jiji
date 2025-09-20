@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const { supabase } = require('./supabase-client');
 const AITagGenerator = require('./ai-tag-generator');
+const AISummaryService = require('./ai-summary-service');
 
 console.log('🚀 [系統] collections-api.js 已載入 - 使用新分離架構!');
 
@@ -197,6 +198,43 @@ async function createCollection(userId, collectionData) {
 
     console.log(`✅ [收藏卡] 成功建立: ${data.title} (ID: ${data.id})`);
     console.log('🎯 [收藏卡] 最終儲存的社群帳號資訊:', data.content?.socialAccount);
+
+    // 🤖 收藏卡創建成功後，立即生成 AI 摘要
+    try {
+      console.log('🤖 [AI摘要] 開始為新收藏卡生成摘要...');
+      const aiSummaryService = new AISummaryService();
+
+      // 準備摘要生成的內容數據
+      const summaryContentData = {
+        title: data.title,
+        description: data.description,
+        content: data.content,
+        category: data.category
+      };
+
+      const aiSummary = await aiSummaryService.generateSummary(summaryContentData);
+
+      if (aiSummary) {
+        // 更新收藏卡，添加 AI 摘要
+        const { error: updateError } = await supabase
+          .from('dev_collections')
+          .update({ ai_summary: aiSummary })
+          .eq('id', data.id);
+
+        if (updateError) {
+          console.error('❌ [AI摘要] 儲存摘要失敗:', updateError);
+        } else {
+          console.log('✅ [AI摘要] 摘要生成並儲存成功');
+          // 將摘要添加到返回的數據中
+          data.ai_summary = aiSummary;
+        }
+      } else {
+        console.log('⚠️ [AI摘要] 摘要生成被跳過（內容太短或其他原因）');
+      }
+    } catch (summaryError) {
+      console.error('❌ [AI摘要] 摘要生成過程發生錯誤:', summaryError.message);
+      // 不影響收藏卡的正常創建，僅記錄錯誤
+    }
 
     return { success: true, data };
 
