@@ -655,7 +655,7 @@ async function handleEvent(event) {
       // 生成單一 30px 圓角圖片，正方形尺寸
       const roundedImageUrl = generateRoundedImageUrl(imageUrl, { radius: 30, size: '600x600' });
 
-      // 建構 Flex Message - 單一 bubble 版本
+      // 建構 Flex Message - 單一 bubble 版本 with 左下角小圖示
       const flexMessage = {
         type: 'flex',
         altText: `📸 ${taskData.message_text || '任務'} - 圓角圖片`,
@@ -702,6 +702,34 @@ async function handleEvent(event) {
                       label: '功能',
                       text: `功能選單_${taskId}`
                     }
+                  }
+                ]
+              },
+              {
+                type: 'image',
+                url: 'https://picsum.photos/30/30',
+                size: 'xxs',
+                position: 'absolute',
+                offsetBottom: '10px',
+                offsetStart: '10px'
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                position: 'absolute',
+                offsetTop: '15px',
+                offsetEnd: '15px',
+                backgroundColor: '#FF4B4B',
+                cornerRadius: '8px',
+                paddingAll: 'xs',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '科技',
+                    size: 'xs',
+                    color: '#FFFFFF',
+                    weight: 'bold',
+                    align: 'center'
                   }
                 ]
               }
