@@ -110,10 +110,18 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
     });
 
     // 添加任務項目 - 支援備註顯示
+    // 優先顯示 preview_description，如果沒有則顯示 text
+    const displayText = task.preview_description || task.text;
+    console.log(`📝 [FLEX 顯示] 任務 ${task.id} 顯示文字:`, {
+      原始文字: task.text?.substring(0, 30) + '...',
+      預覽描述: task.preview_description?.substring(0, 30) + '...',
+      最終顯示: displayText?.substring(0, 30) + '...'
+    });
+
     const taskBoxContents = [
       {
         type: 'text',
-        text: task.text,
+        text: displayText,
         size: 'sm',
         color: isCompleted ? '#999999' : '#333333',
         flex: 1,
@@ -122,7 +130,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://d80fd74ab881.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+          uri: `https://ec95feb2b722.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
         }
       }
     ];
@@ -292,7 +300,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/records'
+                  uri: 'https://ec95feb2b722.ngrok-free.app/liff/records'
                 }
               },
               {
@@ -304,7 +312,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/favorites'
+                  uri: 'https://ec95feb2b722.ngrok-free.app/liff/favorites'
                 }
               },
               {
@@ -316,7 +324,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/account'
+                  uri: 'https://ec95feb2b722.ngrok-free.app/liff/account'
                 }
               },
               {
@@ -328,7 +336,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 flex: 1,
                 action: {
                   type: 'uri',
-                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/collections'
+                  uri: 'https://ec95feb2b722.ngrok-free.app/liff/collections'
                 }
               }
             ]
@@ -690,7 +698,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
         margin: 'none',
         action: {
           type: 'uri',
-          uri: `https://d80fd74ab881.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
+          uri: `https://ec95feb2b722.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.originalText || task.text)}`
         }
       }
     ];
@@ -874,7 +882,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           margin: 'none',
           action: {
             type: 'uri',
-            uri: `https://d80fd74ab881.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+            uri: `https://ec95feb2b722.ngrok-free.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
           }
         }
       ];
@@ -984,7 +992,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://d80fd74ab881.ngrok-free.app/liff/records'
+            uri: 'https://ec95feb2b722.ngrok-free.app/liff/records'
           }
         },
         {
@@ -996,7 +1004,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://d80fd74ab881.ngrok-free.app/liff/favorites'
+            uri: 'https://ec95feb2b722.ngrok-free.app/liff/favorites'
           }
         },
         {
@@ -1008,7 +1016,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://d80fd74ab881.ngrok-free.app/liff/collections'
+            uri: 'https://ec95feb2b722.ngrok-free.app/liff/collections'
           }
         },
         {
@@ -1020,7 +1028,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           flex: 1,
           action: {
             type: 'uri',
-            uri: 'https://d80fd74ab881.ngrok-free.app/liff/account'
+            uri: 'https://ec95feb2b722.ngrok-free.app/liff/account'
           }
         }
       ]
@@ -1324,7 +1332,7 @@ function createCollectionsBubble() {
                 cornerRadius: '8px',
                 action: {
                   type: 'uri',
-                  uri: 'https://d80fd74ab881.ngrok-free.app/liff/collections'
+                  uri: 'https://ec95feb2b722.ngrok-free.app/liff/collections'
                 }
               }
             ]

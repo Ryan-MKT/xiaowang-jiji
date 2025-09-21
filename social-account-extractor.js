@@ -371,39 +371,53 @@ class SocialAccountExtractor {
         // 🎯 策略2: 智能生成合理的帳戶名稱 (增強版標題處理)
         let accountName = null;
 
-        // 2.1 增強版標題檢查 - 擴展有效標題的判斷條件
-        const isValidTitle = title &&
-                           title !== 'Error' &&
-                           title !== 'www.facebook.com' &&
-                           title !== 'facebook.com' &&
-                           !title.includes('無法獲取') &&
-                           !title.startsWith('http') &&
-                           !title.includes('facebook.com/share/') &&
-                           title.length > 2;
+        // 2.1 增強版標題檢查 - 支援多重標題來源檢查
+        const possibleTitles = [
+            title,
+            contentData.metaTags?.['og:title'],
+            contentData.metaTags?.title,
+            mainContent && mainContent.includes(':') ? mainContent.split('\n')[0] : null
+        ].filter(Boolean);
 
-        console.log('🔍 [Facebook 新格式] 標題驗證:', {
-            originalTitle: title,
-            isValidTitle: isValidTitle,
-            titleLength: title?.length || 0
+        console.log('🔍 [Facebook 新格式] 檢查所有可能的標題來源:', {
+            mainTitle: title,
+            ogTitle: contentData.metaTags?.['og:title'],
+            metaTitle: contentData.metaTags?.title,
+            possibleTitlesCount: possibleTitles.length
         });
 
-        if (isValidTitle) {
-            // 清理標題，移除常見的無用信息
-            const cleanTitle = title
-                .replace(/\s*-\s*Facebook.*$/i, '')
-                .replace(/\s*\|\s*Facebook.*$/i, '')
-                .replace(/^Facebook\s*-?\s*/i, '')
-                .replace(/^www\.\s*/i, '') // 移除 www. 前綴
-                .trim();
+        // 從所有可能的標題中找到最佳的
+        for (const titleCandidate of possibleTitles) {
+            const isValidTitle = titleCandidate &&
+                               titleCandidate !== 'Error' &&
+                               titleCandidate !== 'www.facebook.com' &&
+                               titleCandidate !== 'facebook.com' &&
+                               !titleCandidate.includes('無法獲取') &&
+                               !titleCandidate.startsWith('http') &&
+                               !titleCandidate.includes('facebook.com/share/') &&
+                               titleCandidate.length > 2;
 
-            if (cleanTitle && cleanTitle.length > 2 && cleanTitle.length < 50) {
-                accountName = cleanTitle;
-                console.log(`✅ [Facebook 新格式] 從標題提取帳戶名稱: ${accountName}`);
-            } else {
-                console.log(`⚠️ [Facebook 新格式] 標題清理後無效: "${cleanTitle}"`);
+            if (isValidTitle) {
+                // 清理標題，移除常見的無用信息
+                const cleanTitle = titleCandidate
+                    .replace(/\s*-\s*Facebook.*$/i, '')
+                    .replace(/\s*\|\s*Facebook.*$/i, '')
+                    .replace(/^Facebook\s*-?\s*/i, '')
+                    .replace(/^www\.\s*/i, '') // 移除 www. 前綴
+                    .trim();
+
+                if (cleanTitle && cleanTitle.length > 2 && cleanTitle.length < 50) {
+                    accountName = cleanTitle;
+                    console.log(`✅ [Facebook 新格式] 從標題提取帳戶名稱: ${accountName} (來源: ${titleCandidate === title ? '主標題' : '次要標題'})`);
+                    break;
+                } else {
+                    console.log(`⚠️ [Facebook 新格式] 標題清理後無效: "${cleanTitle}"`);
+                }
             }
-        } else {
-            console.log(`⚠️ [Facebook 新格式] 標題不符合要求: "${title}"`);
+        }
+
+        if (!accountName) {
+            console.log(`⚠️ [Facebook 新格式] 所有標題候選都不符合要求`);
         }
 
         // 2.2 從描述中嘗試提取

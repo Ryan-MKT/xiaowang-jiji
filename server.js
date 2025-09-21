@@ -885,13 +885,20 @@ async function handleEvent(event) {
       }
 
       // 建立收藏卡資料
+      const isUrl = task.message_text && (task.message_text.includes('http') || task.message_text.includes('www.'));
+
       const collectionData = {
         title: task.message_text,
         description: task.note || '',
-        category: 'text',
+        category: isUrl ? 'url' : 'text', // 🔥 修復：正確分類URL任務
         content: {
           originalTaskId: task.id, // 使用資料庫的真實ID
-          createdAt: task.created_at
+          createdAt: task.created_at,
+          // 🔥 修復：確保所有URL都設置content.url以觸發預覽處理
+          url: isUrl ? task.message_text : null,
+          type: isUrl ? 'url' : 'text',
+          text: isUrl ? '' : task.message_text,
+          manual: false
         },
         tags: task.tag ? [task.tag] : [],
         color: '#4169E1',
@@ -920,10 +927,9 @@ async function handleEvent(event) {
           // 背景處理URL預覽，不阻塞LINE Bot回應
           setImmediate(async () => {
             try {
-              // 統一使用 EnhancedLinkPreview 處理所有 URL（包括 Facebook）
-              const EnhancedLinkPreview = require('./enhanced-link-preview');
-              const preview = new EnhancedLinkPreview();
-              const previewResult = await preview.getEnhancedPreview(url);
+              // 統一使用 Open Graph API 處理所有 URL
+              const { openGraphAPI } = require('./open-graph-api');
+              const previewResult = await openGraphAPI.getPreview(url);
 
               if (previewResult.image) {
                   // 🤖 生成AI標籤（與前端保持一致）
@@ -1311,6 +1317,26 @@ async function handleEvent(event) {
       text: userMessage,
       timestamp: new Date().toISOString()
     };
+
+    // 如果是 URL，取得預覽資訊
+    if (userMessage && userMessage.includes('http')) {
+      try {
+        console.log('🔍 [任務預覽] 偵測到 URL，取得預覽資訊:', userMessage);
+        const openGraphAPI = require('./open-graph-api.js');
+        const previewResult = await openGraphAPI.getOpenGraphData(userMessage);
+
+        if (previewResult && previewResult.description) {
+          newTask.preview_description = previewResult.description;
+          newTask.preview_title = previewResult.title;
+          console.log('✅ [任務預覽] 成功取得預覽資訊:', {
+            title: previewResult.title,
+            description: previewResult.description?.substring(0, 50) + '...'
+          });
+        }
+      } catch (error) {
+        console.log('⚠️ [任務預覽] 取得預覽資訊失敗:', error.message);
+      }
+    }
     
     userTasks.push(newTask);
     userTaskStacks.set(userId, userTasks);
@@ -2051,11 +2077,7 @@ app.get('/api/collections/:userId/stats', async (req, res) => {
 });
 
 // 網址預覽 API
-const EnhancedLinkPreview = require('./enhanced-link-preview');
 const { openGraphAPI } = require('./open-graph-api');
-
-// 創建Enhanced Link Preview實例
-const enhancedPreview = new EnhancedLinkPreview();
 
 // 創建AI標籤生成器實例
 const AITagGenerator = require('./ai-tag-generator');
@@ -2091,9 +2113,13 @@ app.post('/api/url-preview', async (req, res) => {
       enhancedResult = await openGraphAPI.getPreview(url);
       console.log(`✅ [Open Graph] ${linkType} 處理成功`);
     } catch (error) {
-      console.log(`⚠️ [Open Graph] ${linkType} 處理失敗，嘗試備用方案:`, error.message);
-      // 備用方案：使用 Enhanced Preview (Puppeteer)
-      enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+      console.log(`⚠️ [Open Graph] ${linkType} 處理失敗:`, error.message);
+      // 如果 Open Graph API 失敗，使用基本回退
+      enhancedResult = {
+        title: new URL(url).hostname,
+        description: '無法獲取預覽內容',
+        image: null
+      };
     }
 
     // 🤖 使用AI標籤生成器進行分析（包含社群帳號提取）
@@ -3114,6 +3140,29 @@ app.get('/api/messages', async (req, res) => {
     
   } catch (err) {
     console.error('❌ [訊息API] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Enhanced Preview API 端點
+app.post('/api/enhanced-preview', async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    console.log(`🚀 [Enhanced Preview API] 收到請求: ${url}`);
+
+    // Use existing enhancedPreview instance
+    const result = await enhancedPreview.getEnhancedPreview(url);
+
+    console.log(`✅ [Enhanced Preview API] 成功回傳結果: ${result.title}`);
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ [Enhanced Preview API] 錯誤:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

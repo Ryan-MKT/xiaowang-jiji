@@ -70,60 +70,190 @@ async function createCollection(userId, collectionData) {
       console.log('🔥 [即時處理] 檢測到社群URL，開始即時處理:', url);
 
       try {
-        // 🚀 第一步：優先使用快速 Open Graph API，失敗時才使用 Enhanced Preview
-        console.log('🔄 [即時處理] 步驟1: 優先使用快速 Open Graph API... 🚀🚀🚀 新版本已載入!');
-        let enhancedResult = null;
+        // 🚀 使用 Open Graph API 獲取預覽內容
+        console.log('🔄 [即時處理] 使用 Open Graph API 獲取預覽內容...');
+        let previewResult = null;
 
         try {
-          // 🚀 直接使用 Enhanced Preview，跳過 Open Graph API
-          console.log('🔄 [內容預覽] 直接使用 Enhanced Preview 獲取完整內容...');
-          const EnhancedLinkPreview = require('./enhanced-link-preview');
-          const enhancedPreview = new EnhancedLinkPreview();
+          const { openGraphAPI } = require('./open-graph-api');
 
-          // 🔍 檢查是否為 Facebook 新分享格式，給予更長的超時時間
-          const isFacebookNewFormat = url.includes('facebook.com/share/') &&
-                                     (url.includes('/p/') || url.includes('/v/'));
+          const openGraphResult = await openGraphAPI.getPreview(url);
 
-          const timeoutDuration = isFacebookNewFormat ? 15000 : 10000; // Facebook 新格式給 15 秒
-          console.log(`⏱️ [內容預覽] 設定超時時間: ${timeoutDuration / 1000} 秒`);
+          if (openGraphResult) {
+            // 🔥 修復：即使標題是'Error'，仍可能有有效的圖片
+            const hasValidTitle = openGraphResult.title && openGraphResult.title !== 'Error';
+            const hasValidImage = openGraphResult.image && !openGraphResult.image.includes('facebook.com/images/logos') && !openGraphResult.image.includes('facebook_2x.png');
 
-          // 使用 Promise.race 添加超時限制
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Enhanced Preview timeout')), timeoutDuration)
-          );
+            if (hasValidTitle && hasValidImage) {
+              console.log('✅ [Open Graph] 獲取到有效預覽內容:', {
+                title: openGraphResult.title,
+                hasImage: !!openGraphResult.image
+              });
+              previewResult = {
+                title: openGraphResult.title,
+                description: openGraphResult.description || '無法獲取預覽內容',
+                image: openGraphResult.image,
+                text: openGraphResult.description || '無法獲取預覽內容',
+                extraction_method: 'open_graph_api'
+              };
+            } else {
+              console.log('⚠️ [Open Graph] 只獲取到 Logo 或無效內容，嘗試 Enhanced Preview...');
 
-          enhancedResult = await Promise.race([
-            enhancedPreview.getEnhancedPreview(url),
-            timeoutPromise
-          ]);
+              // 🚀 使用 Enhanced Preview 作為回退
+              try {
+                const EnhancedLinkPreview = require('./enhanced-link-preview');
+                const enhancedPreview = new EnhancedLinkPreview();
+
+                console.log('🔍 [Enhanced Preview] 開始深度內容提取...');
+                const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+
+                if (enhancedResult && (enhancedResult.image || enhancedResult.description)) {
+                  console.log('✅ [Enhanced Preview] 成功獲取內容:', {
+                    title: enhancedResult.title,
+                    hasImage: !!enhancedResult.image,
+                    hasDescription: !!enhancedResult.description
+                  });
+
+                  previewResult = {
+                    title: enhancedResult.title || new URL(url).hostname,
+                    description: enhancedResult.description || '無法獲取預覽內容',
+                    image: enhancedResult.image,
+                    text: enhancedResult.description || '無法獲取預覽內容',
+                    extraction_method: 'enhanced_preview_fix'
+                  };
+                } else {
+                  console.log('❌ [Enhanced Preview] 也無法獲取有效內容');
+                  previewResult = {
+                    title: hasValidTitle ? openGraphResult.title : new URL(url).hostname,
+                    description: openGraphResult.description || '無法獲取預覽內容',
+                    image: hasValidImage ? openGraphResult.image : null,
+                    text: openGraphResult.description || '無法獲取預覽內容',
+                    extraction_method: 'open_graph_api_fallback'
+                  };
+                }
+              } catch (enhancedError) {
+                console.error('❌ [Enhanced Preview] 失敗:', enhancedError.message);
+                previewResult = {
+                  title: hasValidTitle ? openGraphResult.title : new URL(url).hostname,
+                  description: openGraphResult.description || '無法獲取預覽內容',
+                  image: hasValidImage ? openGraphResult.image : null,
+                  text: openGraphResult.description || '無法獲取預覽內容',
+                  extraction_method: 'open_graph_api_fallback'
+                };
+              }
+            }
+          } else {
+            console.log('⚠️ [Open Graph] 無法獲取預覽內容，直接嘗試 Enhanced Preview...');
+
+            // 🚀 直接使用 Enhanced Preview
+            try {
+              const EnhancedLinkPreview = require('./enhanced-link-preview');
+              const enhancedPreview = new EnhancedLinkPreview();
+
+              console.log('🔍 [Enhanced Preview] 開始深度內容提取...');
+              const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+
+              if (enhancedResult && (enhancedResult.image || enhancedResult.description)) {
+                console.log('✅ [Enhanced Preview] 成功獲取內容:', {
+                  title: enhancedResult.title,
+                  hasImage: !!enhancedResult.image,
+                  hasDescription: !!enhancedResult.description
+                });
+
+                previewResult = {
+                  title: enhancedResult.title || new URL(url).hostname,
+                  description: enhancedResult.description || '無法獲取預覽內容',
+                  image: enhancedResult.image,
+                  text: enhancedResult.description || '無法獲取預覽內容',
+                  extraction_method: 'enhanced_preview'
+                };
+              } else {
+                console.log('❌ [Enhanced Preview] 無法獲取有效內容');
+                previewResult = {
+                  title: new URL(url).hostname,
+                  description: '無法獲取預覽內容',
+                  image: null,
+                  text: '無法獲取預覽內容',
+                  extraction_method: 'fallback'
+                };
+              }
+            } catch (enhancedError) {
+              console.error('❌ [Enhanced Preview] 失敗:', enhancedError.message);
+              previewResult = {
+                title: new URL(url).hostname,
+                description: '無法獲取預覽內容',
+                image: null,
+                text: '無法獲取預覽內容',
+                extraction_method: 'fallback'
+              };
+            }
+          }
         } catch (previewError) {
-          console.error('❌ [內容預覽] 所有預覽方法都失敗:', previewError.message);
-          // 使用基本 URL 信息作為回退
-          enhancedResult = {
-            title: new URL(url).hostname,
-            description: '無法獲取預覽內容',
-            image: null,
-            text: '無法獲取預覽內容'
-          };
+          console.error('❌ [內容預覽] Open Graph API 失敗:', previewError.message);
+
+          // 🚀 最後嘗試 Enhanced Preview
+          try {
+            const EnhancedLinkPreview = require('./enhanced-link-preview');
+            const enhancedPreview = new EnhancedLinkPreview();
+
+            console.log('🔍 [Enhanced Preview] 作為最後回退嘗試...');
+            const enhancedResult = await enhancedPreview.getEnhancedPreview(url);
+
+            if (enhancedResult && (enhancedResult.image || enhancedResult.description)) {
+              console.log('✅ [Enhanced Preview] 回退成功獲取內容');
+              previewResult = {
+                title: enhancedResult.title || new URL(url).hostname,
+                description: enhancedResult.description || '無法獲取預覽內容',
+                image: enhancedResult.image,
+                text: enhancedResult.description || '無法獲取預覽內容',
+                extraction_method: 'enhanced_preview_emergency'
+              };
+            } else {
+              console.log('❌ [Enhanced Preview] 回退也失敗');
+              previewResult = {
+                title: new URL(url).hostname,
+                description: '無法獲取預覽內容',
+                image: null,
+                text: '無法獲取預覽內容',
+                extraction_method: 'final_fallback'
+              };
+            }
+          } catch (enhancedError) {
+            console.error('❌ [Enhanced Preview] 回退失敗:', enhancedError.message);
+            previewResult = {
+              title: new URL(url).hostname,
+              description: '無法獲取預覽內容',
+              image: null,
+              text: '無法獲取預覽內容',
+              extraction_method: 'final_fallback'
+            };
+          }
         }
 
-        if (enhancedResult && enhancedResult.title) {
-          console.log('✅ [即時處理] Enhanced Preview 成功:', {
-            hasImage: !!enhancedResult.image,
-            hasDescription: !!enhancedResult.description,
-            title: enhancedResult.title?.substring(0, 50) || '無標題'
+        if (previewResult && previewResult.title) {
+          console.log('✅ [即時處理] 預覽內容獲取成功:', {
+            hasImage: !!previewResult.image,
+            hasDescription: !!previewResult.description,
+            title: previewResult.title?.substring(0, 50) || '無標題'
           });
 
-          // 將 Enhanced Preview 的內容加入 finalContent
+          // 將預覽內容加入 finalContent
           finalContent = {
             ...finalContent,
-            image: enhancedResult.image,
-            text: enhancedResult.text || enhancedResult.description,
-            title: enhancedResult.title,
-            description: enhancedResult.description
+            image: previewResult.image,
+            text: previewResult.text || previewResult.description,
+            title: previewResult.title,
+            description: previewResult.description,
+            // 🔥 重要：設置預覽欄位，讓前端能正確顯示
+            preview_title: previewResult.title,
+            preview_description: previewResult.description,
+            preview_image: previewResult.image,
+            extraction_method: previewResult.extraction_method || 'unknown',
+            extraction_date: new Date().toISOString(),
+            auto_processed: true
           };
         } else {
-          console.log('⚠️ [即時處理] Enhanced Preview 失敗:', enhancedResult ? '格式錯誤' : '無返回數據');
+          console.log('⚠️ [即時處理] 預覽內容獲取失敗:', previewResult ? '格式錯誤' : '無返回數據');
         }
 
         // 🚀 第二步：使用獨立的社群帳戶提取器 (新架構)
@@ -131,45 +261,59 @@ async function createCollection(userId, collectionData) {
         const SocialAccountExtractor = require('./social-account-extractor');
         const socialExtractor = new SocialAccountExtractor();
 
-        // 🔥 等待 Enhanced Preview 徹底完成，確保獲取正確標題
-        console.log('⏱️ [時序修復] 檢查 Enhanced Preview 結果:', {
-          title: enhancedResult?.title,
-          isValidTitle: enhancedResult?.title &&
-                       enhancedResult.title !== 'www.facebook.com' &&
-                       enhancedResult.title !== 'Error' &&
-                       !enhancedResult.title.startsWith('http')
+        // 🔥 確定最終標題
+        let finalTitle = collectionData.title; // 預設使用 URL
+        let extractedRealTitle = null;
+
+        // 🔍 檢查預覽結果的標題
+        const possibleTitles = [
+          previewResult?.title,
+          finalContent?.title
+        ].filter(Boolean);
+
+        console.log('🔍 [標題處理] 檢查所有可能的標題來源:', {
+          previewResultTitle: previewResult?.title,
+          finalContentTitle: finalContent?.title,
+          possibleTitlesCount: possibleTitles.length
         });
 
-        // 📋 準備內容數據，優先使用 Enhanced Preview 提取的正確標題
-        let finalTitle = collectionData.title; // 預設使用 URL
+        // 找到第一個有效的標題
+        for (const titleCandidate of possibleTitles) {
+          if (titleCandidate &&
+              titleCandidate !== 'www.facebook.com' &&
+              titleCandidate !== 'facebook.com' &&
+              titleCandidate !== 'Error' &&
+              !titleCandidate.startsWith('http') &&
+              !titleCandidate.includes('facebook.com/share/') &&
+              titleCandidate.length > 2) {
+            extractedRealTitle = titleCandidate;
+            break;
+          }
+        }
 
-        if (enhancedResult?.title &&
-            enhancedResult.title !== 'www.facebook.com' &&
-            enhancedResult.title !== 'Error' &&
-            !enhancedResult.title.startsWith('http')) {
-          finalTitle = enhancedResult.title;
-          console.log('✅ [時序修復] 使用 Enhanced Preview 提取的標題:', finalTitle);
+        if (extractedRealTitle) {
+          finalTitle = extractedRealTitle;
+          console.log('✅ [標題處理] 找到有效標題:', finalTitle);
         } else {
-          console.log('⚠️ [時序修復] Enhanced Preview 標題無效，使用 URL 作為標題');
+          console.log('⚠️ [標題處理] 未找到有效標題，使用 URL 作為標題');
         }
 
         const contentData = {
           url: url,
           domain: new URL(url).hostname,
-          title: finalTitle, // 使用修復後的標題邏輯
-          description: (enhancedResult && enhancedResult.description) ? enhancedResult.description : collectionData.description || '',
+          title: finalTitle,
+          description: (previewResult && previewResult.description) ? previewResult.description : collectionData.description || '',
           content: finalContent,
-          metaTags: (enhancedResult && enhancedResult.metaTags) ? enhancedResult.metaTags : {},
-          mainContent: (enhancedResult && enhancedResult.text) ? enhancedResult.text : ''
+          metaTags: {},
+          mainContent: (previewResult && previewResult.text) ? previewResult.text : ''
         };
 
         console.log('📋 [即時處理] 傳遞給社群帳戶提取器的數據:', {
           url: contentData.url,
           domain: contentData.domain,
           title: contentData.title,
-          titleSource: enhancedResult?.title ? 'enhanced_preview' : 'url_fallback',
+          titleSource: previewResult?.title ? 'open_graph_api' : 'url_fallback',
           hasDescription: !!contentData.description,
-          hasMetaTags: !!contentData.metaTags,
           hasMainContent: !!contentData.mainContent
         });
 
@@ -225,6 +369,10 @@ async function createCollection(userId, collectionData) {
       tags: collectionData.tags || [],
       color: collectionData.color || '#4169E1',
       icon: collectionData.icon || '📋',
+      // 🔥 新增：同時寫入預覽獨立欄位（提升查詢效能）
+      preview_image: finalContent.preview_image || null,
+      preview_title: finalContent.preview_title || null,
+      preview_description: finalContent.preview_description || null,
       // 🚀 同時寫入獨立欄位，提升未來查詢效率
       social_platform: finalContent.socialAccount?.platform || null,
       social_account_name: finalContent.socialAccount?.accountName || null,
