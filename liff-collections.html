@@ -597,6 +597,7 @@
                     const profile = await liff.getProfile();
                     userId = profile.userId;
                     console.log('🟢 [LIFF] 用戶已登入:', userId);
+                    console.log('🔍 [DEBUG] 完整用戶資料:', profile);
 
                     // 載入收藏品
                     await loadCollections();
@@ -630,12 +631,27 @@
 
                 console.log('✅ [收藏卡] 載入收藏品成功:', result.data.length);
                 console.log('🔍 [DEBUG] 所有收藏卡 ID 列表:', result.data.map(c => c.id).join(', '));
-                console.log('🔍 [DEBUG] 是否包含 ID 129?', result.data.some(c => c.id === 129));
-                const id129 = result.data.find(c => c.id === 129);
-                if (id129) {
-                    console.log('✅ [DEBUG] 找到 ID 129:', id129);
-                } else {
-                    console.log('❌ [DEBUG] ID 129 不在 API 返回列表中');
+
+                // 檢查哪些收藏卡有預覽內容
+                const cardsWithPreview = result.data.filter(c =>
+                    (c.content && c.content.preview_title) ||
+                    (c.content && c.content.preview_image)
+                );
+                const cardsWithoutPreview = result.data.filter(c =>
+                    (!c.content || !c.content.preview_title) &&
+                    (!c.content || !c.content.preview_image)
+                );
+
+                console.log('📊 [DEBUG] 有預覽內容的收藏卡:', cardsWithPreview.length, cardsWithPreview.map(c => c.id));
+                console.log('📊 [DEBUG] 無預覽內容的收藏卡:', cardsWithoutPreview.length, cardsWithoutPreview.map(c => c.id));
+
+                if (cardsWithPreview.length > 0) {
+                    const sample = cardsWithPreview[0];
+                    console.log('✅ [DEBUG] 有內容的收藏卡範例:', {
+                        id: sample.id,
+                        preview_title: sample.content?.preview_title,
+                        preview_image: !!sample.content?.preview_image
+                    });
                 }
 
                 collections = result.data || [];
@@ -700,25 +716,36 @@
 
         // 取得收藏品標題
         function getCollectionTitle(collection) {
-            // 優先使用預覽描述作為標題（針對社交媒體連結）
-            if (collection.content && collection.content.preview_description) {
-                const description = collection.content.preview_description;
-                // 限制標題長度，取前50個字符
-                if (description.length > 50) {
-                    return description.substring(0, 50) + '...';
+            // 🔥 優先使用 PREVIEW_DESCRIPTION（用戶指定的紅框顯示內容）
+            if (collection.preview_description) {
+                const description = collection.preview_description;
+                // 限制標題長度，取前60個字符
+                if (description.length > 60) {
+                    return description.substring(0, 60) + '...';
                 }
                 return description;
             }
 
-            // 次要使用預覽標題
+            // 🔄 回退：使用 content 中的預覽描述（向下兼容）
+            if (collection.content && collection.content.preview_description) {
+                const description = collection.content.preview_description;
+                // 限制標題長度，取前60個字符
+                if (description.length > 60) {
+                    return description.substring(0, 60) + '...';
+                }
+                return description;
+            }
+
+            // 🔄 再回退：使用獨立欄位的標題
+            if (collection.preview_title) {
+                let title = collection.preview_title.replace(' | Facebook', '').trim();
+                return title;
+            }
+
+            // 🔄 再回退：使用 content 中的預覽標題
             if (collection.content && collection.content.preview_title) {
                 let title = collection.content.preview_title.replace(' | Facebook', '').trim();
-                // 如果標題只是域名（如 "Instagram"），不使用
-                if (title.toLowerCase() === 'instagram' || title.toLowerCase() === 'facebook') {
-                    // 繼續到下面的邏輯
-                } else {
-                    return title;
-                }
+                return title;
             }
 
             let title = collection.title || '無標題收藏';
@@ -950,7 +977,7 @@
 
         // 🎨 圓角圖片URL生成器
         function generateRoundedImageUrl(originalUrl) {
-            const baseUrl = 'https://dc0b5faa3d06.ngrok-free.app';
+            const baseUrl = 'https://ec95feb2b722.ngrok-free.app';
             const params = new URLSearchParams({
                 url: originalUrl,
                 radius: '15',
@@ -961,27 +988,27 @@
 
         // 取得預覽內容 (圖片或圖標)
         function getPreviewContent(collection, type) {
-            // 🚀 優先檢查content中是否有圖片URL（修復圖片顯示問題）
+            // 🔥 優先使用獨立欄位（新架構，效能更佳）
+            if (collection.preview_image) {
+                console.log('🖼️ [圖片] 使用獨立欄位 preview_image:', collection.preview_image);
+                const roundedUrl = generateRoundedImageUrl(collection.preview_image);
+                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';" data-original-url="${collection.preview_image}">
+                        <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
+            }
+
+            // 🔄 回退：檢查 content 中的圖片（向下兼容舊數據）
             if (collection.content && collection.content.preview_image) {
-                console.log('🖼️ [圖片] 使用 content.preview_image:', collection.content.preview_image);
+                console.log('🖼️ [圖片] 使用 content.preview_image (回退):', collection.content.preview_image);
                 const roundedUrl = generateRoundedImageUrl(collection.content.preview_image);
-                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" data-original-url="${collection.content.preview_image}">
+                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';" data-original-url="${collection.content.preview_image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
 
             // 檢查content.image（如果preview_image不存在）
             if (collection.content && collection.content.image) {
-                console.log('🖼️ [圖片] 使用 content.image:', collection.content.image);
+                console.log('🖼️ [圖片] 使用 content.image (回退):', collection.content.image);
                 const roundedUrl = generateRoundedImageUrl(collection.content.image);
-                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" data-original-url="${collection.content.image}">
-                        <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
-            }
-
-            // 檢查是否有preview_image欄位（向下兼容）
-            if (collection.preview_image) {
-                console.log('🖼️ [圖片] 使用 preview_image:', collection.preview_image);
-                const roundedUrl = generateRoundedImageUrl(collection.preview_image);
-                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" data-original-url="${collection.preview_image}">
+                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';" data-original-url="${collection.content.image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
 
