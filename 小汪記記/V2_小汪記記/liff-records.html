@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全部記錄 - 小汪記記</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft JhengHei', sans-serif;
+            background: white;
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        .header {
+            background: black;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .calendar-container {
+            background: white;
+            margin: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .month-selector {
+            background: black;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .month-nav-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .month-nav-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        #currentMonth {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .calendar-grid {
+            padding: 15px;
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .weekday {
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: black;
+            padding: 8px 0;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: #F0F0F0;
+        }
+
+        .calendar-day.today {
+            background: black;
+            color: white;
+            font-weight: bold;
+        }
+
+        .calendar-day.selected {
+            background: black;
+            color: white;
+            font-weight: bold;
+        }
+
+        .calendar-day.other-month {
+            color: #CCC;
+        }
+
+        .calendar-day.has-tasks::after {
+            content: '•';
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: black;
+            font-size: 12px;
+        }
+
+        .container {
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .day-section {
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .day-header {
+            background: black;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-date {
+            font-size: 16px;
+        }
+
+        .task-count {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .task-list {
+            padding: 15px;
+        }
+
+        .task-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid black;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:hover {
+            background: #f5f5f5;
+            transform: translateX(5px);
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            background: transparent;
+            transition: all 0.2s ease;
+            /* 增加可點擊區域但不改變視覺大小 */
+            padding: 6px;
+            margin-left: -6px;
+            margin-top: -6px;
+            margin-bottom: -6px;
+        }
+
+        .task-checkbox:hover {
+            border-color: #007AFF;
+            background-color: rgba(0, 122, 255, 0.1);
+        }
+
+        .task-checkbox.completed {
+            background: #9e9e9e;
+            color: white;
+            border-color: #9e9e9e;
+        }
+
+        .task-checkbox.completed:hover {
+            background: #757575;
+            border-color: #757575;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            word-wrap: break-word;
+        }
+
+        .task-time {
+            font-size: 12px;
+            color: #999;
+            margin-left: 10px;
+        }
+
+        .task-completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .task-completed .task-text {
+            color: #999;
+        }
+
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: black;
+        }
+
+        .error {
+            background: white;
+            color: black;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 8px;
+            border-left: 4px solid black;
+        }
+
+        .no-tasks {
+            text-align: center;
+            padding: 40px;
+            color: black;
+            font-size: 16px;
+            background: white;
+            margin: 15px;
+            border-radius: 10px;
+            border: 2px dashed black;
+        }
+
+        .floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: black;
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .floating-button:active {
+            transform: scale(0.95);
+        }
+
+        /* 筆記本風格裝飾 */
+        .notebook-holes {
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            pointer-events: none;
+        }
+
+        .hole {
+            width: 8px;
+            height: 8px;
+            background: #F0F0F0;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📚 全部記錄</h1>
+        <div id="userName" style="font-size: 14px; opacity: 0.9; margin-top: 5px;"></div>
+    </div>
+
+    <div class="calendar-container">
+        <div class="month-selector">
+            <button class="month-nav-btn" onclick="previousMonth()">&lt;</button>
+            <h2 id="currentMonth">9月, 2025</h2>
+            <button class="month-nav-btn" onclick="nextMonth()">&gt;</button>
+        </div>
+        <div class="calendar-grid">
+            <div class="weekdays">
+                <div class="weekday">週日</div>
+                <div class="weekday">週一</div>
+                <div class="weekday">週二</div>
+                <div class="weekday">週三</div>
+                <div class="weekday">週四</div>
+                <div class="weekday">週五</div>
+                <div class="weekday">週六</div>
+            </div>
+            <div id="calendarDays" class="calendar-days">
+                <!-- 日期會動態生成 -->
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="loading" class="loading">
+        🤖 載入記錄中...
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="recordsContainer" class="container" style="display: none;">
+        <!-- 記錄會動態插入這裡 -->
+    </div>
+
+    <button class="floating-button" onclick="closeApp()">✕</button>
+    
+
+
+    <script>
+        let liffProfile = null;
+        let currentUserId = null;
+        let allTasks = [];
+        let filteredTasks = [];
+        let currentDate = new Date();
+        let selectedDate = null;
+        
+        // 版本控制 - 強制更新 2025-09-13-14:30
+        console.log('🔄 [頁面版本] 全部記錄頁面 - 日曆視圖版本 v2025-09-13-14:30 已載入');
+
+        // 🔄 檢查頁面初始化（保留函數名稱以避免破壞其他調用）
+        function checkForSyncData() {
+            console.log('🔄 [頁面檢查] 全部記錄頁面已載入，準備從伺服器獲取最新任務');
+        }
+
+        // LIFF 初始化
+        async function initializeLiff() {
+            try {
+                // 🔄 首先檢查同步資料
+                checkForSyncData();
+                
+                await liff.init({
+                    liffId: '2008077335-rZlgE4bX'
+                });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                // 取得使用者資料
+                liffProfile = await liff.getProfile();
+                console.log('LIFF Profile:', liffProfile);
+
+                // 設定當前用戶ID
+                currentUserId = liffProfile.userId;
+                console.log('🆔 [用戶ID] 設定完成:', currentUserId);
+
+                // 顯示使用者名稱
+                document.getElementById('userName').textContent = liffProfile.displayName;
+
+                // 初始化日曆
+                generateCalendar(currentDate);
+
+                // 隱藏載入畫面，顯示空白狀態
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('recordsContainer').style.display = 'block';
+
+                // 自動選中今天的日期
+                const today = new Date();
+                console.log('🗓️ [初始化] 自動選中今天的日期');
+                await selectDate(today);
+
+                // 如果自動選擇失敗或沒有選中日期，才顯示提示
+                if (!selectedDate) {
+                    showDateSelectionPrompt();
+                }
+
+            } catch (error) {
+                console.error('LIFF 初始化失敗:', error);
+                showError('LIFF 初始化失敗: ' + error.message);
+            }
+        }
+
+        // 載入所有任務（直接從 Supabase tasks）
+        async function loadAllRecords(specificDate = null) {
+            try {
+                console.log(`🔄 [訊息載入] 🚀🚀🚀 函數被調用 - 參數 specificDate: ${specificDate} 🚀🚀🚀`);
+                console.log(`🔄 [訊息載入] 開始從 Supabase 載入訊息記錄${specificDate ? ` (日期: ${specificDate})` : ''}...`);
+                
+                // 🆕 清空之前的資料以防止混淆
+                allTasks = [];
+                console.log(`🧹 [資料清理] 已清空 allTasks 數組`);
+                
+                // 🆕 從 Supabase tasks 獲取任務記錄
+                let apiUrl = '/api/tasks';
+                if (specificDate) {
+                    apiUrl += `?date=${specificDate}`;
+                }
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'x-user-id': liffProfile.userId,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    allTasks = await response.json();
+                    console.log(`✅ [訊息載入] 成功從 Supabase 載入訊息記錄: ${allTasks.length} 筆`);
+                    console.log('📝 [訊息載入] 記錄預覽:', allTasks.slice(0, 3).map(msg => msg.text));
+                    
+                    // 同步到 localStorage 作為備份（只在無特定日期篩選時）
+                    if (!specificDate) {
+                        localStorage.setItem('userMessages_' + liffProfile.userId, JSON.stringify(allTasks));
+                        console.log('💾 [訊息載入] 已備份記錄到 localStorage');
+                    }
+                } else {
+                    console.error('❌ [訊息載入] API 請求失敗:', response.status, response.statusText);
+                    
+                    // 備援：從 localStorage 載入（僅在無特定日期篩選時）
+                    if (!specificDate) {
+                        const savedMessages = localStorage.getItem('userMessages_' + liffProfile.userId);
+                        if (savedMessages) {
+                            allTasks = JSON.parse(savedMessages);
+                            console.log('💾 [訊息載入] 備援：從 localStorage 載入記錄:', allTasks.length, '筆');
+                        } else {
+                            allTasks = [];
+                            console.log('💾 [訊息載入] 無記錄資料');
+                        }
+                    } else {
+                        allTasks = [];
+                        console.log('❌ [訊息載入] 特定日期查詢失敗，無備援資料');
+                    }
+                }
+                
+                console.log('📊 [訊息載入] 最終記錄數量:', allTasks.length);
+                console.log('📝 [訊息載入] 記錄預覽:', allTasks.slice(0, 3).map(msg => msg.text || ''));
+
+                // 按日期分組並顯示 (傳遞選定日期參數)
+                displayTasksByDate(allTasks, specificDate);
+
+            } catch (error) {
+                console.error('❌ [記錄同步] 載入記錄失敗:', error);
+                showError('載入記錄失敗');
+            }
+        }
+
+        // 按日期分組顯示任務
+        function displayTasksByDate(tasks, forcedDate = null) {
+            console.log(`🎯 [顯示任務] 函數被調用 - 強制日期: ${forcedDate}, 任務數量: ${tasks.length}`);
+            const container = document.getElementById('recordsContainer');
+            container.innerHTML = '';
+
+            if (tasks.length === 0) {
+                console.log('📝 [顯示任務] 沒有任務，顯示無記錄訊息');
+                container.innerHTML = '<div class="no-tasks">📝 這天沒有任何記錄</div>';
+                return;
+            }
+
+            // 如果有強制日期，直接顯示在該日期下
+            let tasksByDate = {};
+            if (forcedDate) {
+                console.log(`🎯 [強制日期] 使用強制日期 ${forcedDate} 顯示所有 ${tasks.length} 筆任務`);
+                // 使用本地時區避免日期偏移問題
+                const [year, month, day] = forcedDate.split('-');
+                const localDate = new Date(year, month - 1, day);
+                const displayDate = localDate.toLocaleDateString('zh-TW');
+                tasksByDate[displayDate] = tasks;
+                console.log(`🎯 [強制日期] 顯示日期格式: ${displayDate}`);
+            } else {
+                // 正常按日期分組
+                console.log(`📅 [正常分組] 開始按日期分組`);
+                tasks.forEach(task => {
+                    const date = new Date(task.timestamp || Date.now()).toLocaleDateString('zh-TW');
+                    if (!tasksByDate[date]) {
+                        tasksByDate[date] = [];
+                    }
+                    tasksByDate[date].push(task);
+                });
+            }
+
+            // 按日期降序排列
+            const sortedDates = Object.keys(tasksByDate).sort((a, b) => {
+                return new Date(b) - new Date(a);
+            });
+
+            // 顯示每一天的任務
+            sortedDates.forEach(date => {
+                const dayTasks = tasksByDate[date];
+                const completedCount = dayTasks.filter(t => t.completed).length;
+                
+                const daySection = document.createElement('div');
+                daySection.className = 'day-section';
+                
+                // 添加筆記本裝飾
+                const holes = document.createElement('div');
+                holes.className = 'notebook-holes';
+                for (let i = 0; i < 3; i++) {
+                    const hole = document.createElement('div');
+                    hole.className = 'hole';
+                    holes.appendChild(hole);
+                }
+                daySection.appendChild(holes);
+                
+                daySection.innerHTML += `
+                    <div class="day-header">
+                        <span class="day-date">📅 ${date}</span>
+                        <span class="task-count">${completedCount}/${dayTasks.length} 完成</span>
+                    </div>
+                    <div class="task-list">
+                        ${dayTasks.map((task, index) => `
+                            <div class="task-item ${task.completed ? 'task-completed' : ''}">
+                                <div style="display: flex; align-items: center; flex: 1;">
+                                    <div class="task-checkbox ${task.completed ? 'completed' : ''}" onclick="toggleTask('${task.id}')">
+                                        ${task.completed ? '✓' : ''}
+                                    </div>
+                                    <span class="task-text" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer; flex: 1;">${task.text || '未命名任務'}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="rounded-image-icon" onclick="sendTaskRoundedImageMessage('${task.id}', '${task.collection_image_url || 'https://picsum.photos/400/300'}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer; color: #ff4757; font-size: 16px; padding: 4px; border: 1px solid #ff4757; border-radius: 4px; background: rgba(255, 71, 87, 0.1);" title="發送圓角圖片 ${task.collection_image_url ? '(有圖片)' : '(測試圖片)'}">🖼️</span>
+                                    <span class="task-time" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer;">
+                                        ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(daySection);
+            });
+        }
+
+
+        // 生成日曆
+        function generateCalendar(date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+
+            // 更新月份標題
+            document.getElementById('currentMonth').textContent = `${month + 1}月, ${year}`;
+
+            // 獲取當月第一天和最後一天
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay()); // 從週日開始
+
+            const calendarDays = document.getElementById('calendarDays');
+            calendarDays.innerHTML = '';
+
+            const today = new Date();
+            const todayString = today.toDateString();
+
+            // 生成42天（6週）
+            for (let i = 0; i < 42; i++) {
+                const cellDate = new Date(startDate);
+                cellDate.setDate(startDate.getDate() + i);
+
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.textContent = cellDate.getDate();
+
+                // 添加類別
+                if (cellDate.getMonth() !== month) {
+                    dayElement.classList.add('other-month');
+                }
+
+                if (cellDate.toDateString() === todayString) {
+                    dayElement.classList.add('today');
+                }
+
+                if (selectedDate && cellDate.toDateString() === selectedDate.toDateString()) {
+                    dayElement.classList.add('selected');
+                }
+
+                // 點擊事件
+                dayElement.addEventListener('click', () => selectDate(cellDate));
+
+                calendarDays.appendChild(dayElement);
+            }
+        }
+
+        // 選擇日期
+        async function selectDate(date) {
+            console.log(`🎯 [選擇日期] 函數開始執行, 輸入日期: ${date}`);
+            selectedDate = date;
+            console.log(`🎯 [選擇日期] selectedDate 已設定為: ${selectedDate}`);
+
+            // 重新生成日曆以更新選中狀態
+            generateCalendar(currentDate);
+            console.log(`🎯 [選擇日期] 日曆已重新生成`);
+
+            // 載入該日期的記錄 - 使用本地時區格式避免時區問題
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+
+            console.log(`📅 [日期選擇] 選中日期: ${dateString} (本地時間: ${date.toLocaleDateString('zh-TW')})`);
+            console.log(`🎯 [選擇日期] 準備調用 loadAllRecords 函數`);
+
+            try {
+                await loadAllRecords(dateString);
+                console.log(`🎯 [選擇日期] loadAllRecords 執行完成`);
+            } catch (error) {
+                console.error(`📅 [日期選擇] 載入失敗:`, error);
+            }
+        }
+
+        // 上一月
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            generateCalendar(currentDate);
+        }
+
+        // 下一月
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            generateCalendar(currentDate);
+        }
+
+        // 顯示日期選擇提示（只在沒有選中日期時使用）
+        function showDateSelectionPrompt() {
+            // 如果已經有選中的日期，就不顯示提示訊息
+            if (selectedDate) {
+                console.log('🗓️ [提示訊息] 已有選中日期，不顯示提示訊息');
+                return;
+            }
+
+            const container = document.getElementById('recordsContainer');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: black;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">📅</div>
+                    <h2 style="margin-bottom: 15px; color: black;">選擇日期查看記錄</h2>
+                    <p style="color: #999; font-size: 14px;">請在上方日曆中點擊您要查看的日期</p>
+                </div>
+            `;
+            console.log('🗓️ [提示訊息] 顯示日期選擇提示');
+        }
+
+        // 顯示錯誤訊息
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 切換任務完成狀態
+        async function toggleTask(taskId) {
+            try {
+                console.log('🔄 [Toggle Task] 切換任務狀態:', taskId);
+
+                // 發送請求到後端更新任務狀態
+                const response = await fetch('/api/tasks/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        taskId: taskId,
+                        userId: currentUserId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('✅ [Toggle Task] 任務狀態更新成功:', result);
+
+                // 重新載入當前選中日期的記錄
+                if (selectedDate) {
+                    const year = selectedDate.getFullYear();
+                    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    const dateString = `${year}-${month}-${day}`;
+                    await loadAllRecords(dateString);
+                }
+
+                // 通知用戶操作成功
+                showNotification(result.completed ? '任務已完成！' : '任務已取消完成');
+
+            } catch (error) {
+                console.error('❌ [Toggle Task] 切換任務狀態失敗:', error);
+                showNotification('操作失敗，請稍後重試');
+            }
+        }
+
+        // 顯示通知訊息
+        function showNotification(message) {
+            // 創建通知元素
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: black;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 20px;
+                font-size: 14px;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            // 3秒後自動移除
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
+        }
+
+        // 編輯任務功能
+        function editTask(taskId, taskText) {
+            try {
+                console.log('📝 [Edit Task] 編輯任務:', taskId, taskText);
+
+                // 建立編輯頁面 URL
+                const editUrl = `liff-task-note.html?taskId=${taskId}&taskText=${taskText}`;
+
+                // 跳轉到編輯頁面
+                window.location.href = editUrl;
+
+            } catch (error) {
+                console.error('❌ [Edit Task] 跳轉編輯頁面失敗:', error);
+                showNotification('無法開啟編輯頁面');
+            }
+        }
+
+        // 產生圓角圖片URL的輔助函數
+        function generateRoundedImageUrl(originalUrl, options = {}) {
+            const {
+                radius = 15,
+                size = '300x200',
+                baseUrl = 'https://138b00c20997.ngrok.app/'
+            } = options;
+
+            const params = new URLSearchParams({
+                url: originalUrl,
+                radius: radius.toString(),
+                size: size
+            });
+
+            return `${baseUrl}/rounded-image?${params.toString()}`;
+        }
+
+        // 發送任務圓角圖片訊息
+        async function sendTaskRoundedImageMessage(taskId, imageUrl, taskTitle) {
+            try {
+                console.log('🎨 [任務圓角圖片] 點擊事件觸發！');
+                console.log('🎨 [任務圓角圖片] 準備發送 task ID:', taskId);
+                console.log('🎨 [任務圓角圖片] 圖片URL:', imageUrl);
+                console.log('🎨 [任務圓角圖片] 任務標題:', decodeURIComponent(taskTitle));
+
+                alert(`🖼️ 測試圓角圖片功能\n任務ID: ${taskId}\n圖片URL: ${imageUrl}\n標題: ${decodeURIComponent(taskTitle)}`);
+
+                if (!liffProfile || !liffProfile.userId) {
+                    alert('無法取得用戶資訊，請重新整理頁面');
+                    return;
+                }
+
+                // 產生圓角圖片URL
+                const roundedImageUrl = generateRoundedImageUrl(imageUrl, {
+                    radius: 15,
+                    size: '400x300'
+                });
+
+                console.log('🎨 [任務圓角圖片] 圓角圖片URL:', roundedImageUrl);
+
+                // 建立Flex Message
+                const flexMessage = {
+                    type: "flex",
+                    altText: `任務圖片: ${decodeURIComponent(taskTitle)}`,
+                    contents: {
+                        type: "bubble",
+                        hero: {
+                            type: "image",
+                            url: roundedImageUrl,
+                            size: "full",
+                            aspectRatio: "4:3",
+                            aspectMode: "cover"
+                        },
+                        body: {
+                            type: "box",
+                            layout: "vertical",
+                            contents: [
+                                {
+                                    type: "text",
+                                    text: decodeURIComponent(taskTitle),
+                                    weight: "bold",
+                                    size: "lg",
+                                    wrap: true
+                                },
+                                {
+                                    type: "text",
+                                    text: "圓角處理版本",
+                                    size: "sm",
+                                    color: "#666666",
+                                    margin: "md"
+                                }
+                            ]
+                        }
+                    }
+                };
+
+                console.log('🎨 [任務圓角圖片] 發送 Flex Message:', flexMessage);
+
+                // 發送訊息
+                const response = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify({
+                        type: 'flex',
+                        message: flexMessage
+                    })
+                });
+
+                if (response.ok) {
+                    console.log('✅ [任務圓角圖片] 發送成功');
+                    alert('圓角圖片已發送！');
+                } else {
+                    const errorText = await response.text();
+                    console.error('❌ [任務圓角圖片] 發送失敗:', errorText);
+                    alert('發送失敗: ' + errorText);
+                }
+
+            } catch (error) {
+                console.error('❌ [任務圓角圖片] 發送失敗:', error);
+                alert('發送時發生錯誤: ' + error.message);
+            }
+        }
+
+        // 關閉應用程式
+        function closeApp() {
+            liff.closeWindow();
+        }
+
+
+        // 頁面載入時初始化 LIFF
+        window.addEventListener('load', initializeLiff);
+    </script>
+</body>
+</html>
