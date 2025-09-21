@@ -49,9 +49,28 @@ function setupRoundedImageRoute(app) {
 
       console.log(`🎨 [圓角API] 處理圖片: ${url} (${width}x${height}, radius:${radius})`);
 
-      // 1. 下載原始圖片
+      // 1. 下載原始圖片 (處理 Facebook 圖片權限問題)
       const fetch = (await import('node-fetch')).default;
-      const imageResponse = await fetch(url);
+
+      // 設定適當的 headers 以處理 Facebook 等社群平台的圖片權限
+      const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+      };
+
+      // 如果是 Facebook 圖片，加入額外的 header
+      if (url.includes('fbcdn.net') || url.includes('facebook.com')) {
+        headers['Referer'] = 'https://www.facebook.com/';
+        headers['sec-fetch-dest'] = 'image';
+        headers['sec-fetch-mode'] = 'no-cors';
+        headers['sec-fetch-site'] = 'cross-site';
+      }
+
+      const imageResponse = await fetch(url, { headers });
       if (!imageResponse.ok) {
         throw new Error(`圖片下載失敗: ${imageResponse.status}`);
       }
@@ -113,7 +132,7 @@ function generateRoundedImageUrl(originalUrl, options = {}) {
   const {
     radius = 20,
     size = '400x300',
-    baseUrl = process.env.BASE_URL || 'https://dc0b5faa3d06.ngrok-free.app'
+    baseUrl = process.env.BASE_URL || 'https://ec95feb2b722.ngrok-free.app'
   } = options;
 
   const params = new URLSearchParams({
