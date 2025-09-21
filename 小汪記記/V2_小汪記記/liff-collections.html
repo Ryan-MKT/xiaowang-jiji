@@ -72,10 +72,13 @@
         }
 
         .collection-preview {
-            height: 180px;
+            width: 100%;
+            aspect-ratio: 1 / 1;
             overflow: hidden;
             position: relative;
             background: #d5d5d5;
+            border: 8px solid #ffffff;
+            border-radius: 28px;
         }
 
         .collection-preview img {
@@ -96,6 +99,7 @@
             justify-content: center;
             font-size: 2rem;
             color: #000000;
+            border-radius: 24px;
         }
 
         .video-preview {
@@ -105,6 +109,7 @@
             justify-content: center;
             font-size: 2rem;
             color: #000000;
+            border-radius: 24px;
         }
 
         .text-preview {
@@ -114,6 +119,7 @@
             justify-content: center;
             font-size: 2rem;
             color: #000000;
+            border-radius: 24px;
         }
 
         /* 預覽圖片樣式 */
@@ -121,7 +127,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 12px 12px 0 0;
+            border-radius: 24px;
         }
 
         .preview-loading {
@@ -852,19 +858,25 @@
 
         // 取得收藏品 AI 標籤
         function getAITags(collection) {
-            // 🤖 優先從 collection.tags 中讀取 AI 生成的標籤
+            // 🚫 AI標籤功能已暫時停用
+            return [];
+
+            // 🤖 優先從 collection.tags 中讀取 AI 生成的標籤 (已停用)
+            /*
             if (collection.tags && Array.isArray(collection.tags) && collection.tags.length > 0) {
                 console.log(`✅ [AI標籤] 從收藏品讀取AI標籤: ${collection.tags.join(', ')}`);
                 return collection.tags.slice(0, 5); // 最多返回5個標籤
             }
+            */
 
-            // 🔄 備用方案：從 content.autoTags 讀取（如果存在）
+            /*
+            // 🔄 備用方案：從 content.autoTags 讀取（如果存在） (已停用)
             if (collection.content && collection.content.autoTags && Array.isArray(collection.content.autoTags)) {
                 console.log(`✅ [AI標籤] 從content.autoTags讀取: ${collection.content.autoTags.join(', ')}`);
                 return collection.content.autoTags.slice(0, 5);
             }
 
-            // 📝 最後備用：基於內容的簡單關鍵詞提取（降級機制）
+            // 📝 最後備用：基於內容的簡單關鍵詞提取（降級機制） (已停用)
             const aiTags = [];
             const type = analyzeCollectionType(collection);
             const title = (collection.title || '').toLowerCase();
@@ -926,6 +938,7 @@
             }
 
             return aiTags.slice(0, 5); // 最多返回5個標籤
+            */
         }
 
         // 取得用戶標籤
@@ -1033,27 +1046,6 @@
                                 return socialResult;
                             })()}
 
-                            <div class="user-tags-section">
-                                <small class="text-white fw-bold mb-2 d-block d-flex justify-content-between align-items-center">
-                                    <span>
-                                        <i class="bi bi-person"></i> 我的標籤
-                                    </span>
-                                    <span class="badge bg-secondary">${userTags.length}/6</span>
-                                </small>
-                                <div class="user-tags">
-                                    ${userTags.map(tag => `<span class="user-tag" onclick="removeTag(${collection.id}, '${tag}')">${tag} <i class="bi bi-x"></i></span>`).join('')}
-                                </div>
-                                ${userTags.length < 6 ? `
-                                    <div class="tag-input-section mt-2">
-                                        <div class="input-group input-group-sm">
-                                            <input type="text" class="form-control form-control-sm" id="tagInput${collection.id}" placeholder="添加標籤..." onkeypress="handleTagInput(event, ${collection.id})">
-                                            <button class="btn btn-outline-light btn-sm" type="button" onclick="addTag(${collection.id})">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ` : ''}
-                            </div>
                         </div>
                     </div>
                 `;
