@@ -54,6 +54,9 @@
             overflow: hidden;
             position: relative;
             color: #000000;
+            margin-bottom: 25px;
+            min-height: 380px;
+            padding-bottom: 50px;
         }
 
         .collection-card:hover {
@@ -305,6 +308,55 @@
             text-overflow: ellipsis;
         }
 
+        .simple-account-name {
+            position: absolute;
+            bottom: 2px;
+            left: 12px;
+            font-size: 0.85rem;
+            color: #333333;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 3px 6px;
+            border-radius: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: calc(100% - 24px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+        }
+
+        .bottom-right-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 12px;
+            background: #000000;
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 20;
+            white-space: nowrap;
+        }
+
+        .bottom-right-btn:hover {
+            background: #333333;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .bottom-right-btn i {
+            font-size: 0.8rem;
+        }
+
         .user-tags {
             display: flex;
             flex-wrap: wrap;
@@ -373,8 +425,8 @@
             height: 28px;
             border: none;
             border-radius: 50%;
-            background: rgba(220, 53, 69, 0.9);
-            color: white;
+            background: rgba(255, 255, 255, 0.9);
+            color: #666666;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -386,7 +438,8 @@
         }
 
         .delete-btn:hover {
-            background: rgba(220, 53, 69, 1);
+            background: rgba(255, 255, 255, 1);
+            color: #333333;
             transform: scale(1.1);
             box-shadow: 0 3px 6px rgba(0,0,0,0.3);
         }
@@ -1024,11 +1077,6 @@
                         <button class="delete-btn" onclick="deleteCollection('${collection.id}')" title="刪除">
                             <i class="bi bi-x"></i>
                         </button>
-                        <div class="collection-actions">
-                            <button class="action-btn" onclick="openCollection('${collection.id}')" title="開啟">
-                                <i class="bi bi-box-arrow-up-right"></i>
-                            </button>
-                        </div>
 
                         <div class="collection-preview ${type}-preview">
                             ${getPreviewContent(collection, type)}
@@ -1047,6 +1095,10 @@
                             })()}
 
                         </div>
+
+                        <button class="bottom-right-btn" onclick="handleBottomRightClick('${collection.id}')" title="翻卡">
+                            翻卡 <i class="bi bi-arrow-right"></i>
+                        </button>
                     </div>
                 `;
             }).join('');
@@ -1565,6 +1617,12 @@
             alert(`功能選單 - Collection ID: ${collectionId}`);
         }
 
+        // 處理右下角按鈕點擊（暫時無功能）
+        function handleBottomRightClick(collectionId) {
+            console.log(`🎯 [按鈕] 右下角按鈕被點擊，收藏品 ID: ${collectionId}`);
+            // 暫時沒有功能，可以在這裡添加未來的功能
+        }
+
         // 刪除收藏品
         async function deleteCollection(collectionId) {
             console.log(`🗑️ [前端] 開始刪除收藏卡 ID: ${collectionId}`);
@@ -1883,65 +1941,30 @@
             try {
                 console.log('🔍 [FORCE DEBUG] getSocialAccountDisplay called for collection:', collection.id);
 
-                // 🚀 強制顯示：如果有social_account_name就顯示
+                // 🚀 簡化顯示：只顯示帳戶名稱，黑色文字
                 if (collection.social_account_name) {
                     console.log('✅ [FORCE] 找到social_account_name:', collection.social_account_name);
 
                     return `
-                        <div class="social-account-info">
-                            <div class="social-account-content">
-                                <div class="social-avatar">
-                                    <div class="avatar-fallback">
-                                        📘
-                                    </div>
-                                </div>
-                                <div class="social-info">
-                                    <div class="social-platform">${collection.social_platform || 'Facebook'}</div>
-                                    <div class="social-account-name">${collection.social_account_name}</div>
-                                </div>
-                            </div>
+                        <div class="simple-account-name">
+                            ${collection.social_account_name}
                         </div>
                     `;
                 }
 
-                // 備用邏輯：原來的複雜邏輯
-                let platform = collection.social_platform || collection.content?.socialAccount?.platform;
+                // 備用邏輯：簡化顯示
                 let accountName = collection.social_account_name || collection.content?.socialAccount?.accountName;
-                let profileImage = collection.social_profile_image || collection.content?.socialAccount?.profileImage;
 
-                console.log('🔍 [DEBUG] 備用邏輯:', { platform, accountName, profileImage });
+                console.log('🔍 [DEBUG] 備用邏輯 accountName:', accountName);
 
-                if (!platform && !accountName && !profileImage) {
-                    console.log('❌ [DEBUG] No social account data found');
+                if (!accountName) {
+                    console.log('❌ [DEBUG] No account name found');
                     return '';
                 }
 
-                // 獲取平台圖標
-                const platformIcon = getSocialPlatformIcon(platform);
-
                 return `
-                    <div class="social-account-info">
-                        <div class="social-account-content">
-                            ${profileImage ? `
-                                <div class="social-avatar">
-                                    <img src="${profileImage}" alt="${accountName || platform}"
-                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <div class="avatar-fallback" style="display: none;">
-                                        ${platformIcon}
-                                    </div>
-                                </div>
-                            ` : `
-                                <div class="social-avatar">
-                                    <div class="avatar-fallback">
-                                        ${platformIcon}
-                                    </div>
-                                </div>
-                            `}
-                            <div class="social-info">
-                                <div class="social-platform">${platform}</div>
-                                ${accountName ? `<div class="social-account-name">${accountName}</div>` : ''}
-                            </div>
-                        </div>
+                    <div class="simple-account-name">
+                        ${accountName}
                     </div>
                 `;
             } catch (error) {
