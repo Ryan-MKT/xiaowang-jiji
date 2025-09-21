@@ -231,7 +231,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   });
 
   // Linus 風格：資料結構簡單，直接附加 Quick Reply
-  return {
+  const flexMessage = {
     type: 'flex',
     altText: `顯示 ${displayedTotal} 件事`,
     contents: {
@@ -366,8 +366,18 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         ])
       }
     }
-    // 注意：Quick Reply 現在只在收藏任務詢問標籤時顯示
   };
+
+  // 生成並附加 Quick Reply
+  const quickReply = generateQuickReply(userTags);
+  if (quickReply && quickReply.items && quickReply.items.length > 0) {
+    flexMessage.quickReply = quickReply;
+    console.log(`🎯 [FLEX MESSAGE] 附加 Quick Reply，共 ${quickReply.items.length} 個標籤按鈕`);
+  } else {
+    console.log('⚠️ [FLEX MESSAGE] 無 Quick Reply 標籤按鈕');
+  }
+
+  return flexMessage;
 }
 
 // 生成任務統計卡片
