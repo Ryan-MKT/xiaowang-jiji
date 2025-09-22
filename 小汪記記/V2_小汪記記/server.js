@@ -32,6 +32,151 @@ const userFavoriteTasks = new Map();
 // 資料結構: Map<userId, {waitingForTag: boolean, targetTaskId: number, timestamp: number}>
 const userTagSelectionStates = new Map();
 
+// 創建收藏卡片 FLEX MESSAGE 函數
+async function createFavoritesFlexMessage(favorites) {
+  if (!favorites || favorites.length === 0) {
+    return {
+      type: 'text',
+      text: '📋 今天還沒有收藏任何卡片'
+    };
+  }
+
+  // 限制最多顯示 10 張卡片
+  const displayFavorites = favorites.slice(0, 10);
+
+  if (displayFavorites.length === 1) {
+    // 單張卡片，使用 bubble
+    const favorite = displayFavorites[0];
+    return createSingleFavoriteBubble(favorite);
+  } else {
+    // 多張卡片，使用 carousel
+    return createFavoritesCarousel(displayFavorites);
+  }
+}
+
+// 創建單張收藏卡片 bubble
+function createSingleFavoriteBubble(favorite) {
+  // 使用收藏頁相同的標題欄位
+  const displayTitle = favorite.preview_title || favorite.social_account_name || favorite.title || '無標題';
+  const title = displayTitle.length > 40 ? displayTitle.substring(0, 40) + '...' : displayTitle;
+
+  // 使用收藏頁相同的圖片欄位
+  const displayImage = favorite.preview_image || favorite.content?.preview_image || 'https://picsum.photos/400/300';
+
+  return {
+    type: 'flex',
+    altText: `今天收藏：${title}`,
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '📋 今天的收藏',
+            weight: 'bold',
+            size: 'md',
+            color: '#1DB446'
+          }
+        ],
+        paddingAll: 'sm'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'image',
+            url: defaultImage,
+            size: 'full',
+            aspectRatio: '16:9',
+            aspectMode: 'cover',
+            margin: 'none'
+          },
+          {
+            type: 'text',
+            text: title,
+            wrap: true,
+            size: 'sm',
+            color: '#333333',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: new Date(favorite.created_at).toLocaleTimeString('zh-TW', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            size: 'xs',
+            color: '#888888',
+            margin: 'sm'
+          }
+        ],
+        paddingAll: 'lg'
+      }
+    }
+  };
+}
+
+// 創建多張收藏卡片 carousel
+function createFavoritesCarousel(favorites) {
+  const bubbles = favorites.map(favorite => {
+    const displayTitle = favorite.preview_title || favorite.social_account_name || favorite.title || '無標題';
+    const title = displayTitle.length > 30
+      ? displayTitle.substring(0, 30) + '...'
+      : displayTitle;
+    const displayImage = favorite.preview_image || favorite.content?.preview_image || 'https://picsum.photos/400/300';
+
+    return {
+      type: 'bubble',
+      size: 'kilo',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'image',
+            url: displayImage,
+            size: 'full',
+            aspectRatio: '16:9',
+            aspectMode: 'cover'
+          },
+          {
+            type: 'text',
+            text: title,
+            wrap: true,
+            size: 'sm',
+            color: '#333333',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: new Date(favorite.created_at).toLocaleTimeString('zh-TW', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            size: 'xs',
+            color: '#888888',
+            margin: 'sm'
+          }
+        ],
+        paddingAll: 'md'
+      }
+    };
+  });
+
+  return {
+    type: 'flex',
+    altText: `今天收藏了 ${favorites.length} 張卡片`,
+    contents: {
+      type: 'carousel',
+      contents: bubbles
+    }
+  };
+}
+
 const app = express();
 const PORT = process.env.PORT || 3002;
 console.log('🚀 小汪記記 with LINE Login starting...');
@@ -266,70 +411,110 @@ async function handlePostback(event) {
   if (postbackData === 'card_collection') {
     console.log(`📋 用戶 ${userId} 點擊卡片收藏`);
 
-    const { generateRoundedImageUrl } = require('./realtime-rounded-image-api');
+    try {
+      // 獲取今天的收藏資料
+      let todayFavorites = [];
 
-    // 示例圖片URL - 你可以根據需求修改
-    const sampleImageUrl = 'https://picsum.photos/400/300';
-    const roundedImageUrl = generateRoundedImageUrl(sampleImageUrl, {
-      radius: 20,
-      size: '400x300'
-    });
+      if (supabase) {
+        // 使用台灣時區 (UTC+8) 計算今天的日期範圍
+        const now = new Date();
+        const taiwanOffset = 8 * 60; // 台灣比 UTC 快8小時
+        const taiwanNow = new Date(now.getTime() + taiwanOffset * 60 * 1000);
+        const today = taiwanNow.toISOString().split('T')[0]; // YYYY-MM-DD 格式
 
-    // 創建完整的圓角圖片 FLEX MESSAGE
-    const roundedImageFlexMessage = {
-      type: 'flex',
-      altText: '圓角圖片卡片',
-      contents: {
-        type: 'bubble',
-        size: 'kilo',
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          contents: [
-            {
-              type: 'image',
-              url: 'https://picsum.photos/400/400',
-              size: 'full',
-              aspectRatio: '1:1',
-              aspectMode: 'cover',
-              margin: 'md'
-            },
-            {
-              type: 'text',
-              text: '在人人對頭，貧到慣性的時代，你是否也想過自己憑斟獨到的經驗，但卻懷着不安心境，豬頭不夠',
-              wrap: true,
-              size: 'sm',
-              color: '#666666',
-              margin: 'lg'
-            }
-          ],
-          paddingAll: 'lg'
-        },
-        footer: {
-          type: 'box',
-          layout: 'vertical',
-          contents: [
-            {
-              type: 'button',
-              action: {
-                type: 'message',
-                label: '功能',
-                text: '查看更多功能'
-              },
-              style: 'primary',
-              color: '#00C851'
-            }
-          ],
-          paddingAll: 'sm'
+        // 計算台灣時區的今天開始和結束時間（以UTC格式儲存）
+        const taiwanStartOfDay = new Date(`${today}T00:00:00+08:00`).toISOString();
+        const taiwanEndOfDay = new Date(`${today}T23:59:59.999+08:00`).toISOString();
+
+        console.log(`🔍 [收藏卡片] 台灣日期: ${today}`);
+        console.log(`🔍 [收藏卡片] 查詢範圍: ${taiwanStartOfDay} ~ ${taiwanEndOfDay}`);
+
+        const { data, error } = await supabase
+          .from('dev_collections')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('created_at', taiwanStartOfDay)
+          .lt('created_at', taiwanEndOfDay)
+          .order('created_at', { ascending: false });
+
+        console.log(`📊 [收藏卡片] Supabase 查詢結果:`, {
+          error: error?.message || null,
+          dataCount: data?.length || 0,
+          firstItem: data?.[0] || null
+        });
+
+        if (!error && data) {
+          todayFavorites = data;
         }
       }
-    };
 
-    if (client) {
-      return client.replyMessage(event.replyToken, roundedImageFlexMessage);
-    } else {
-      console.log('測試模式：圓角圖片 FLEX MESSAGE', JSON.stringify(roundedImageFlexMessage, null, 2));
-      return Promise.resolve(null);
+      console.log(`📋 [收藏卡片] 用戶 ${userId} 今天收藏了 ${todayFavorites.length} 個項目`);
+
+      // 如果今天沒有收藏，顯示提示訊息
+      if (todayFavorites.length === 0) {
+        const noFavoritesMessage = {
+          type: 'flex',
+          altText: '今天還沒有收藏任何卡片',
+          contents: {
+            type: 'bubble',
+            size: 'kilo',
+            body: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'text',
+                  text: '📋 今天還沒有收藏',
+                  weight: 'bold',
+                  size: 'lg',
+                  align: 'center'
+                },
+                {
+                  type: 'text',
+                  text: '快去收藏一些有趣的內容吧！',
+                  size: 'sm',
+                  color: '#666666',
+                  align: 'center',
+                  margin: 'md'
+                }
+              ],
+              spacing: 'md',
+              paddingAll: 'xl'
+            }
+          }
+        };
+
+        if (client) {
+          return client.replyMessage(event.replyToken, noFavoritesMessage);
+        } else {
+          console.log('測試模式：無收藏訊息', JSON.stringify(noFavoritesMessage, null, 2));
+          return Promise.resolve(null);
+        }
+      }
+
+      // 創建收藏卡片 FLEX MESSAGE
+      const favoritesFlexMessage = await createFavoritesFlexMessage(todayFavorites);
+
+      if (client) {
+        return client.replyMessage(event.replyToken, favoritesFlexMessage);
+      } else {
+        console.log('測試模式：收藏卡片 FLEX MESSAGE', JSON.stringify(favoritesFlexMessage, null, 2));
+        return Promise.resolve(null);
+      }
+
+    } catch (error) {
+      console.error('❌ [收藏卡片] 處理錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '⚠️ 獲取收藏資料時發生錯誤，請稍後再試。'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        return Promise.resolve(null);
+      }
     }
   }
 
