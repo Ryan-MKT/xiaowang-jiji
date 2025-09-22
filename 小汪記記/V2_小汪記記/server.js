@@ -3536,6 +3536,52 @@ app.get('/clear-image-cache', (req, res) => {
   }
 });
 
+// 🖼️ 圖片代理路由 - 解決 Facebook 圖片 CORS 問題
+app.get('/api/image-proxy', async (req, res) => {
+  try {
+    const imageUrl = req.query.url;
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Missing image URL parameter' });
+    }
+
+    console.log(`🖼️ [圖片代理] 代理圖片請求: ${imageUrl}`);
+
+    const fetch = require('node-fetch');
+    const response = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Accept': 'image/*,*/*;q=0.8',
+        'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
+      },
+      timeout: 10000
+    });
+
+    if (!response.ok) {
+      console.error(`❌ [圖片代理] 圖片請求失敗: ${response.status}`);
+      return res.status(response.status).json({ error: 'Failed to fetch image' });
+    }
+
+    const contentType = response.headers.get('content-type');
+    console.log(`✅ [圖片代理] 成功取得圖片，Content-Type: ${contentType}`);
+
+    // 設定適當的 headers
+    res.set({
+      'Content-Type': contentType || 'image/jpeg',
+      'Cache-Control': 'public, max-age=3600', // 快取 1 小時
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+
+    // 將圖片數據傳送給客戶端
+    response.body.pipe(res);
+
+  } catch (error) {
+    console.error('❌ [圖片代理] 代理圖片失敗:', error);
+    res.status(500).json({ error: 'Image proxy error' });
+  }
+});
+
 // 啟動伺服器
 app.listen(PORT, () => {
   console.log(`🤖 LINE Bot server running on port ${PORT} with Open Graph API`);
