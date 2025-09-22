@@ -1105,7 +1105,7 @@
 
         // 🎨 圓角圖片URL生成器
         function generateRoundedImageUrl(originalUrl) {
-            const baseUrl = 'https://138b00c20997.ngrok.app';
+            const baseUrl = window.location.origin;
             const params = new URLSearchParams({
                 url: originalUrl,
                 radius: '15',

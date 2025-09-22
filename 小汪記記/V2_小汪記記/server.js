@@ -60,8 +60,40 @@ function createSingleFavoriteBubble(favorite) {
   const displayTitle = favorite.preview_title || favorite.social_account_name || favorite.title || '無標題';
   const title = displayTitle.length > 40 ? displayTitle.substring(0, 40) + '...' : displayTitle;
 
-  // 使用收藏頁相同的圖片欄位
-  const displayImage = favorite.preview_image || favorite.content?.preview_image || 'https://picsum.photos/400/300';
+  // 🚀 與收藏頁面完全一致的圖片優先級邏輯
+  let displayImage = null;
+
+  // 第一優先：根層級 preview_image（新版本主要存放位置）
+  if (favorite.preview_image) {
+    displayImage = favorite.preview_image;
+    console.log(`🖼️ [收藏卡片-單張] 使用根層級 preview_image:`, displayImage.substring(0, 100) + '...');
+  }
+  // 第二優先：content.preview_image（新版本內容欄位）
+  else if (favorite.content && favorite.content.preview_image) {
+    displayImage = favorite.content.preview_image;
+    console.log(`🖼️ [收藏卡片-單張] 使用 content.preview_image:`, displayImage.substring(0, 100) + '...');
+  }
+  // 第三優先：content.image（舊架構）
+  else if (favorite.content && favorite.content.image) {
+    displayImage = favorite.content.image;
+    console.log(`🖼️ [收藏卡片-單張] 使用 content.image:`, displayImage.substring(0, 100) + '...');
+  }
+
+  // 🚀 針對 scontent.fbcdn.net 直接使用，其他使用代理
+  if (displayImage) {
+    if (displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) {
+      // scontent 直接圖片不需要代理
+      console.log(`🖼️ [收藏卡片-單張] 直接使用 scontent URL:`, displayImage);
+    } else {
+      // lookaside 等其他圖片使用代理
+      displayImage = `${process.env.BASE_URL}/api/image-proxy?url=${encodeURIComponent(displayImage)}`;
+      console.log(`🖼️ [收藏卡片-單張] 使用圖片代理 URL:`, displayImage);
+    }
+    console.log(`🔍 [收藏卡片-單張] 原始圖片 URL:`, favorite.preview_image || favorite.content?.preview_image || favorite.content?.image);
+  } else {
+    displayImage = 'https://picsum.photos/400/300';
+    console.log(`🖼️ [收藏卡片-單張] 無圖片，使用預設圖片`);
+  }
 
   return {
     type: 'flex',
@@ -90,10 +122,7 @@ function createSingleFavoriteBubble(favorite) {
           {
             type: 'image',
             url: displayImage,
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'cover',
-            margin: 'none'
+            size: 'full'
           },
           {
             type: 'text',
@@ -122,12 +151,53 @@ function createSingleFavoriteBubble(favorite) {
 
 // 創建多張收藏卡片 carousel
 function createFavoritesCarousel(favorites) {
-  const bubbles = favorites.map(favorite => {
+  const bubbles = favorites.map((favorite, index) => {
+    console.log(`🔍 [收藏卡片-輪播] 項目 ${index + 1}:`, {
+      id: favorite.id,
+      preview_image: favorite.preview_image,
+      content_preview_image: favorite.content?.preview_image,
+      content_image: favorite.content?.image,
+      title: favorite.preview_title || favorite.title
+    });
+
     const displayTitle = favorite.preview_title || favorite.social_account_name || favorite.title || '無標題';
     const title = displayTitle.length > 30
       ? displayTitle.substring(0, 30) + '...'
       : displayTitle;
-    const displayImage = favorite.preview_image || favorite.content?.preview_image || 'https://picsum.photos/400/300';
+
+    // 🚀 與收藏頁面完全一致的圖片優先級邏輯
+    let displayImage = null;
+
+    // 第一優先：根層級 preview_image（新版本主要存放位置）
+    if (favorite.preview_image) {
+      displayImage = favorite.preview_image;
+      console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 使用根層級 preview_image:`, displayImage.substring(0, 100) + '...');
+    }
+    // 第二優先：content.preview_image（新版本內容欄位）
+    else if (favorite.content && favorite.content.preview_image) {
+      displayImage = favorite.content.preview_image;
+      console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 使用 content.preview_image:`, displayImage.substring(0, 100) + '...');
+    }
+    // 第三優先：content.image（舊架構）
+    else if (favorite.content && favorite.content.image) {
+      displayImage = favorite.content.image;
+      console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 使用 content.image:`, displayImage.substring(0, 100) + '...');
+    }
+
+    // 🚀 針對 scontent.fbcdn.net 直接使用，其他使用代理
+    if (displayImage) {
+      if (displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) {
+        // scontent 直接圖片不需要代理
+        console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 直接使用 scontent URL:`, displayImage);
+      } else {
+        // lookaside 等其他圖片使用代理
+        displayImage = `${process.env.BASE_URL}/api/image-proxy?url=${encodeURIComponent(displayImage)}`;
+        console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 使用圖片代理 URL:`, displayImage);
+      }
+    } else {
+      displayImage = 'https://picsum.photos/400/300';
+      console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 無圖片，使用預設圖片`);
+    }
 
     return {
       type: 'bubble',
@@ -139,9 +209,7 @@ function createFavoritesCarousel(favorites) {
           {
             type: 'image',
             url: displayImage,
-            size: 'full',
-            aspectRatio: '1:1',
-            aspectMode: 'cover'
+            size: 'full'
           },
           {
             type: 'text',
