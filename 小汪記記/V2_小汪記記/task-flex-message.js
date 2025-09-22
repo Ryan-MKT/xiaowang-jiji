@@ -362,6 +362,31 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 }
               }
             ]
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'none',
+            margin: 'md',
+            paddingAll: 'sm',
+            backgroundColor: '#f765a3',
+            cornerRadius: '8px',
+            contents: [
+              {
+                type: 'text',
+                text: '📋 卡片收藏',
+                size: 'sm',
+                color: '#FFFFFF',
+                align: 'center',
+                weight: 'bold',
+                flex: 1,
+                action: {
+                  type: 'postback',
+                  label: '卡片收藏',
+                  data: 'card_collection'
+                }
+              }
+            ]
           }
         ])
       }
