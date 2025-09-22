@@ -11,7 +11,7 @@ const fs = require('fs-extra');
 const FormData = require('form-data');
 const axios = require('axios');
 const path = require('path');
-const { setupRoundedImageRoute, generateRoundedImageUrl } = require('./realtime-rounded-image-api');
+const { setupRoundedImageRoute, generateRoundedImageUrl, clearImageCache } = require('./realtime-rounded-image-api');
 const { createBookmarkSuccessFlexMessage } = require('./flex-message-builder');
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
@@ -961,7 +961,7 @@ async function handleEvent(event) {
       console.log(`🎨 最終使用圖片URL: ${imageUrl}`);
 
       // 生成單一 30px 圓角圖片，正方形尺寸
-      const roundedImageUrl = generateRoundedImageUrl(imageUrl, { radius: 30, size: '600x600' });
+      const roundedImageUrl = generateRoundedImageUrl(imageUrl, { radius: 30, size: '600x338' });
 
       // 建構 Flex Message - 單一 bubble 版本 with 左下角小圖示
       const flexMessage = {
@@ -3499,6 +3499,26 @@ app.post('/api/enhanced-preview', async (req, res) => {
 
 // 設定圓角圖片API路由
 setupRoundedImageRoute(app);
+
+// 清除圓角圖片快取路由
+app.get('/clear-image-cache', (req, res) => {
+  try {
+    const clearedCount = clearImageCache();
+    console.log(`🧹 [伺服器] 圓角圖片快取已清除，共移除 ${clearedCount} 個項目`);
+    res.json({
+      success: true,
+      message: `圓角圖片快取已清除，共移除 ${clearedCount} 個項目`,
+      clearedCount: clearedCount
+    });
+  } catch (error) {
+    console.error('❌ [伺服器] 清除快取失敗:', error);
+    res.status(500).json({
+      success: false,
+      error: '清除快取失敗',
+      details: error.message
+    });
+  }
+});
 
 // 啟動伺服器
 app.listen(PORT, () => {

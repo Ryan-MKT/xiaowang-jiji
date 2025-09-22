@@ -76,7 +76,7 @@
 
         .collection-preview {
             width: 100%;
-            aspect-ratio: 1 / 1;
+            aspect-ratio: 1 / 1 !important;
             overflow: hidden;
             position: relative;
             background: #d5d5d5;
@@ -88,11 +88,10 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.3s ease;
         }
 
         .collection-preview:hover img {
-            transform: scale(1.05);
+            /* 保持簡單，不做任何處理 */
         }
 
         .url-preview {
@@ -130,7 +129,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 24px;
+            border-radius: 20px;
         }
 
         .preview-loading {
@@ -1110,7 +1109,7 @@
             const params = new URLSearchParams({
                 url: originalUrl,
                 radius: '15',
-                size: '300x200'
+                size: '600x600'
             });
             console.log('🎨 [圓角API] 生成圓角圖片URL:', `${baseUrl}/rounded-image?${params.toString()}`);
             return `${baseUrl}/rounded-image?${params.toString()}`;
@@ -1131,9 +1130,8 @@
             // 🚀 第一優先：根層級 preview_image（新版本主要存放位置）
             if (collection.preview_image) {
                 console.log('🖼️ [圖片] 使用根層級 preview_image（新版本主圖）:', collection.preview_image.substring(0, 100) + '...');
-                const roundedUrl = generateRoundedImageUrl(collection.preview_image);
-                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image"
-                        onerror="console.log('🚨 圓角圖片失敗，切換原圖:', '${collection.preview_image}'); this.src='${collection.preview_image}'; this.onerror=function(){this.style.display='none'; this.nextElementSibling.style.display='flex';}"
+                return `<img src="${collection.preview_image}" alt="預覽圖片" class="preview-image"
+                        onerror="console.log('🚨 圖片載入失敗'); this.style.display='none'; this.nextElementSibling.style.display='flex';"
                         data-original-url="${collection.preview_image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
@@ -1141,9 +1139,8 @@
             // 🔥 第二優先：content.preview_image（新版本內容欄位）
             if (collection.content && collection.content.preview_image) {
                 console.log('🖼️ [圖片] 使用 content.preview_image（新版本內容圖片）:', collection.content.preview_image.substring(0, 100) + '...');
-                const roundedUrl = generateRoundedImageUrl(collection.content.preview_image);
-                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image"
-                        onerror="console.log('🚨 圓角圖片失敗，切換原圖:', '${collection.content.preview_image}'); this.src='${collection.content.preview_image}'; this.onerror=function(){this.style.display='none'; this.nextElementSibling.style.display='flex';}"
+                return `<img src="${collection.content.preview_image}" alt="預覽圖片" class="preview-image"
+                        onerror="console.log('🚨 圖片載入失敗'); this.style.display='none'; this.nextElementSibling.style.display='flex';"
                         data-original-url="${collection.content.preview_image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
@@ -1151,9 +1148,8 @@
             // 🔄 第三優先：content.image（Enhanced Preview 專用欄位，舊架構兼容）
             if (collection.content && collection.content.image) {
                 console.log('🖼️ [圖片] 使用 content.image（Enhanced Preview 主圖，舊架構）:', collection.content.image.substring(0, 100) + '...');
-                const roundedUrl = generateRoundedImageUrl(collection.content.image);
-                return `<img src="${roundedUrl}" alt="預覽圖片" class="preview-image"
-                        onerror="console.log('🚨 圓角圖片失敗，切換原圖:', '${collection.content.image}'); this.src='${collection.content.image}'; this.onerror=function(){this.style.display='none'; this.nextElementSibling.style.display='flex';}"
+                return `<img src="${collection.content.image}" alt="預覽圖片" class="preview-image"
+                        onerror="console.log('🚨 圖片載入失敗'); this.style.display='none'; this.nextElementSibling.style.display='flex';"
                         data-original-url="${collection.content.image}">
                         <div class="preview-icon-fallback" style="display: none;">${getPreviewIcon(type)}</div>`;
             }
