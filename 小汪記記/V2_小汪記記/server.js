@@ -97,6 +97,28 @@ function isQuestion(text) {
   return questionPatterns.some(pattern => pattern.test(text));
 }
 
+// 判斷是否為連結
+function isLink(text) {
+  const linkPatterns = [
+    /^https?:\/\//i,           // http:// 或 https:// 開頭
+    /^www\./i,                 // www. 開頭
+    /[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/,  // 包含域名格式
+    /facebook\.com/i,          // Facebook 連結
+    /instagram\.com/i,         // Instagram 連結
+    /youtube\.com/i,           // YouTube 連結
+    /youtu\.be/i,             // YouTube 短連結
+    /twitter\.com/i,          // Twitter 連結
+    /x\.com/i,                // X (Twitter) 連結
+    /linkedin\.com/i,         // LinkedIn 連結
+    /tiktok\.com/i,           // TikTok 連結
+    /github\.com/i,           // GitHub 連結
+    /medium\.com/i,           // Medium 連結
+    /pinterest\.com/i         // Pinterest 連結
+  ];
+
+  return linkPatterns.some(pattern => pattern.test(text.trim()));
+}
+
 // 處理 postback 事件（任務完成）
 async function handlePostback(event) {
   console.log('Postback event:', event);
@@ -783,52 +805,104 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  // 嘗試儲存到 Supabase - 加入標籤資訊
-  if (supabase) {
-    try {
-      const tablePrefix = process.env.TABLE_PREFIX || '';
-      const tableName = tablePrefix + 'messages';
-      
-      // 檢測是否為標籤選擇或任務包含標籤資訊
-      let detectedTag = null;
-      
-      // 檢查用戶是否正在等待標籤選擇
-      const tagSelectionState = userTagSelectionStates.get(userId);
-      if (tagSelectionState && tagSelectionState.waitingForTag) {
-        detectedTag = cleanedMessage; // 用戶回覆的就是標籤
-      } 
-      // 檢查任務文字是否包含標籤格式 (標籤)任務內容
-      else if (cleanedMessage.match(/^\((.+?)\)/)) {
-        const tagMatch = cleanedMessage.match(/^\((.+?)\)/);
-        detectedTag = tagMatch[1];
-      }
-      
-      const { data, error } = await supabase
-        .from(tableName)
-        .insert([
-          {
-            user_id: userId,
-            message_text: cleanedMessage,
-            // message_type: isVoiceMessage ? 'voice' : 'text', // 暫時註解掉
-            tag: detectedTag,
-            created_at: new Date().toISOString()
+  // 根據內容類型進行條件式儲存
+  if (isLink(cleanedMessage)) {
+    // 連結類型：直接儲存到 DEV_COLLECTIONS 並回傳 FLEX MESSAGE
+    console.log('🔗 [連結識別] 偵測到連結，直接儲存到收藏卡');
+
+    if (supabase) {
+      try {
+        // 建立收藏卡資料
+        const collectionData = {
+          title: cleanedMessage,
+          url: cleanedMessage,
+          content: {
+            url: cleanedMessage,
+            type: 'url'
           }
-        ]);
-      
-      if (error) {
-        console.error('Supabase 儲存錯誤:', error);
-      } else {
-        console.log('✅ 訊息已儲存到 Supabase:', { 
-          userId, 
-          userMessage: cleanedMessage, 
-          tag: detectedTag || '無標籤' 
+        };
+
+        // 呼叫收藏卡 API
+        const { createCollection } = require('./collections-api');
+        const result = await createCollection(userId, collectionData);
+
+        if (result.success) {
+          console.log(`✅ [自動收藏] 連結已成功儲存到收藏卡: ${cleanedMessage}`);
+
+          // 直接回傳 FLEX MESSAGE
+          return client.replyMessage(event.replyToken,
+            createBookmarkSuccessFlexMessage(cleanedMessage)
+          );
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        console.error('❌ [自動收藏] 收藏失敗:', error);
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '❌ 連結收藏失敗，請稍後再試'
         });
       }
-    } catch (err) {
-      console.error('資料庫連線錯誤:', err);
+    } else {
+      console.log('📝 [自動收藏] 資料庫未連接，無法收藏連結');
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '❌ 資料庫未連接，無法收藏連結'
+      });
     }
   } else {
-    console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
+    // 非連結類型：儲存到 DEV_MESSAGES 並繼續原有邏輯
+    console.log('📝 [非連結] 一般訊息，儲存到 DEV_MESSAGES');
+
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const tableName = tablePrefix + 'messages';
+
+        // 檢測是否為標籤選擇或任務包含標籤資訊
+        let detectedTag = null;
+
+        // 檢查用戶是否正在等待標籤選擇
+        const tagSelectionState = userTagSelectionStates.get(userId);
+        if (tagSelectionState && tagSelectionState.waitingForTag) {
+          detectedTag = cleanedMessage; // 用戶回覆的就是標籤
+        }
+        // 檢查任務文字是否包含標籤格式 (標籤)任務內容
+        else if (cleanedMessage.match(/^\((.+?)\)/)) {
+          const tagMatch = cleanedMessage.match(/^\((.+?)\)/);
+          detectedTag = tagMatch[1];
+        }
+
+        const { data, error } = await supabase
+          .from(tableName)
+          .insert([
+            {
+              user_id: userId,
+              message_text: cleanedMessage,
+              // message_type: isVoiceMessage ? 'voice' : 'text', // 暫時註解掉
+              tag: detectedTag,
+              created_at: new Date().toISOString()
+            }
+          ]);
+
+        if (error) {
+          console.error('Supabase 儲存錯誤:', error);
+        } else {
+          console.log('✅ 訊息已儲存到 Supabase:', {
+            userId,
+            userMessage: cleanedMessage,
+            tag: detectedTag || '無標籤'
+          });
+        }
+      } catch (err) {
+        console.error('資料庫連線錯誤:', err);
+      }
+    } else {
+      console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
+    }
+
+    // 非連結訊息繼續原有的處理邏輯（任務堆疊、問句判斷等）
+    // 注意：不要 return，讓程式繼續執行後面的邏輯
   }
 
 
