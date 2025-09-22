@@ -4,7 +4,7 @@ require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
 const session = require('express-session');
-const { supabase } = require('./supabase-client');
+const supabase = require('./supabase-client');
 const { authenticateUser } = require('./auth');
 const OpenAI = require('openai');
 const fs = require('fs-extra');
@@ -1070,19 +1070,44 @@ async function handleEvent(event) {
       try {
         // 建立收藏卡資料
         const collectionData = {
+          user_id: userId,
           title: cleanedMessage,
-          url: cleanedMessage,
           content: {
             url: cleanedMessage,
             type: 'url'
-          }
+          },
+          is_active: true,
+          category: 'link',
+          color: '#4169E1',
+          icon: '🔗'
         };
+
+        // 嘗試獲取 Open Graph 資料
+        try {
+          const { openGraphAPI } = require('./open-graph-api');
+          console.log('🔍 [Open Graph] 開始獲取網頁預覽資料:', cleanedMessage);
+          const previewResult = await openGraphAPI.getPreview(cleanedMessage);
+
+          if (previewResult && previewResult.success) {
+            console.log('✅ [Open Graph] 成功獲取預覽資料');
+            // 填充 Open Graph 資料
+            collectionData.preview_title = previewResult.title;
+            collectionData.preview_description = previewResult.description;
+            collectionData.preview_image = previewResult.image;
+            collectionData.social_platform = previewResult.domain || 'web';
+          } else {
+            console.log('⚠️ [Open Graph] 無法獲取預覽資料，使用基本資料');
+          }
+        } catch (ogError) {
+          console.error('❌ [Open Graph] 獲取失敗:', ogError.message);
+        }
 
         // 呼叫收藏卡 API
         const { createCollection } = require('./collections-api');
-        const result = await createCollection(userId, collectionData);
+        const result = await createCollection(collectionData);
 
-        if (result.success) {
+        // createCollection 成功時直接回傳 data 物件
+        if (result && result.id) {
           console.log(`✅ [自動收藏] 連結已成功儲存到收藏卡: ${cleanedMessage}`);
 
           // 直接回傳 FLEX MESSAGE
@@ -1090,7 +1115,7 @@ async function handleEvent(event) {
             createBookmarkSuccessFlexMessage(cleanedMessage)
           );
         } else {
-          throw new Error(result.error);
+          throw new Error('收藏卡創建失敗');
         }
       } catch (error) {
         console.error('❌ [自動收藏] 收藏失敗:', error);
@@ -1652,8 +1677,8 @@ async function handleEvent(event) {
     if (userMessage && userMessage.includes('http')) {
       try {
         console.log('🔍 [任務預覽] 偵測到 URL，取得預覽資訊:', userMessage);
-        const openGraphAPI = require('./open-graph-api.js');
-        const previewResult = await openGraphAPI.getOpenGraphData(userMessage);
+        const { openGraphAPI } = require('./open-graph-api.js');
+        const previewResult = await openGraphAPI.getPreview(userMessage);
 
         if (previewResult && previewResult.description) {
           newTask.preview_description = previewResult.description;
@@ -1759,31 +1784,22 @@ app.use('/auth/line', lineLoginRoutes);
 // LIFF 應用程式路由
 // LIFF 應用程式直接HTML路由
 app.get('/liff-app.html', (req, res) => {
-  const fs = require('fs');
-  const path = require('path');
-  
-  try {
-    let html = fs.readFileSync(path.join(__dirname, 'liff-app.html'), 'utf8');
-    
-    // 進行 LIFF ID 動態替換
-    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
-    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
-    
-    console.log(`📝 [LIFF-APP.HTML] 使用 LIFF ID: `);
-    console.log(`🔗 [LIFF-APP.HTML] URL 參數:`, req.url);
-    
-    // 強制不緩存
-    res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-    
-    res.send(html);
-  } catch (error) {
-    console.error('讀取liff-app.html錯誤:', error);
-    res.status(500).send('LIFF應用程式載入失敗');
+  console.log('🔗 [LIFF Redirect] 接收到 liff-app.html 請求，重導向到收藏頁面');
+  console.log('🔍 [LIFF Redirect] 查詢參數:', req.query);
+
+  // 檢查是否有認證相關參數
+  const { code, state, liffClientId, liffRedirectUri } = req.query;
+
+  if (code) {
+    console.log('✅ [LIFF Redirect] 偵測到認證代碼，重導向到收藏頁面');
+    // 如果有認證代碼，重導向到收藏頁面並保留參數
+    const redirectUrl = `/liff/collections?code=${code}&state=${state || ''}&liffClientId=${liffClientId || ''}&liffRedirectUri=${encodeURIComponent(liffRedirectUri || '')}`;
+    return res.redirect(redirectUrl);
   }
+
+  // 沒有認證參數時，直接導向收藏頁面
+  console.log('ℹ️ [LIFF Redirect] 無認證參數，直接導向收藏頁面');
+  res.redirect('/liff/collections');
 });
 app.get('/liff', (req, res) => {
   const fs = require('fs');
