@@ -261,7 +261,78 @@ async function handlePostback(event) {
       }
     }
   }
-  
+
+  // 檢查是否為卡片收藏事件
+  if (postbackData === 'card_collection') {
+    console.log(`📋 用戶 ${userId} 點擊卡片收藏`);
+
+    const { generateRoundedImageUrl } = require('./realtime-rounded-image-api');
+
+    // 示例圖片URL - 你可以根據需求修改
+    const sampleImageUrl = 'https://picsum.photos/400/300';
+    const roundedImageUrl = generateRoundedImageUrl(sampleImageUrl, {
+      radius: 20,
+      size: '400x300'
+    });
+
+    // 創建完整的圓角圖片 FLEX MESSAGE
+    const roundedImageFlexMessage = {
+      type: 'flex',
+      altText: '圓角圖片卡片',
+      contents: {
+        type: 'bubble',
+        size: 'kilo',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'image',
+              url: 'https://picsum.photos/400/400',
+              size: 'full',
+              aspectRatio: '1:1',
+              aspectMode: 'cover',
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: '在人人對頭，貧到慣性的時代，你是否也想過自己憑斟獨到的經驗，但卻懷着不安心境，豬頭不夠',
+              wrap: true,
+              size: 'sm',
+              color: '#666666',
+              margin: 'lg'
+            }
+          ],
+          paddingAll: 'lg'
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '功能',
+                text: '查看更多功能'
+              },
+              style: 'primary',
+              color: '#00C851'
+            }
+          ],
+          paddingAll: 'sm'
+        }
+      }
+    };
+
+    if (client) {
+      return client.replyMessage(event.replyToken, roundedImageFlexMessage);
+    } else {
+      console.log('測試模式：圓角圖片 FLEX MESSAGE', JSON.stringify(roundedImageFlexMessage, null, 2));
+      return Promise.resolve(null);
+    }
+  }
+
   return Promise.resolve(null);
 }
 
