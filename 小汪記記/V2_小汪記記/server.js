@@ -89,9 +89,9 @@ function createSingleFavoriteBubble(favorite) {
         contents: [
           {
             type: 'image',
-            url: defaultImage,
+            url: displayImage,
             size: 'full',
-            aspectRatio: '16:9',
+            aspectRatio: '1:1',
             aspectMode: 'cover',
             margin: 'none'
           },
@@ -140,7 +140,7 @@ function createFavoritesCarousel(favorites) {
             type: 'image',
             url: displayImage,
             size: 'full',
-            aspectRatio: '16:9',
+            aspectRatio: '1:1',
             aspectMode: 'cover'
           },
           {
