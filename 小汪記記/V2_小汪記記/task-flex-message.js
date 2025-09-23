@@ -172,19 +172,6 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         },
         {
           type: 'text',
-          text: '❏',
-          size: 'md',
-          color: '#000000',
-          flex: 0,
-          margin: 'xs',
-          action: {
-            type: 'message',
-            label: '加入收藏卡',
-            text: `加入收藏卡_${task.id}`
-          }
-        },
-        {
-          type: 'text',
           text: task.favorited ? '★' : '☆',
           size: 'md',
           color: '#000000',
@@ -734,19 +721,6 @@ function createTagBubble(tagName, tasks, userTags = null) {
           layout: 'vertical',
           flex: 1,
           contents: taskBoxContents
-        },
-        {
-          type: 'text',
-          text: '❏',
-          size: 'md',
-          color: '#000000',
-          flex: 0,
-          margin: 'xs',
-          action: {
-            type: 'message',
-            label: '加入收藏卡',
-            text: `加入收藏卡_${task.id}`
-          }
         },
         {
           type: 'text',
