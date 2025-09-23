@@ -431,9 +431,103 @@
                     showDateSelectionPrompt();
                 }
 
+                // 啟動自動同步機制
+                startAutoSync();
+
             } catch (error) {
                 console.error('LIFF 初始化失敗:', error);
                 showError('LIFF 初始化失敗: ' + error.message);
+            }
+        }
+
+        // 自動同步變數
+        let autoSyncInterval = null;
+        let lastCheckTime = null;
+        let currentRecordCount = 0;
+
+        // 啟動自動同步機制
+        function startAutoSync() {
+            console.log('🔄 [自動同步] 啟動自動同步機制');
+
+            // 記錄啟動時間
+            lastCheckTime = new Date();
+            currentRecordCount = allTasks.length;
+
+            // 每5秒檢查一次更新
+            autoSyncInterval = setInterval(async () => {
+                await checkForUpdates();
+            }, 5000);
+
+            console.log('✅ [自動同步] 自動同步已啟動，每5秒檢查一次更新');
+        }
+
+        // 停止自動同步機制
+        function stopAutoSync() {
+            if (autoSyncInterval) {
+                clearInterval(autoSyncInterval);
+                autoSyncInterval = null;
+                console.log('🛑 [自動同步] 自動同步已停止');
+            }
+        }
+
+        // 檢查更新
+        async function checkForUpdates() {
+            if (!selectedDate || !liffProfile) {
+                return;
+            }
+
+            try {
+                console.log('🔍 [自動同步] 檢查是否有新的訊息記錄...');
+
+                // 構建當前選中日期的字串
+                const year = selectedDate.getFullYear();
+                const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                const day = String(selectedDate.getDate()).padStart(2, '0');
+                const dateString = `${year}-${month}-${day}`;
+
+                // 查詢該日期的訊息數量
+                const response = await fetch(`/api/messages?date=${dateString}`, {
+                    method: 'GET',
+                    headers: {
+                        'x-user-id': liffProfile.userId,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const newTasks = await response.json();
+
+                    // 檢查是否有新的記錄
+                    if (newTasks.length !== currentRecordCount) {
+                        console.log(`🔄 [自動同步] 發現更新! 舊: ${currentRecordCount}, 新: ${newTasks.length}`);
+
+                        // 更新記錄並重新顯示
+                        allTasks = newTasks;
+                        currentRecordCount = newTasks.length;
+
+                        // 重新顯示當前選中日期的記錄
+                        displayTasksByDate(allTasks, dateString);
+
+                        // 顯示通知
+                        const countDiff = newTasks.length - currentRecordCount;
+                        if (countDiff > 0) {
+                            showNotification(`📝 新增了 ${countDiff} 筆記錄`);
+                        } else if (countDiff < 0) {
+                            showNotification(`📝 記錄已更新`);
+                        } else {
+                            showNotification(`📝 記錄已同步`);
+                        }
+
+                        console.log('✅ [自動同步] 頁面已更新');
+                    } else {
+                        console.log('📝 [自動同步] 沒有發現新的記錄');
+                    }
+                } else {
+                    console.error('❌ [自動同步] API 請求失敗:', response.status);
+                }
+
+            } catch (error) {
+                console.error('❌ [自動同步] 檢查更新時發生錯誤:', error);
             }
         }
 
@@ -667,6 +761,11 @@
             try {
                 await loadAllRecords(dateString);
                 console.log(`🎯 [選擇日期] loadAllRecords 執行完成`);
+
+                // 更新自動同步的記錄數量，以便正確追蹤該日期的變化
+                currentRecordCount = allTasks.length;
+                console.log(`🔄 [自動同步] 更新追蹤數量為: ${currentRecordCount} (新選擇日期: ${dateString})`);
+
             } catch (error) {
                 console.error(`📅 [日期選擇] 載入失敗:`, error);
             }
@@ -911,6 +1010,19 @@
 
         // 頁面載入時初始化 LIFF
         window.addEventListener('load', initializeLiff);
+
+        // 頁面可見性變化時管理自動同步
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('🔄 [自動同步] 頁面隱藏，暫停自動同步');
+                stopAutoSync();
+            } else {
+                console.log('🔄 [自動同步] 頁面顯示，恢復自動同步');
+                if (liffProfile && selectedDate) {
+                    startAutoSync();
+                }
+            }
+        });
     </script>
 </body>
 </html>
