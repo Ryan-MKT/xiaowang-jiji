@@ -437,7 +437,7 @@
             }
         }
 
-        // 載入所有任務（直接從 Supabase tasks）
+        // 載入訊息記錄（從 Supabase DEV_MESSAGES）
         async function loadAllRecords(specificDate = null) {
             try {
                 console.log(`🔄 [訊息載入] 🚀🚀🚀 函數被調用 - 參數 specificDate: ${specificDate} 🚀🚀🚀`);
@@ -447,8 +447,8 @@
                 allTasks = [];
                 console.log(`🧹 [資料清理] 已清空 allTasks 數組`);
                 
-                // 🆕 從 Supabase tasks 獲取任務記錄
-                let apiUrl = '/api/tasks';
+                // 🆕 從 Supabase dev_messages 獲取訊息記錄
+                let apiUrl = '/api/messages';
                 if (specificDate) {
                     apiUrl += `?date=${specificDate}`;
                 }
@@ -464,7 +464,7 @@
                 if (response.ok) {
                     allTasks = await response.json();
                     console.log(`✅ [訊息載入] 成功從 Supabase 載入訊息記錄: ${allTasks.length} 筆`);
-                    console.log('📝 [訊息載入] 記錄預覽:', allTasks.slice(0, 3).map(msg => msg.text));
+                    console.log('📝 [訊息載入] 訊息記錄預覽:', allTasks.slice(0, 3).map(msg => msg.text));
                     
                     // 同步到 localStorage 作為備份（只在無特定日期篩選時）
                     if (!specificDate) {
@@ -520,10 +520,14 @@
                 console.log(`🎯 [強制日期] 使用強制日期 ${forcedDate} 顯示所有 ${tasks.length} 筆任務`);
                 // 使用本地時區避免日期偏移問題
                 const [year, month, day] = forcedDate.split('-');
+                console.log(`🎯 [強制日期] 解析結果: year=${year}, month=${month}, day=${day}`);
                 const localDate = new Date(year, month - 1, day);
-                const displayDate = localDate.toLocaleDateString('zh-TW');
+                console.log(`🎯 [強制日期] 建立的Date物件: ${localDate}`);
+
+                // 使用更明確的格式化方法，確保顯示正確的日期
+                const displayDate = `${year}/${parseInt(month)}/${parseInt(day)}`;
                 tasksByDate[displayDate] = tasks;
-                console.log(`🎯 [強制日期] 顯示日期格式: ${displayDate}`);
+                console.log(`🎯 [強制日期] 顯示日期格式: ${displayDate} (來源: ${forcedDate})`);
             } else {
                 // 正常按日期分組
                 console.log(`📅 [正常分組] 開始按日期分組`);
