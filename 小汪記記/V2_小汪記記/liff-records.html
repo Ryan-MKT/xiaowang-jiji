@@ -28,19 +28,19 @@
             position: fixed;
             left: 0;
             top: 0;
-            width: 250px;
+            width: 125px;
             height: 100vh;
             background: #f8f9fa;
             border-right: 1px solid #e9ecef;
             z-index: 1000;
             overflow-y: auto;
-            padding: 20px;
+            padding: 15px;
             box-sizing: border-box;
         }
 
         /* 主要容器 - 為左側邊欄留出空間 */
         .main-layout {
-            margin-left: 250px;
+            margin-left: 125px;
             display: flex;
             gap: 20px;
             padding: 20px;
@@ -59,7 +59,7 @@
         }
 
         .sidebar-header h1 {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             margin: 0;
         }
@@ -87,6 +87,72 @@
         .tasks-section {
             flex: 1;
             min-width: 300px;
+            transition: all 0.3s ease;
+        }
+
+        /* 右側滑動面板 */
+        .right-panel {
+            position: fixed;
+            right: -400px;
+            top: 0;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            border-left: 1px solid #e9ecef;
+            z-index: 1001;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .right-panel.open {
+            right: 0;
+        }
+
+        /* 當右側面板打開時，主要內容區域縮小 */
+        .main-layout.panel-open {
+            margin-right: 400px;
+        }
+
+        /* 右側面板標題 */
+        .right-panel-header {
+            background: black;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .right-panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .close-panel-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .close-panel-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* 右側面板內容 */
+        .right-panel-content {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 16px;
         }
 
         /* 響應式設計 - 平板和手機 */
@@ -111,6 +177,15 @@
                 flex: none;
                 min-width: auto;
                 order: 2;
+            }
+
+            /* 手機版隱藏右側面板 */
+            .right-panel {
+                display: none;
+            }
+
+            .main-layout.panel-open {
+                margin-right: 0;
             }
         }
 
@@ -162,13 +237,9 @@
         }
 
         .tags-bottom-content {
-            padding: 20px;
-            text-align: center;
-            color: #999;
+            padding: 10px;
             flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            overflow-y: auto;
         }
 
         .month-selector {
@@ -267,18 +338,11 @@
             font-size: 12px;
         }
 
-        /* 標籤區域樣式 */
-        .tags-section {
-            margin-top: 20px;
-            height: fit-content;
-        }
-
+        /* 標籤列表樣式 */
         .tags-list {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            padding: 10px;
-            max-height: calc(100vh - 250px);
+            background: transparent;
+            padding: 0;
+            max-height: none;
             overflow-y: auto;
         }
 
@@ -546,20 +610,6 @@
             <h1>目錄頁</h1>
             <div id="userName" style="font-size: 14px; opacity: 0.9; margin-top: 5px;"></div>
         </div>
-
-        <div class="tags-section">
-            <div class="tags-list" id="tagsList">
-                <!-- 全部記錄選項 -->
-                <div class="tag-item all-records active" onclick="showAllRecords()">
-                    <div class="tag-name">
-                        <span class="tag-icon">📚</span>
-                        <span>全部記錄</span>
-                    </div>
-                    <span class="tag-count" id="allRecordsCount">0</span>
-                </div>
-                <!-- 標籤會動態生成 -->
-            </div>
-        </div>
     </div>
 
     <div class="main-layout">
@@ -601,7 +651,17 @@
                         <h3>標籤</h3>
                     </div>
                     <div class="tags-bottom-content">
-                        標籤功能開發中...
+                        <div class="tags-list" id="tagsList">
+                            <!-- 全部記錄選項 -->
+                            <div class="tag-item all-records active" onclick="showAllRecords()">
+                                <div class="tag-name">
+                                    <span class="tag-icon">📚</span>
+                                    <span>全部記錄</span>
+                                </div>
+                                <span class="tag-count" id="allRecordsCount">0</span>
+                            </div>
+                            <!-- 標籤會動態生成 -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -623,6 +683,17 @@
                     <!-- 記錄會動態插入這裡 -->
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- 右側滑動面板 -->
+    <div class="right-panel" id="rightPanel">
+        <div class="right-panel-header">
+            <h3 id="rightPanelTitle">任務詳情</h3>
+            <button class="close-panel-btn" onclick="closeRightPanel()">✕</button>
+        </div>
+        <div class="right-panel-content">
+            任務詳情功能開發中...
         </div>
     </div>
 
@@ -920,7 +991,7 @@
                             <div class="task-checkbox ${task.completed ? 'completed' : ''}" onclick="toggleTask('${task.id}')">
                                 ${task.completed ? '✓' : ''}
                             </div>
-                            <span class="task-text" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer; flex: 1;">${task.text || '未命名任務'}</span>
+                            <span class="task-text" onclick="openRightPanel('${task.text || '未命名任務'}')" style="cursor: pointer; flex: 1;">${task.text || '未命名任務'}</span>
                         </div>
                         <span class="task-time" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer;">
                             ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
@@ -1349,6 +1420,34 @@
                     <p style="color: #999; font-size: 12px; margin-top: 10px;">點擊日曆日期可查看該日任務</p>
                 </div>
             `;
+        }
+
+        // 打開右側面板
+        function openRightPanel(taskTitle) {
+            const rightPanel = document.getElementById('rightPanel');
+            const rightPanelTitle = document.getElementById('rightPanelTitle');
+            const mainLayout = document.querySelector('.main-layout');
+
+            // 設置面板標題
+            rightPanelTitle.textContent = taskTitle || '任務詳情';
+
+            // 顯示面板
+            rightPanel.classList.add('open');
+            mainLayout.classList.add('panel-open');
+
+            console.log('📋 [右側面板] 已打開:', taskTitle);
+        }
+
+        // 關閉右側面板
+        function closeRightPanel() {
+            const rightPanel = document.getElementById('rightPanel');
+            const mainLayout = document.querySelector('.main-layout');
+
+            // 隱藏面板
+            rightPanel.classList.remove('open');
+            mainLayout.classList.remove('panel-open');
+
+            console.log('📋 [右側面板] 已關閉');
         }
 
         // 關閉應用程式
