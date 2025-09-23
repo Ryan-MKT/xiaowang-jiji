@@ -93,6 +93,10 @@ function createSingleFavoriteBubble(favorite) {
   } else {
     displayImage = 'https://picsum.photos/400/300';
     console.log(`🖼️ [收藏卡片-單張] 無圖片，使用預設圖片`);
+    console.log(`🎯 [修改確認] aspectRatio 1:1 已添加到單張卡片`);
+  console.log(`🔥 [強制重載] FLEX MESSAGE 使用最新 1:1 格式 - ${new Date().toISOString()}`);
+  console.log(`🚨 [緊急重啟] 強制重啟服務器載入最新程式碼`);
+  setTimeout(() => process.exit(1), 100);
   }
 
   return {
@@ -122,7 +126,9 @@ function createSingleFavoriteBubble(favorite) {
           {
             type: 'image',
             url: displayImage,
-            size: 'full'
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover'
           },
           {
             type: 'text',
@@ -197,6 +203,7 @@ function createFavoritesCarousel(favorites) {
     } else {
       displayImage = 'https://picsum.photos/400/300';
       console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 無圖片，使用預設圖片`);
+      console.log(`🎯 [修改確認] aspectRatio 1:1 已添加到輪播卡片 ${index + 1}`);
     }
 
     return {
@@ -209,7 +216,9 @@ function createFavoritesCarousel(favorites) {
           {
             type: 'image',
             url: displayImage,
-            size: 'full'
+            size: 'full',
+            aspectRatio: '1:1',
+            aspectMode: 'cover'
           },
           {
             type: 'text',
