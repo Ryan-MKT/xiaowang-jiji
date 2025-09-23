@@ -172,27 +172,6 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         },
         {
           type: 'text',
-          text: '🖼️',
-          size: 'md',
-          color: '#ff4757',
-          flex: 0,
-          margin: 'xs',
-          action: {
-            type: 'message',
-            label: '發送圓角圖片',
-            text: `圓角圖片_${task.id}`
-          }
-        },
-        {
-          type: 'text',
-          text: '𖤘',
-          size: 'md',
-          color: '#000000',
-          flex: 0,
-          margin: 'xs'
-        },
-        {
-          type: 'text',
           text: '❏',
           size: 'md',
           color: '#000000',
@@ -755,27 +734,6 @@ function createTagBubble(tagName, tasks, userTags = null) {
           layout: 'vertical',
           flex: 1,
           contents: taskBoxContents
-        },
-        {
-          type: 'text',
-          text: '🖼️',
-          size: 'md',
-          color: '#ff4757',
-          flex: 0,
-          margin: 'xs',
-          action: {
-            type: 'message',
-            label: '發送圓角圖片',
-            text: `圓角圖片_${task.id}`
-          }
-        },
-        {
-          type: 'text',
-          text: '𖤘',
-          size: 'md',
-          color: '#000000',
-          flex: 0,
-          margin: 'xs'
         },
         {
           type: 'text',
