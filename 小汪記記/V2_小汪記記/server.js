@@ -1861,22 +1861,27 @@ app.use('/auth/line', lineLoginRoutes);
 // LIFF 應用程式路由
 // LIFF 應用程式直接HTML路由
 app.get('/liff-app.html', (req, res) => {
-  console.log('🔗 [LIFF Redirect] 接收到 liff-app.html 請求，重導向到收藏頁面');
-  console.log('🔍 [LIFF Redirect] 查詢參數:', req.query);
+  const fs = require('fs');
+  const path = require('path');
 
-  // 檢查是否有認證相關參數
-  const { code, state, liffClientId, liffRedirectUri } = req.query;
+  console.log('📝 [任務編輯] 接收到 liff-app.html 請求');
+  console.log('🔍 [任務編輯] 查詢參數:', req.query);
 
-  if (code) {
-    console.log('✅ [LIFF Redirect] 偵測到認證代碼，重導向到收藏頁面');
-    // 如果有認證代碼，重導向到收藏頁面並保留參數
-    const redirectUrl = `/liff/collections?code=${code}&state=${state || ''}&liffClientId=${liffClientId || ''}&liffRedirectUri=${encodeURIComponent(liffRedirectUri || '')}`;
-    return res.redirect(redirectUrl);
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'liff-app.html'), 'utf8');
+
+    // 進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+
+    console.log(`📝 [任務編輯] 使用 LIFF ID: ${liffId}`);
+    console.log(`🔗 [任務編輯] URL 參數:`, req.url);
+
+    res.send(html);
+  } catch (error) {
+    console.error('讀取任務編輯頁面錯誤:', error);
+    res.status(500).send('任務編輯頁面載入失敗');
   }
-
-  // 沒有認證參數時，直接導向收藏頁面
-  console.log('ℹ️ [LIFF Redirect] 無認證參數，直接導向收藏頁面');
-  res.redirect('/liff/collections');
 });
 app.get('/liff', (req, res) => {
   const fs = require('fs');

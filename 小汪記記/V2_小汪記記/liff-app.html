@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小汪記記 - 任務編輯</title>
+
+    <!-- LINE LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        /* 頂部導航欄 */
+        .nav-bar {
+            background-color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e5e5e5;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #007AFF;
+            cursor: pointer;
+            padding: 8px;
+            margin-right: 8px;
+        }
+
+        .nav-title {
+            color: #8E8E93;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .nav-right {
+            color: #8E8E93;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        /* 主內容區 */
+        .main-content {
+            background-color: white;
+            margin: 20px 16px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* 編輯區域整體容器 - 第一個白色區塊 */
+        .main-content {
+            margin: 20px 16px;
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        /* 任務標題輸入 */
+        .task-title-section {
+            padding: 24px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .task-title-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 24px;
+            font-weight: 500;
+            color: #000;
+            background: transparent;
+            padding: 0;
+            line-height: 1.2;
+        }
+
+        .task-title-input::placeholder {
+            color: #C7C7CC;
+        }
+
+        /* 設定項目列表 - 第二個白色區塊 */
+        .settings-list {
+            margin: 0 16px 20px 16px;
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-item:hover {
+            background-color: #f8f8f8;
+        }
+
+        .setting-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .setting-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .setting-label {
+            font-size: 16px;
+            color: #000;
+            font-weight: 400;
+        }
+
+        .setting-value {
+            font-size: 16px;
+            color: #8E8E93;
+            margin-right: 8px;
+        }
+
+        .setting-arrow {
+            color: #C7C7CC;
+            font-size: 14px;
+        }
+
+        /* 操作按鈕區域 */
+        .action-buttons {
+            margin: 20px 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-save, .btn-delete {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-save {
+            background-color: #87CEEB;
+        }
+
+        .btn-save:hover {
+            background-color: #5DADE2;
+        }
+
+        .btn-delete {
+            background-color: #FFB6C1;
+        }
+
+        .btn-delete:hover {
+            background-color: #FF8FA3;
+        }
+
+        /* 備註區域 */
+        .notes-section {
+            /* 使用父容器的背景 */
+        }
+
+        .notes-item {
+            padding: 16px 20px;
+        }
+
+        .notes-input-container {
+            flex: 1;
+            width: 100%;
+        }
+
+        .note-input {
+            width: 100%;
+            min-height: 80px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            color: #000;
+            background: transparent;
+            resize: vertical;
+            font-family: inherit;
+            line-height: 1.4;
+            padding: 0;
+        }
+
+        .note-input::placeholder {
+            color: #C7C7CC;
+        }
+
+        .note-input:focus {
+            background-color: rgba(0, 122, 255, 0.03);
+            border-radius: 8px;
+            padding: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .notes-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .notes-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .notes-label {
+            font-size: 16px;
+            color: #000;
+            font-weight: 400;
+        }
+
+        .notes-value {
+            font-size: 16px;
+            color: #8E8E93;
+            margin-right: 8px;
+        }
+
+        /* 載入和錯誤狀態 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            background-color: white;
+            margin: 20px 16px;
+            border-radius: 12px;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #FF3B30;
+            background-color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 16px;
+            text-align: center;
+        }
+
+        /* 隱藏狀態 */
+        .hidden {
+            display: none;
+        }
+
+        /* 模態框樣式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        /* 強制顯示modal的類別 */
+        .modal.force-show {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 9999 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* 防止LIFF或其他樣式覆蓋 modal */
+        .modal.force-show .modal-content {
+            position: relative !important;
+            background-color: white !important;
+            margin: 15% auto !important;
+            padding: 20px !important;
+            border: 1px solid #888 !important;
+            width: 80% !important;
+            max-width: 400px !important;
+            border-radius: 8px !important;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 50% auto;
+            padding: 0;
+            border-radius: 14px;
+            width: 90%;
+            max-width: 300px;
+            text-align: center;
+        }
+
+        .modal-title {
+            padding: 20px 20px 10px 20px;
+            font-size: 17px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .modal-message {
+            padding: 0 20px 20px 20px;
+            font-size: 13px;
+            color: #8E8E93;
+            line-height: 1.4;
+        }
+
+        .modal-buttons {
+            border-top: 1px solid #e5e5e5;
+            display: flex;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        .modal-btn:first-child {
+            border-right: 1px solid #e5e5e5;
+            color: #8E8E93;
+        }
+
+        .modal-btn:last-child {
+            color: #007AFF;
+            font-weight: 600;
+        }
+
+        /* 備註輸入模態框 */
+        .note-modal .modal-content {
+            margin: 30% auto;
+            max-width: 350px;
+        }
+
+        .note-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 20px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            resize: none;
+            background-color: #f8f8f8;
+        }
+
+        .note-textarea::placeholder {
+            color: #C7C7CC;
+        }
+
+        /* 標籤下拉選單樣式 */
+        .tag-setting {
+            position: relative;
+        }
+
+        .tag-setting.expanded .setting-arrow {
+            transform: rotate(90deg);
+            transition: transform 0.3s ease;
+        }
+
+        .tag-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            background: white;
+            margin: 0 -20px;
+            transition: max-height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-left: 3px solid transparent;
+        }
+
+        .tag-dropdown.show {
+            max-height: 400px;
+            border-left: 3px solid #007AFF;
+        }
+
+        .tag-dropdown-content {
+            padding: 8px 20px 16px;
+            background: #FAFAFA;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag-option {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            margin: 4px 0;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            background: white;
+            border: 1px solid #E5E5E7;
+        }
+
+        .tag-option:hover {
+            background-color: #F0F8FF;
+            border-color: #007AFF;
+            transform: translateX(4px);
+        }
+
+        .tag-option:active {
+            transform: scale(0.98) translateX(4px);
+        }
+
+        .tag-option-icon {
+            font-size: 18px;
+            margin-right: 12px;
+            min-width: 22px;
+        }
+
+        .tag-option-text {
+            font-size: 16px;
+            color: #1C1C1E;
+            font-weight: 400;
+            flex: 1;
+        }
+
+        .tag-option.selected {
+            background: linear-gradient(135deg, #007AFF, #0051D5);
+            color: white;
+            border-color: #007AFF;
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+        }
+
+        .tag-option.selected .tag-option-text {
+            color: white;
+            font-weight: 500;
+        }
+
+        .tag-option.selected .tag-option-icon {
+            filter: brightness(0) invert(1);
+        }
+
+        .setting-arrow {
+            transition: transform 0.3s ease;
+        }
+
+        /* 標籤下拉選單選項樣式 - 橫向膠囊樣式 */
+        .tag-dropdown-option {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: all 0.2s ease;
+            background: white;
+            border: 1px solid #E1E1E1;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .tag-dropdown-option:hover {
+            background-color: #F0F8FF;
+            border-color: #007AFF;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .tag-dropdown-option:active {
+            transform: scale(0.95) translateY(-1px);
+        }
+
+        .tag-dropdown-icon {
+            font-size: 14px;
+            margin-right: 6px;
+        }
+
+        .tag-dropdown-text {
+            font-size: 13px;
+            color: #1C1C1E;
+            font-weight: 400;
+        }
+
+        .tag-dropdown-option.selected {
+            background: linear-gradient(135deg, #007AFF, #0051D5);
+            color: white;
+            border-color: #007AFF;
+            box-shadow: 0 2px 6px rgba(0, 122, 255, 0.3);
+        }
+
+        .tag-dropdown-option.selected .tag-dropdown-text {
+            color: white;
+            font-weight: 500;
+        }
+
+        .tag-setting.expanded .setting-arrow {
+            transform: rotate(90deg);
+        }
+
+        /* 日期時間下拉選單樣式 */
+        .date-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            background: white;
+            margin: 0 -20px;
+            transition: max-height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-left: 3px solid transparent;
+        }
+
+        .date-dropdown.show {
+            max-height: 300px;
+            border-left: 3px solid #007AFF;
+        }
+
+        .date-dropdown-content {
+            padding: 16px 20px;
+            background: #FAFAFA;
+        }
+
+        .date-picker-section, .time-picker-section {
+            margin-bottom: 16px;
+        }
+
+        .date-picker-header, .time-picker-header {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .date-input, .time-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #E1E1E1;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+            transition: border-color 0.2s ease;
+        }
+
+        .date-input:focus, .time-input:focus {
+            outline: none;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .time-clear {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        .time-clear:hover {
+            background-color: #F0F0F0;
+        }
+
+        .datetime-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .datetime-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .datetime-btn.cancel {
+            background: #F8F9FA;
+            color: #666;
+        }
+
+        .datetime-btn.cancel:hover {
+            background: #E9ECEF;
+        }
+
+        .datetime-btn.confirm {
+            background: linear-gradient(135deg, #007AFF, #0051D5);
+            color: white;
+        }
+
+        .datetime-btn.confirm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+        }
+
+        .date-setting.expanded .setting-arrow {
+            transform: rotate(90deg);
+        }
+
+        /* 提醒時間下拉選單樣式 */
+        .dropdown-container {
+            max-height: 0;
+            overflow: hidden;
+            background: white;
+            margin: 0 -20px;
+            transition: max-height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            border-left: 3px solid transparent;
+        }
+
+        .dropdown-container.show {
+            max-height: 400px;
+            border-left: 3px solid #007AFF;
+        }
+
+        .dropdown-content {
+            padding: 8px 0;
+            background: #FAFAFA;
+        }
+
+        .reminder-option {
+            padding: 14px 20px;
+            font-size: 16px;
+            color: #333;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #e5e5e5;
+            display: flex;
+            align-items: center;
+        }
+
+        .reminder-option:hover, .reminder-option:active {
+            background-color: #e8e8e8;
+        }
+
+        .reminder-option:last-child {
+            border-bottom: none;
+        }
+
+        .reminder-option.remove-option {
+            color: #FF3B30;
+            font-weight: 500;
+        }
+
+        .reminder-option.remove-option:hover, .reminder-option.remove-option:active {
+            background-color: #ffebea;
+        }
+
+        /* 提醒設定展開時的箭頭動畫 */
+        .reminder-setting.expanded .setting-arrow {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body>
+    <!-- 導航欄 -->
+    <div class="nav-bar">
+        <div class="nav-left">
+            <button class="back-btn" onclick="closeWindow()">‹</button>
+            <span class="nav-title">沒有分類</span>
+        </div>
+        <div class="nav-right">⋯</div>
+    </div>
+
+    <!-- 載入中 -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- 錯誤訊息 -->
+    <div id="error" class="error hidden"></div>
+
+    <!-- 主內容 -->
+    <div id="mainContent" class="hidden">
+        <!-- 任務標題和備註 -->
+        <div class="main-content">
+            <div class="task-title-section">
+                <input type="text"
+                       id="taskTitle"
+                       class="task-title-input"
+                       placeholder="輸入任務標題"
+                       maxlength="100">
+            </div>
+
+            <!-- 備註欄位 -->
+            <div class="notes-section">
+                <div class="notes-item">
+                    <div class="notes-input-container">
+                        <textarea
+                            id="noteTextarea"
+                            class="note-input"
+                            placeholder="輸入備註..."
+                            maxlength="500"></textarea>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 設定項目 - 第二個白色區塊 -->
+        <div class="settings-list">
+            <div class="setting-item tag-setting" onclick="toggleTagDropdown()">
+                <div class="setting-icon">🏷️</div>
+                <div class="setting-content">
+                    <span class="setting-label">任務標籤</span>
+                    <div>
+                        <span class="setting-value" id="taskTag">無</span>
+                        <span class="setting-arrow" id="tagArrow">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 標籤下拉選單 -->
+            <div class="tag-dropdown" id="tagDropdown">
+                <div class="tag-dropdown-content" id="tagDropdownContent">
+                    <!-- 標籤選項將動態載入 -->
+                </div>
+            </div>
+
+            <div class="setting-item date-setting" onclick="toggleDatePicker()">
+                <div class="setting-icon">📅</div>
+                <div class="setting-content">
+                    <span class="setting-label">預定日期</span>
+                    <div>
+                        <span class="setting-value" id="taskDate">2025/09/14</span>
+                        <span class="setting-arrow" id="dateArrow">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日期時間下拉選單 -->
+            <div class="date-dropdown" id="dateDropdown">
+                <div class="date-dropdown-content" id="dateDropdownContent">
+                    <!-- 日期選擇器 -->
+                    <div class="date-picker-section">
+                        <div class="date-picker-header">選擇日期</div>
+                        <input type="date" id="datePicker" class="date-input">
+                    </div>
+
+                    <!-- 時間選擇器 -->
+                    <div class="time-picker-section">
+                        <div class="time-picker-header">選擇時間 (可選)</div>
+                        <input type="time" id="timePicker" class="time-input">
+                        <div class="time-clear" onclick="clearTime()">清除時間</div>
+                    </div>
+
+                    <!-- 確認按鈕 -->
+                    <div class="datetime-actions">
+                        <button class="datetime-btn cancel" onclick="closeDatePicker()">取消</button>
+                        <button class="datetime-btn confirm" onclick="confirmDateTime()">確認</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-item" onclick="toggleReminderPicker()">
+                <div class="setting-icon">🔔</div>
+                <div class="setting-content">
+                    <span class="setting-label">提醒時間</span>
+                    <div>
+                        <span class="setting-value" id="taskReminder">否</span>
+                        <span class="setting-arrow" id="reminderArrow">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 提醒時間下拉選單 -->
+            <div class="dropdown-container" id="reminderDropdown">
+                <div class="dropdown-content">
+                    <div class="reminder-option" onclick="selectReminder('5分鐘')">5分鐘</div>
+                    <div class="reminder-option" onclick="selectReminder('10分鐘')">10分鐘</div>
+                    <div class="reminder-option" onclick="selectReminder('30分鐘')">30分鐘</div>
+                    <div class="reminder-option" onclick="selectReminder('60分鐘')">60分鐘</div>
+                    <div class="reminder-option" onclick="selectReminder('120分鐘')">120分鐘</div>
+                    <div class="reminder-option" onclick="selectReminder('自訂')">自訂</div>
+                    <div class="reminder-option remove-option" onclick="selectReminder('否')">移除提醒</div>
+                </div>
+            </div>
+
+            <div class="setting-item" onclick="toggleRepeatPicker()">
+                <div class="setting-icon">🔄</div>
+                <div class="setting-content">
+                    <span class="setting-label">重複性任務</span>
+                    <div>
+                        <span class="setting-value" id="taskRepeat">不重複</span>
+                        <span class="setting-arrow" id="repeatArrow">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 重複任務下拉選單 -->
+            <div class="dropdown-container" id="repeatDropdown">
+                <div class="dropdown-content">
+                    <div class="reminder-option" onclick="selectRepeat('不重複')">不重複</div>
+                    <div class="reminder-option" onclick="selectRepeat('每天')">每天</div>
+                    <div class="reminder-option" onclick="selectRepeat('每週')">每週</div>
+                    <div class="reminder-option" onclick="selectRepeat('每月')">每月</div>
+                    <div class="reminder-option" onclick="selectRepeat('每年')">每年</div>
+                    <div class="reminder-option" onclick="selectRepeat('自訂')">自訂</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按鈕區域 -->
+        <div class="action-buttons">
+            <button class="btn-save" onclick="saveTask()">儲存</button>
+            <button class="btn-delete" onclick="deleteTask()">刪除</button>
+        </div>
+    </div>
+
+
+    <!-- 確認對話框 -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="confirmTitle">確認</div>
+            <div class="modal-message" id="confirmMessage">確定要執行此操作嗎？</div>
+            <div class="modal-buttons">
+                <button class="modal-btn" onclick="closeConfirmModal()">取消</button>
+                <button class="modal-btn" id="confirmBtn" onclick="confirmAction()">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 標籤選擇器 -->
+    <div id="tagPickerModal" class="tag-picker-overlay">
+        <div class="tag-picker-container">
+            <div class="tag-picker-header">
+                <h3>選擇任務標籤</h3>
+                <button class="tag-picker-close" onclick="closeTagPicker()">×</button>
+            </div>
+            <div class="tag-picker-content" id="tagPickerContent">
+                <!-- 標籤選項將動態載入 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let liffProfile = null;
+        let currentTaskId = null;
+        let currentTaskData = {
+            text: '',
+            date: new Date().toISOString().split('T')[0].replace(/-/g, '/'),
+            time: null,
+            reminder: null,
+            repeat: null,
+            note: ''
+        };
+
+        // 從 URL 參數取得任務資訊
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                taskId: params.get('taskId'),
+                taskText: decodeURIComponent(params.get('taskText') || '')
+            };
+        }
+
+        // LIFF 狀態追蹤
+        let liffReady = false;
+
+        // LIFF 初始化
+        async function initializeLiff() {
+            try {
+                console.log('🔧 [LIFF 初始化] 開始初始化 LIFF...');
+
+                await liff.init({
+                    liffId: '2008077335-rZlgE4bX'
+                });
+
+                console.log('✅ [LIFF 初始化] LIFF 初始化成功');
+
+                // 設置 LIFF 準備完成
+                liffReady = true;
+                console.log('🎉 [LIFF 狀態] LIFF 現在準備就緒，可以安全顯示 modal');
+
+                if (liff.isLoggedIn()) {
+                    console.log('✅ [使用者驗證] 使用者已登入');
+                    liffProfile = await liff.getProfile();
+                    await loadTaskData();
+                } else {
+                    console.log('❌ [使用者驗證] 使用者未登入，導向登入頁面');
+                    liff.login();
+                }
+            } catch (error) {
+                console.error('❌ [LIFF 初始化] 初始化失敗:', error);
+                showError('LIFF 初始化失敗: ' + error.message);
+                // 即使失敗也設置為 ready，避免永久阻塞
+                liffReady = true;
+            }
+        }
+
+        // 等待 LIFF 準備就緒
+        async function waitForLiffReady() {
+            return new Promise((resolve) => {
+                if (liffReady) {
+                    console.log('✅ [LIFF 狀態] LIFF 已準備就緒');
+                    resolve();
+                    return;
+                }
+
+                console.log('⏳ [LIFF 狀態] 等待 LIFF 初始化完成...');
+                const checkInterval = setInterval(() => {
+                    if (liffReady) {
+                        clearInterval(checkInterval);
+                        console.log('✅ [LIFF 狀態] LIFF 初始化完成，可以繼續');
+                        resolve();
+                    }
+                }, 100);
+
+                // 最多等待 10 秒
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    console.log('⚠️ [LIFF 狀態] LIFF 初始化超時，強制繼續');
+                    liffReady = true;
+                    resolve();
+                }, 10000);
+            });
+        }
+
+        // 載入任務資料
+        async function loadTaskData() {
+            try {
+                const params = getUrlParams();
+
+                if (!params.taskId) {
+                    showError('缺少任務 ID 參數');
+                    return;
+                }
+
+                currentTaskId = params.taskId;
+                currentTaskData.text = params.taskText;
+
+                // 標記是否從資料庫載入了日期時間資料
+                let hasScheduledDate = false;
+
+                // 顯示任務標題
+                document.getElementById('taskTitle').value = currentTaskData.text;
+
+                // 載入現有備註
+                try {
+                    const response = await fetch(`/api/task-note/${currentTaskId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-ID': liffProfile.userId
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.note && data.note.trim()) {
+                            currentTaskData.note = data.note;
+                            // 載入備註到直接編輯的 textarea
+                            document.getElementById('noteTextarea').value = data.note;
+                        }
+                        // 載入標籤資訊
+                        if (data.tag) {
+                            currentTaskData.tag = data.tag;
+                            document.getElementById('taskTag').textContent = data.tag;
+                        }
+
+                        // 載入日期時間資訊
+                        let hasScheduledDate = false;
+                        if (data.scheduled_date) {
+                            // 解析 ISO 8601 格式的日期時間
+                            const dateObj = new Date(data.scheduled_date);
+                            const year = dateObj.getFullYear();
+                            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                            const day = String(dateObj.getDate()).padStart(2, '0');
+                            const hour = String(dateObj.getHours()).padStart(2, '0');
+                            const minute = String(dateObj.getMinutes()).padStart(2, '0');
+
+                            let displayText = `${year}/${month}/${day}`;
+                            if (hour !== '00' || minute !== '00') {
+                                displayText += ` ${hour}:${minute}`;
+                            }
+
+                            const taskDateElement = document.getElementById('taskDate');
+                            taskDateElement.textContent = displayText;
+                            // 儲存完整的 datetime 供儲存時使用
+                            taskDateElement.setAttribute('data-full-datetime', data.scheduled_date);
+
+                            console.log('📅 載入日期時間:', displayText, '完整格式:', data.scheduled_date);
+                            hasScheduledDate = true;
+                        }
+
+                        // 載入提醒時間資訊
+                        if (data.reminder_time) {
+                            currentTaskData.reminder = data.reminder_time;
+                            document.getElementById('taskReminder').textContent = data.reminder_time;
+                            console.log('📢 載入提醒時間:', data.reminder_time);
+                        }
+
+                        // 載入重複模式資訊
+                        if (data.repeat_pattern) {
+                            currentTaskData.repeat = data.repeat_pattern;
+                            document.getElementById('taskRepeat').textContent = data.repeat_pattern;
+                            console.log('🔄 載入重複模式:', data.repeat_pattern);
+                        } else {
+                            document.getElementById('taskRepeat').textContent = '不重複';
+                        }
+                    }
+                } catch (noteError) {
+                    console.log('備註載入失敗，使用預設值');
+                }
+
+                // 只有在沒有從資料庫載入日期時間的情況下，才使用預設的今天日期
+                if (!hasScheduledDate) {
+                    updateDateDisplay();
+                }
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('❌ [任務載入] 載入失敗:', error);
+                showError('載入任務失敗: ' + error.message);
+            }
+        }
+
+        // 更新日期顯示
+        function updateDateDisplay() {
+            const today = new Date();
+            const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+            document.getElementById('taskDate').textContent = dateStr;
+        }
+
+        // 切換標籤下拉選單
+        async function toggleTagDropdown() {
+            const dropdown = document.getElementById('tagDropdown');
+            const tagSetting = document.querySelector('.tag-setting');
+            const arrow = document.getElementById('tagArrow');
+
+            if (dropdown.classList.contains('show')) {
+                // 關閉下拉選單
+                dropdown.classList.remove('show');
+                tagSetting.classList.remove('expanded');
+                return;
+            }
+
+            // 載入標籤並顯示
+            try {
+                if (!liffProfile || !liffProfile.userId) {
+                    await showAlert('錯誤', '無法獲取用戶ID，請重新載入頁面');
+                    return;
+                }
+
+                const userId = liffProfile.userId;
+
+                // 獲取用戶標籤
+                const response = await fetch('/api/tags', {
+                    method: 'GET',
+                    headers: {
+                        'X-User-ID': userId
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('無法載入標籤');
+                }
+
+                const tags = await response.json();
+                console.log('🏷️ 載入標籤:', tags);
+
+                // 顯示標籤下拉選單
+                showTagDropdown(tags);
+
+            } catch (error) {
+                console.error('標籤載入錯誤:', error);
+                await showAlert('錯誤', '載入標籤失敗，請稍後再試');
+            }
+        }
+
+        // 顯示標籤下拉選單
+        function showTagDropdown(tags) {
+            const dropdown = document.getElementById('tagDropdown');
+            const dropdownContent = document.getElementById('tagDropdownContent');
+            const tagSetting = document.querySelector('.tag-setting');
+            const arrow = document.getElementById('tagArrow');
+
+            // 清空內容
+            dropdownContent.innerHTML = '';
+
+            // 取得當前選擇的標籤
+            const currentTag = document.getElementById('taskTag').textContent;
+
+            // 創建標籤選項
+            const tagOptions = [
+                { value: '', text: '無', icon: '🏷️' }, // 無標籤選項
+                ...tags.map(tag => ({
+                    value: tag.name,
+                    text: tag.name,
+                    icon: tag.icon || '🏷️'
+                }))
+            ];
+
+            tagOptions.forEach(option => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag-dropdown-option';
+                if ((option.value === '' && currentTag === '無') || option.value === currentTag) {
+                    tagElement.classList.add('selected');
+                }
+
+                tagElement.innerHTML = `
+                    <div class="tag-dropdown-icon">${option.icon}</div>
+                    <div class="tag-dropdown-text">${option.text}</div>
+                `;
+
+                tagElement.onclick = () => selectTagFromDropdown(option.value, option.text);
+                dropdownContent.appendChild(tagElement);
+            });
+
+            // 顯示下拉選單
+            dropdown.classList.add('show');
+            tagSetting.classList.add('expanded');
+            arrow.textContent = '⌄';
+        }
+
+        // 從下拉選單選擇標籤
+        function selectTagFromDropdown(value, text) {
+            // 更新顯示
+            const taskTagElement = document.getElementById('taskTag');
+            taskTagElement.textContent = value || '無';
+
+            console.log('🏷️ 用戶選擇標籤:', value);
+
+            // 關閉下拉選單
+            closeTagDropdown();
+        }
+
+        // 關閉標籤下拉選單
+        function closeTagDropdown() {
+            const dropdown = document.getElementById('tagDropdown');
+            const tagSetting = document.querySelector('.tag-setting');
+            const arrow = document.getElementById('tagArrow');
+
+            dropdown.classList.remove('show');
+            tagSetting.classList.remove('expanded');
+            arrow.textContent = '›';
+        }
+
+        // 切換日期時間選擇器
+        function toggleDatePicker() {
+            const dropdown = document.getElementById('dateDropdown');
+            const dateSetting = document.querySelector('.date-setting');
+            const arrow = document.getElementById('dateArrow');
+
+            if (dropdown.classList.contains('show')) {
+                // 關閉下拉選單
+                closeDatePicker();
+                return;
+            }
+
+            // 顯示下拉選單
+            dropdown.classList.add('show');
+            dateSetting.classList.add('expanded');
+            arrow.textContent = '⌄';
+
+            // 初始化日期時間值
+            initializeDateTimePicker();
+        }
+
+        // 初始化日期時間選擇器
+        function initializeDateTimePicker() {
+            const datePicker = document.getElementById('datePicker');
+            const timePicker = document.getElementById('timePicker');
+            const currentDateText = document.getElementById('taskDate').textContent;
+
+            // 設置今天日期作為預設值
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            datePicker.value = todayStr;
+
+            // 如果當前已有日期設定，嘗試解析
+            if (currentDateText && currentDateText !== '2025/09/14') {
+                try {
+                    // 解析現有日期格式 (YYYY/MM/DD 或包含時間)
+                    const dateMatch = currentDateText.match(/(\d{4})\/(\d{2})\/(\d{2})/);
+                    const timeMatch = currentDateText.match(/(\d{2}):(\d{2})/);
+
+                    if (dateMatch) {
+                        const [, year, month, day] = dateMatch;
+                        datePicker.value = `${year}-${month}-${day}`;
+                    }
+
+                    if (timeMatch) {
+                        const [, hour, minute] = timeMatch;
+                        timePicker.value = `${hour}:${minute}`;
+                    }
+                } catch (error) {
+                    console.log('解析現有日期時間失敗:', error);
+                }
+            }
+        }
+
+        // 關閉日期時間選擇器
+        function closeDatePicker() {
+            const dropdown = document.getElementById('dateDropdown');
+            const dateSetting = document.querySelector('.date-setting');
+            const arrow = document.getElementById('dateArrow');
+
+            dropdown.classList.remove('show');
+            dateSetting.classList.remove('expanded');
+            arrow.textContent = '›';
+        }
+
+        // 清除時間
+        function clearTime() {
+            document.getElementById('timePicker').value = '';
+        }
+
+        // 確認日期時間選擇
+        function confirmDateTime() {
+            const datePicker = document.getElementById('datePicker');
+            const timePicker = document.getElementById('timePicker');
+            const taskDateElement = document.getElementById('taskDate');
+
+            const selectedDate = datePicker.value;
+            const selectedTime = timePicker.value;
+
+            if (!selectedDate) {
+                showAlert('錯誤', '請選擇日期');
+                return;
+            }
+
+            // 格式化日期顯示 - 用於UI展示
+            const dateObj = new Date(selectedDate);
+            const formattedDate = `${dateObj.getFullYear()}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}`;
+
+            let displayText = formattedDate;
+            if (selectedTime) {
+                displayText += ` ${selectedTime}`;
+            }
+
+            // 更新顯示
+            taskDateElement.textContent = displayText;
+
+            // 儲存完整的 datetime 資料到元素屬性中，供儲存時使用
+            if (selectedTime) {
+                // 合併日期和時間成完整的 datetime string (ISO 8601 格式)
+                const fullDateTime = `${selectedDate}T${selectedTime}:00`;
+                taskDateElement.setAttribute('data-full-datetime', fullDateTime);
+            } else {
+                // 只有日期，設為當天 00:00:00
+                const fullDateTime = `${selectedDate}T00:00:00`;
+                taskDateElement.setAttribute('data-full-datetime', fullDateTime);
+            }
+
+            console.log('📅 用戶選擇日期時間:', displayText);
+            console.log('📅 完整 DateTime 格式:', taskDateElement.getAttribute('data-full-datetime'));
+
+            // 關閉選擇器
+            closeDatePicker();
+        }
+
+        // 顯示時間選擇器
+        async function showTimePicker() {
+            await showAlert('時間設定', '時間選擇功能開發中');
+        }
+
+        // 切換提醒時間選擇器
+        function toggleReminderPicker() {
+            const dropdown = document.getElementById('reminderDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('reminderArrow');
+
+            if (dropdown.classList.contains('show')) {
+                closeReminderPicker();
+                return;
+            }
+
+            dropdown.classList.add('show');
+            setting.classList.add('reminder-setting', 'expanded');
+            arrow.textContent = '⌄';
+        }
+
+        // 關閉提醒時間選擇器
+        function closeReminderPicker() {
+            const dropdown = document.getElementById('reminderDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('reminderArrow');
+
+            dropdown.classList.remove('show');
+            setting.classList.remove('expanded');
+            arrow.textContent = '›';
+        }
+
+        // 選擇提醒時間
+        function selectReminder(reminderValue) {
+            const taskReminderElement = document.getElementById('taskReminder');
+
+            if (reminderValue === '自訂') {
+                // 暫時顯示開發中訊息，未來可以實作自訂時間選擇
+                showAlert('自訂提醒', '自訂時間功能開發中，請先選擇預設選項');
+                return;
+            }
+
+            taskReminderElement.textContent = reminderValue;
+            closeReminderPicker();
+
+            console.log('📢 [提醒設定] 選擇提醒時間:', reminderValue);
+        }
+
+        // 切換重複任務選擇器
+        function toggleRepeatPicker() {
+            const dropdown = document.getElementById('repeatDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('repeatArrow');
+
+            if (dropdown.classList.contains('show')) {
+                closeRepeatPicker();
+                return;
+            }
+
+            dropdown.classList.add('show');
+            setting.classList.add('reminder-setting', 'expanded');
+            arrow.textContent = '⌄';
+        }
+
+        // 關閉重複任務選擇器
+        function closeRepeatPicker() {
+            const dropdown = document.getElementById('repeatDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('repeatArrow');
+
+            dropdown.classList.remove('show');
+            setting.classList.remove('expanded');
+            arrow.textContent = '›';
+        }
+
+        // 選擇重複模式
+        function selectRepeat(repeatValue) {
+            const taskRepeatElement = document.getElementById('taskRepeat');
+
+            if (repeatValue === '自訂') {
+                // 暫時顯示開發中訊息，未來可以實作自訂重複模式
+                showAlert('自訂重複', '自訂重複模式功能開發中，請先選擇預設選項');
+                return;
+            }
+
+            taskRepeatElement.textContent = repeatValue;
+            closeRepeatPicker();
+
+            console.log('🔄 [重複設定] 選擇重複模式:', repeatValue);
+        }
+
+        // 儲存任務
+        async function saveTask() {
+            try {
+                // 獲取當前任務資料
+                const taskTitle = document.getElementById('taskTitle').value.trim();
+                const taskNote = document.getElementById('noteTextarea').value.trim();
+                const taskTag = document.getElementById('taskTag').textContent;
+                const taskDateElement = document.getElementById('taskDate');
+                const taskReminder = document.getElementById('taskReminder').textContent;
+                const taskRepeat = document.getElementById('taskRepeat').textContent;
+
+                if (!taskTitle) {
+                    await showAlert('儲存失敗', '請輸入任務標題');
+                    return;
+                }
+
+                // 獲取完整的日期時間 - 優先使用 ISO 格式，否則使用顯示文字
+                let taskDate = taskDateElement.getAttribute('data-full-datetime');
+                if (!taskDate) {
+                    // 如果沒有完整的 datetime 資料，使用顯示的文字
+                    taskDate = taskDateElement.textContent;
+                    if (taskDate && taskDate !== '2025/09/14') {
+                        // 嘗試解析顯示格式並轉換成 ISO 格式
+                        try {
+                            const dateMatch = taskDate.match(/(\d{4})\/(\d{2})\/(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+                            if (dateMatch) {
+                                const [, year, month, day, hour, minute] = dateMatch;
+                                taskDate = `${year}-${month}-${day}T${hour || '00'}:${minute || '00'}:00`;
+                            }
+                        } catch (error) {
+                            console.warn('日期格式轉換失敗:', error);
+                        }
+                    }
+                }
+
+                // 準備儲存資料
+                const taskData = {
+                    taskId: currentTaskId,
+                    title: taskTitle,
+                    note: taskNote,
+                    tag: taskTag !== '無' ? taskTag : null,
+                    date: taskDate,
+                    reminder: taskReminder !== '否' ? taskReminder : null,
+                    repeat: taskRepeat !== '不重複' ? taskRepeat : null
+                };
+
+                console.log('🔄 [儲存任務] 準備儲存任務資料:', taskData);
+
+                // 發送儲存請求
+                const response = await fetch('/api/save-task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify(taskData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    // 更新本地資料
+                    currentTaskData.text = taskTitle;
+                    currentTaskData.note = taskNote;
+
+                    console.log('✅ [儲存任務] 儲存成功:', result);
+                    await showAlert('儲存成功', '任務已成功儲存，TODO LIST 將同步更新！');
+
+                    // 延遲關閉視窗，讓用戶看到成功訊息
+                    setTimeout(() => {
+                        closeWindow();
+                    }, 1500);
+
+                } else {
+                    const error = await response.text();
+                    console.error('❌ [儲存任務] 儲存失敗:', error);
+                    await showAlert('儲存失敗', error);
+                }
+
+            } catch (error) {
+                console.error('❌ [儲存任務] 發生錯誤:', error);
+                await showAlert('儲存失敗', '儲存時發生錯誤: ' + error.message);
+            }
+        }
+
+        // 刪除任務
+        async function deleteTask() {
+            // 等待 LIFF 準備就緒
+            await waitForLiffReady();
+
+            document.getElementById('confirmTitle').textContent = '確認刪除';
+            document.getElementById('confirmMessage').textContent = '確定要刪除此任務嗎？此操作無法復原。';
+            document.getElementById('confirmBtn').textContent = '刪除';
+            document.getElementById('confirmBtn').onclick = async function() {
+                await performDeleteTask();
+            };
+
+            console.log('🔧 [Modal 顯示] LIFF 準備就緒，開始顯示 modal');
+
+            // 強制顯示modal - 使用多種方法確保顯示
+            const modal = document.getElementById('confirmModal');
+
+            // 方法1: 直接設置樣式
+            modal.style.display = 'block';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+
+            // 方法2: 添加強制顯示的CSS類別
+            modal.classList.add('force-show');
+
+            // 強制瀏覽器重新計算樣式
+            modal.offsetHeight;
+
+            // 使用requestAnimationFrame確保在下一個渲染循環中顯示
+            requestAnimationFrame(() => {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.classList.add('force-show');
+
+                // 強制觸發重新繪製的多種方法
+                window.dispatchEvent(new Event('resize'));
+                document.body.style.transform = 'translateZ(0)';
+                setTimeout(() => {
+                    document.body.style.transform = '';
+                }, 1);
+
+                // 嘗試滾動觸發重新繪製
+                const currentScroll = window.pageYOffset;
+                window.scrollTo(0, currentScroll + 1);
+                window.scrollTo(0, currentScroll);
+            });
+
+            // 額外的延遲確保顯示，加強版
+            setTimeout(() => {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.classList.add('force-show');
+                console.log('🔍 [Debug] Modal forced display after timeout');
+
+                // 額外的DOM查詢確保元素存在
+                const confirmElement = document.getElementById('confirmModal');
+                if (confirmElement) {
+                    confirmElement.style.display = 'block';
+                    confirmElement.style.visibility = 'visible';
+                    confirmElement.style.opacity = '1';
+                    confirmElement.style.zIndex = '9999';
+                    confirmElement.classList.add('force-show');
+                }
+            }, 50);
+
+            // 額外保險機制 - 如果還是沒顯示，再試一次
+            setTimeout(() => {
+                const finalCheck = document.getElementById('confirmModal');
+                if (finalCheck && (finalCheck.style.display === 'none' || finalCheck.offsetParent === null)) {
+                    console.log('⚠️ [Modal 修復] 檢測到 modal 仍未顯示，執行最終修復');
+                    finalCheck.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important;';
+                    finalCheck.classList.add('force-show');
+                }
+            }, 200);
+
+            console.log('🔍 [Debug] Modal display set to:', modal.style.display, 'Classes:', modal.className);
+        }
+
+        // 執行刪除任務操作
+        async function performDeleteTask() {
+            try {
+                console.log('🗑️ [刪除任務] 開始刪除任務:', currentTaskId);
+
+                // 發送刪除請求
+                const response = await fetch(`/api/delete-task/${currentTaskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-User-ID': liffProfile.userId
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    console.log('✅ [刪除任務] 刪除成功:', result);
+
+                    // 關閉確認對話框
+                    document.getElementById('confirmModal').style.display = 'none';
+
+                    // 顯示成功訊息
+                    await showAlert('刪除成功', '任務已成功刪除並同步更新到 TODO LIST！');
+
+                    // 延遲關閉視窗，讓用戶看到成功訊息
+                    setTimeout(() => {
+                        closeWindow();
+                    }, 1500);
+
+                } else {
+                    const error = await response.text();
+                    console.error('❌ [刪除任務] 刪除失敗:', error);
+
+                    // 關閉確認對話框
+                    document.getElementById('confirmModal').style.display = 'none';
+
+                    await showAlert('刪除失敗', '刪除時發生錯誤: ' + error);
+                }
+
+            } catch (error) {
+                console.error('❌ [刪除任務] 發生錯誤:', error);
+
+                // 關閉確認對話框
+                document.getElementById('confirmModal').style.display = 'none';
+
+                await showAlert('刪除失敗', '刪除時發生錯誤: ' + error.message);
+            }
+        }
+
+        // 自動儲存標題
+        async function autoSaveTitle(newTitle) {
+            try {
+                const response = await fetch('/api/save-task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify({
+                        taskId: currentTaskId,
+                        title: newTitle,
+                        note: currentTaskData.note || '',
+                        tag: currentTaskData.tag || null,
+                        date: currentTaskData.date || null,
+                        reminder: currentTaskData.reminder || null,
+                        repeat: currentTaskData.repeat || null
+                    })
+                });
+
+                if (response.ok) {
+                    currentTaskData.text = newTitle;
+                    console.log('標題已自動儲存:', newTitle);
+                } else {
+                    const error = await response.text();
+                    console.error('❌ [自動儲存標題] 儲存失敗:', error);
+                }
+
+            } catch (error) {
+                console.error('❌ [自動儲存標題] 儲存失敗:', error);
+            }
+        }
+
+        // 自動儲存備註
+        async function autoSaveNote(noteText) {
+            try {
+                const response = await fetch('/api/save-task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify({
+                        taskId: currentTaskId,
+                        title: currentTaskData.text || '',
+                        note: noteText,
+                        tag: currentTaskData.tag || null,
+                        date: currentTaskData.date || null,
+                        reminder: currentTaskData.reminder || null,
+                        repeat: currentTaskData.repeat || null
+                    })
+                });
+
+                if (response.ok) {
+                    currentTaskData.note = noteText;
+                    console.log('備註已自動儲存:', noteText);
+                } else {
+                    const error = await response.text();
+                    console.error('❌ [自動儲存備註] 儲存失敗:', error);
+                }
+
+            } catch (error) {
+                console.error('❌ [自動儲存備註] 儲存失敗:', error);
+            }
+        }
+
+        // 顯示提示訊息
+        async function showAlert(title, message) {
+            // 等待 LIFF 準備就緒
+            await waitForLiffReady();
+
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            document.getElementById('confirmBtn').textContent = '確定';
+            document.getElementById('confirmBtn').onclick = closeConfirmModal;
+
+            console.log('🔧 [Alert Modal] LIFF 準備就緒，開始顯示 alert modal');
+
+            // 強制顯示modal - 和deleteTask使用相同的邏輯
+            const modal = document.getElementById('confirmModal');
+
+            // 方法1: 直接設置樣式
+            modal.style.display = 'block';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
+
+            // 方法2: 添加強制顯示的CSS類別
+            modal.classList.add('force-show');
+
+            // 強制瀏覽器重新計算樣式
+            modal.offsetHeight;
+
+            // 使用requestAnimationFrame確保在下一個渲染循環中顯示
+            requestAnimationFrame(() => {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.classList.add('force-show');
+            });
+
+            console.log('🔍 [Debug] Alert modal display set to:', modal.style.display, 'Classes:', modal.className);
+        }
+
+        // 關閉確認模態框
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.style.display = 'none';
+            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.classList.remove('force-show');
+            console.log('🔍 [Debug] Modal closed');
+        }
+
+        // 確認操作
+        function confirmAction() {
+            closeConfirmModal();
+        }
+
+        // 標籤選擇器相關函數
+        function showTagPickerModal(tags) {
+            const modal = document.getElementById('tagPickerModal');
+            const content = document.getElementById('tagPickerContent');
+
+            // 清空內容
+            content.innerHTML = '';
+
+            // 獲取當前選中的標籤
+            const currentTag = document.getElementById('taskTag').textContent;
+
+            // 建立標籤選項
+            const tagOptions = [
+                { text: '無標籤', value: '', icon: '🚫' }
+            ];
+
+            tags.forEach(tag => {
+                tagOptions.push({
+                    text: tag.name,
+                    value: tag.name,
+                    icon: tag.icon || '🏷️'
+                });
+            });
+
+            // 建立標籤選項 HTML
+            tagOptions.forEach(option => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag-option';
+                if ((option.value === '' && currentTag === '無') || option.value === currentTag) {
+                    tagElement.classList.add('selected');
+                }
+
+                tagElement.innerHTML = `
+                    <div class="tag-option-icon">${option.icon}</div>
+                    <div class="tag-option-text">${option.text}</div>
+                `;
+
+                tagElement.onclick = () => selectTag(option.value, option.text);
+                content.appendChild(tagElement);
+            });
+
+            // 顯示 modal
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 10);
+        }
+
+        function closeTagPicker() {
+            const modal = document.getElementById('tagPickerModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        function selectTag(value, text) {
+            // 更新顯示
+            const taskTagElement = document.getElementById('taskTag');
+            taskTagElement.textContent = value || '無';
+
+            console.log('🏷️ 用戶選擇標籤:', value);
+
+            // 關閉選擇器
+            closeTagPicker();
+        }
+
+        // 點擊背景關閉標籤選擇器
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('tagPickerModal');
+            if (event.target === modal) {
+                closeTagPicker();
+            }
+        });
+
+        // 顯示錯誤訊息
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        // 關閉視窗
+        function closeWindow() {
+            if (liff) {
+                liff.closeWindow();
+            } else {
+                window.close();
+            }
+        }
+
+        // 點擊模態框背景關閉
+        window.onclick = function(event) {
+            const confirmModal = document.getElementById('confirmModal');
+
+            if (event.target == confirmModal) {
+                closeConfirmModal();
+            }
+        }
+
+        // 自動儲存任務標題和備註
+        document.addEventListener('DOMContentLoaded', function() {
+            const titleInput = document.getElementById('taskTitle');
+            const noteTextarea = document.getElementById('noteTextarea');
+            let titleSaveTimeout;
+            let noteSaveTimeout;
+
+            // 任務標題自動儲存
+            titleInput.addEventListener('input', function() {
+                clearTimeout(titleSaveTimeout);
+                titleSaveTimeout = setTimeout(async () => {
+                    const newTitle = titleInput.value.trim();
+                    if (newTitle && newTitle !== currentTaskData.text) {
+                        await autoSaveTitle(newTitle);
+                    }
+                }, 1000);
+            });
+
+            // 備註自動儲存
+            noteTextarea.addEventListener('input', function() {
+                clearTimeout(noteSaveTimeout);
+                noteSaveTimeout = setTimeout(async () => {
+                    const noteText = noteTextarea.value.trim();
+                    if (noteText !== currentTaskData.note) {
+                        await autoSaveNote(noteText);
+                    }
+                }, 1500); // 備註儲存延遲稍長，避免頻繁儲存
+            });
+        });
+
+        // 頁面載入時初始化 LIFF
+        window.addEventListener('load', initializeLiff);
+    </script>
+</body>
+</html>
