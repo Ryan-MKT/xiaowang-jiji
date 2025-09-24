@@ -982,15 +982,17 @@
                 currentTaskId = params.taskId;
                 currentTaskData.text = params.taskText;
 
-                // 標記是否從資料庫載入了日期時間資料
-                let hasScheduledDate = false;
+                console.log('🔍 [任務載入] 載入任務:', currentTaskData.text);
 
                 // 顯示任務標題
                 document.getElementById('taskTitle').value = currentTaskData.text;
 
-                // 載入現有備註
+                // 標記是否從資料庫載入了日期時間資料
+                let hasScheduledDate = false;
+
+                // 從 Supabase 載入完整任務資料
                 try {
-                    const response = await fetch(`/api/task-note/${currentTaskId}`, {
+                    const response = await fetch(`/api/get-task?taskText=${encodeURIComponent(currentTaskData.text)}`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
@@ -999,61 +1001,70 @@
                     });
 
                     if (response.ok) {
-                        const data = await response.json();
-                        if (data.note && data.note.trim()) {
-                            currentTaskData.note = data.note;
-                            // 載入備註到直接編輯的 textarea
-                            document.getElementById('noteTextarea').value = data.note;
-                        }
-                        // 載入標籤資訊
-                        if (data.tag) {
-                            currentTaskData.tag = data.tag;
-                            document.getElementById('taskTag').textContent = data.tag;
-                        }
+                        const result = await response.json();
+                        console.log('📥 [任務載入] 從數據庫載入資料:', result);
 
-                        // 載入日期時間資訊
-                        let hasScheduledDate = false;
-                        if (data.scheduled_date) {
-                            // 解析 ISO 8601 格式的日期時間
-                            const dateObj = new Date(data.scheduled_date);
-                            const year = dateObj.getFullYear();
-                            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                            const day = String(dateObj.getDate()).padStart(2, '0');
-                            const hour = String(dateObj.getHours()).padStart(2, '0');
-                            const minute = String(dateObj.getMinutes()).padStart(2, '0');
+                        if (result.success && result.taskData) {
+                            const data = result.taskData;
 
-                            let displayText = `${year}/${month}/${day}`;
-                            if (hour !== '00' || minute !== '00') {
-                                displayText += ` ${hour}:${minute}`;
+                            // 載入備註
+                            if (data.note && data.note.trim()) {
+                                currentTaskData.note = data.note;
+                                document.getElementById('noteTextarea').value = data.note;
+                                console.log('📝 [任務載入] 載入備註:', data.note);
                             }
 
-                            const taskDateElement = document.getElementById('taskDate');
-                            taskDateElement.textContent = displayText;
-                            // 儲存完整的 datetime 供儲存時使用
-                            taskDateElement.setAttribute('data-full-datetime', data.scheduled_date);
+                            // 載入標籤資訊
+                            if (data.tag) {
+                                currentTaskData.tag = data.tag;
+                                document.getElementById('taskTag').textContent = data.tag;
+                                console.log('🏷️ [任務載入] 載入標籤:', data.tag);
+                            }
 
-                            console.log('📅 載入日期時間:', displayText, '完整格式:', data.scheduled_date);
-                            hasScheduledDate = true;
-                        }
+                            // 載入日期時間資訊
+                            if (data.date) {
+                                const dateObj = new Date(data.date);
+                                const year = dateObj.getFullYear();
+                                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                                const day = String(dateObj.getDate()).padStart(2, '0');
+                                const hour = String(dateObj.getHours()).padStart(2, '0');
+                                const minute = String(dateObj.getMinutes()).padStart(2, '0');
 
-                        // 載入提醒時間資訊
-                        if (data.reminder_time) {
-                            currentTaskData.reminder = data.reminder_time;
-                            document.getElementById('taskReminder').textContent = data.reminder_time;
-                            console.log('📢 載入提醒時間:', data.reminder_time);
-                        }
+                                let displayText = `${year}/${month}/${day}`;
+                                if (hour !== '00' || minute !== '00') {
+                                    displayText += ` ${hour}:${minute}`;
+                                }
 
-                        // 載入重複模式資訊
-                        if (data.repeat_pattern) {
-                            currentTaskData.repeat = data.repeat_pattern;
-                            document.getElementById('taskRepeat').textContent = data.repeat_pattern;
-                            console.log('🔄 載入重複模式:', data.repeat_pattern);
-                        } else {
-                            document.getElementById('taskRepeat').textContent = '不重複';
+                                const taskDateElement = document.getElementById('taskDate');
+                                taskDateElement.textContent = displayText;
+                                taskDateElement.setAttribute('data-full-datetime', data.date);
+
+                                console.log('📅 [任務載入] 載入日期時間:', displayText);
+                                hasScheduledDate = true;
+                            }
+
+                            // 載入提醒時間資訊
+                            if (data.reminder) {
+                                currentTaskData.reminder = data.reminder;
+                                document.getElementById('taskReminder').textContent = data.reminder + '分鐘前';
+                                console.log('📢 [任務載入] 載入提醒時間:', data.reminder);
+                            }
+
+                            // 載入重複模式資訊
+                            if (data.repeat) {
+                                currentTaskData.repeat = data.repeat;
+                                document.getElementById('taskRepeat').textContent = data.repeat;
+                                console.log('🔄 [任務載入] 載入重複模式:', data.repeat);
+                            } else {
+                                document.getElementById('taskRepeat').textContent = '不重複';
+                            }
                         }
+                    } else {
+                        console.log('⚠️ [任務載入] 載入失敗，使用預設值');
                     }
-                } catch (noteError) {
-                    console.log('備註載入失敗，使用預設值');
+                } catch (loadError) {
+                    console.error('❌ [任務載入] 載入錯誤:', loadError);
+                    console.log('使用預設值繼續');
                 }
 
                 // 只有在沒有從資料庫載入日期時間的情況下，才使用預設的今天日期

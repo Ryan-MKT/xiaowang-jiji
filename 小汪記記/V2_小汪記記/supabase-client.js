@@ -8,8 +8,17 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8'
+    }
+  }
+});
 
-console.log('✅ Supabase 客戶端初始化成功');
+console.log('✅ Supabase 客戶端初始化成功 (UTF-8 支援)');
 
 module.exports = supabase;

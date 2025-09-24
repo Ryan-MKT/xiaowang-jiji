@@ -277,9 +277,20 @@ const client = process.env.LINE_CHANNEL_ACCESS_TOKEN ?
   null;
 console.log('📱 LINE Client created:', !!client);
 
-// Express middleware
-app.use(express.json({ extended: true }));
-app.use(express.urlencoded({ extended: true }));
+// Express middleware with UTF-8 encoding support
+app.use(express.json({
+  extended: true,
+  limit: '50mb',
+  charset: 'utf8',
+  verify: function(req, res, buf) {
+    req.rawBody = buf;
+  }
+}));
+app.use(express.urlencoded({
+  extended: true,
+  limit: '50mb',
+  charset: 'utf8'
+}));
 
 // Session 設定（LINE Login 需要）
 app.use(session({
@@ -3110,6 +3121,238 @@ app.get('/api/tasks', async (req, res) => {
   } catch (err) {
     console.error('❌ [任務API] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 取得單一任務詳細資料 API
+app.get('/api/get-task', async (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    const userId = req.headers['x-user-id'];
+    const taskText = req.query.taskText;
+
+    if (!userId || !taskText) {
+      return res.status(400).json({ error: 'Missing user ID or task text' });
+    }
+
+    console.log(`🔍 [載入任務] 用戶 ${userId} 查詢任務: "${taskText}"`);
+
+    // 從 Supabase 數據庫查詢任務詳細資料
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const tableName = tablePrefix + 'messages';
+
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .eq('user_id', userId)
+          .eq('message_text', taskText)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error('❌ [載入任務] 查詢錯誤:', error);
+          return res.status(500).json({ error: 'Database query failed' });
+        }
+
+        if (data && data.length > 0) {
+          const taskData = data[0];
+          console.log(`✅ [載入任務] 找到任務資料:`, {
+            id: taskData.id,
+            message_text: taskData.message_text,
+            tag: taskData.tag,
+            note: taskData.note,
+            scheduled_date: taskData.scheduled_date,
+            reminder_minutes: taskData.reminder_minutes,
+            repeat_pattern: taskData.repeat_pattern
+          });
+
+          res.json({
+            success: true,
+            taskData: {
+              id: taskData.id,
+              title: taskData.message_text,
+              tag: taskData.tag,
+              note: taskData.note,
+              date: taskData.scheduled_date,
+              reminder: taskData.reminder_minutes,
+              repeat: taskData.repeat_pattern
+            }
+          });
+        } else {
+          console.log(`⚠️ [載入任務] 未找到任務資料: "${taskText}"`);
+          res.json({
+            success: true,
+            taskData: {
+              title: taskText,
+              tag: null,
+              note: null,
+              date: null,
+              reminder: null,
+              repeat: null
+            }
+          });
+        }
+      } catch (dbError) {
+        console.error('❌ [載入任務] 數據庫錯誤:', dbError);
+        return res.status(500).json({ error: 'Database error' });
+      }
+    } else {
+      // 如果沒有 Supabase 連接，回傳基本資料
+      res.json({
+        success: true,
+        taskData: {
+          title: taskText,
+          tag: null,
+          note: null,
+          date: null,
+          reminder: null,
+          repeat: null
+        }
+      });
+    }
+  } catch (error) {
+    console.error('❌ [載入任務] 發生錯誤:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+// 儲存/更新任務 API
+app.post('/api/save-task', async (req, res) => {
+  try {
+    // 設置響應編碼
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    const userId = req.headers['x-user-id'];
+
+    // 直接使用請求體並確保 UTF-8 編碼
+    const { taskId, title, note, tag, date, reminder, repeat } = req.body;
+
+    // 確保中文字符正確處理
+    const safeTag = tag ? Buffer.from(tag, 'utf8').toString('utf8') : null;
+    const safeTitle = title ? Buffer.from(title, 'utf8').toString('utf8') : title;
+    const safeNote = note ? Buffer.from(note, 'utf8').toString('utf8') : note;
+
+    // 檢查接收到的原始資料和處理後資料
+    console.log(`🔍 [接收資料] 原始輸入:`, { taskId, title, note, tag, date, reminder, repeat });
+    console.log(`🔍 [UTF-8處理] 處理後:`, { taskId, safeTitle, safeNote, safeTag, date, reminder, repeat });
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    if (!taskId || !title?.trim()) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    console.log(`💾 [儲存任務] 用戶 ${userId} 儲存任務 ID: ${taskId}`);
+    console.log(`📝 [儲存任務] 任務資料:`, { title, note, tag, date, reminder, repeat });
+
+    // 更新記憶體中的任務資料
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskIndex = userTasks.findIndex(task => task.id === taskId);
+
+    if (taskIndex !== -1) {
+      // 更新現有任務使用安全編碼的資料
+      userTasks[taskIndex].text = safeTitle;
+      userTasks[taskIndex].note = safeNote || null;
+      userTasks[taskIndex].tag = safeTag || null;
+      userTasks[taskIndex].scheduled_date = date || null;
+      userTasks[taskIndex].reminder_minutes = reminder || null;
+      userTasks[taskIndex].repeat_pattern = repeat || null;
+
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [儲存任務] 記憶體任務已更新`);
+    }
+
+    // 更新數據庫中的DEV_MESSAGES記錄
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const tableName = tablePrefix + 'messages';
+
+        // 特別處理 TEXT 欄位的 UTF-8 編碼
+        const processTextField = (value) => {
+          if (!value) return null;
+          // 確保 TEXT 欄位正確編碼
+          return Buffer.from(value, 'utf8').toString('utf8');
+        };
+
+        let updateData = {
+          message_text: processTextField(safeTitle),
+          note: processTextField(safeNote),
+          tag: processTextField(safeTag), // 特別處理 TEXT 屬性的 TAG 欄位
+          scheduled_date: date || null,
+          reminder_minutes: reminder ? parseInt(reminder.replace(/[^\d]/g, '')) : null,
+          repeat_pattern: repeat || null
+        };
+
+        console.log(`🔍 [儲存資料] 準備存入 (TEXT欄位特殊處理):`, updateData);
+        console.log(`🔍 [TAG專門處理] TAG原始值: "${tag}" -> 處理後: "${updateData.tag}"`);
+
+        // 智能查找策略：優先用文字內容匹配最新記錄
+        console.log(`🔍 [智能查找] 查找用戶 ${userId} 的訊息："${safeTitle}"`);
+
+        // 方法1：用訊息文字查找最新記錄（最可靠的方法）
+        let { data: textUpdate, error: textError } = await supabase
+          .from(tableName)
+          .update(updateData)
+          .eq('user_id', userId)
+          .eq('message_text', safeTitle)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .select();
+
+        console.log(`🔍 [文字匹配] 更新結果:`, { data: textUpdate, error: textError });
+
+        if (textUpdate && textUpdate.length > 0) {
+          console.log(`✅ [儲存任務] 文字匹配更新成功，實際ID: ${textUpdate[0].id}`);
+          console.log(`🎯 [TAG確認] 更新後的TAG值: "${textUpdate[0].tag}"`);
+        } else {
+          // 方法2：如果文字匹配失敗，嘗試數字ID匹配
+          console.log(`🔄 [備用方法] 嘗試數字ID匹配`);
+
+          const numericTaskId = parseInt(taskId);
+          let { data: directUpdate, error: directError } = await supabase
+            .from(tableName)
+            .update(updateData)
+            .eq('id', numericTaskId)
+            .eq('user_id', userId)
+            .select();
+
+          console.log(`🔍 [ID匹配] 更新結果:`, { data: directUpdate, error: directError });
+
+          if (directUpdate && directUpdate.length > 0) {
+            console.log(`✅ [儲存任務] ID匹配更新成功`);
+            console.log(`🎯 [TAG確認] 更新後的TAG值: "${directUpdate[0].tag}"`);
+          } else {
+            console.log(`⚠️ [儲存任務] 所有匹配方法都失敗，請檢查數據庫記錄`);
+          }
+        }
+
+      } catch (dbError) {
+        console.error('❌ [儲存任務] 數據庫更新失敗:', dbError);
+        // 數據庫更新失敗不影響記憶體更新的成功
+      }
+    }
+
+    res.json({
+      success: true,
+      message: '任務儲存成功',
+      taskId: taskId
+    });
+
+  } catch (error) {
+    console.error('❌ [儲存任務] 發生錯誤:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
   }
 });
 
