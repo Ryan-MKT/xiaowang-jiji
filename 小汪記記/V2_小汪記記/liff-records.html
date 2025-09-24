@@ -601,7 +601,7 @@
         /* 響應式設計 - 平板和手機 */
         @media (max-width: 1024px) {
             .main-layout {
-                margin-left: 0;
+                margin-left: 0 !important;
                 flex-direction: column;
                 padding: 10px;
             }
@@ -610,12 +610,15 @@
                 flex: none;
                 min-width: auto;
                 order: 1;
+                width: 100%;
+                flex: 0 0 auto;
             }
 
             .tasks-section {
                 flex: none;
                 min-width: auto;
                 order: 2;
+                width: 100%;
             }
 
             /* 手機版隱藏右側面板 */
@@ -625,6 +628,15 @@
 
             .main-layout.panel-open {
                 margin-right: 0;
+            }
+
+            /* 強制清除所有可能的桌面版邊距 */
+            .container,
+            .container-fluid,
+            body > .row,
+            main,
+            .content-wrapper {
+                margin-left: 0 !important;
             }
         }
 

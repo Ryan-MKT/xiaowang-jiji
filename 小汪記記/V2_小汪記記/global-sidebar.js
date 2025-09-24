@@ -131,7 +131,7 @@ class GlobalSidebar {
             sidebar.style.display = 'none';
             console.log('🏷️ [全域側邊欄] 隱藏側邊欄（手機版）');
 
-            // 強制移除桌面版的所有邊距
+            // 強制移除桌面版的所有邊距，並清除任何inline styles
             const selectors = [
                 '.main-layout',
                 '.container',
@@ -145,8 +145,9 @@ class GlobalSidebar {
                 const elements = document.querySelectorAll(selector);
                 elements.forEach((element, index) => {
                     if (element.tagName !== 'BODY') {
-                        element.style.marginLeft = '0';
-                        console.log(`🏷️ [全域側邊欄] 清除手機版 ${selector}[${index}] 左邊距`);
+                        // 完全清除margin-left的inline style，讓CSS媒體查詢生效
+                        element.style.removeProperty('margin-left');
+                        console.log(`🏷️ [全域側邊欄] 清除手機版 ${selector}[${index}] 左邊距inline樣式`);
                     }
                 });
             });
