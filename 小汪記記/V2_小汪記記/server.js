@@ -616,6 +616,133 @@ async function handlePostback(event) {
     }
   }
 
+  // 處理日曆按鈕點擊
+  if (postbackData === 'calendar_view') {
+    console.log(`📅 用戶 ${userId} 點擊日曆按鈕`);
+
+    const calendarMessage = {
+      type: 'text',
+      text: '📅 日曆功能\n\n您可以通過以下連結使用日曆功能：\nhttps://138b00c20997.ngrok.app/liff/calendar'
+    };
+
+    if (client) {
+      return client.replyMessage(event.replyToken, calendarMessage);
+    } else {
+      console.log('測試模式：日曆訊息', calendarMessage.text);
+      return Promise.resolve(null);
+    }
+  }
+
+  // 處理收藏按鈕點擊
+  if (postbackData === 'show_favorites') {
+    console.log(`⭐ 用戶 ${userId} 點擊收藏按鈕`);
+
+    // 這裡直接複用現有的收藏邏輯
+    try {
+      let todayFavorites = [];
+
+      if (supabase) {
+        const now = new Date();
+        const taiwanTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+        const today = taiwanTime.toISOString().split('T')[0];
+        const taiwanStartOfDay = today + 'T16:00:00.000Z';
+        const taiwanEndOfDay = new Date(taiwanTime.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T16:00:00.000Z';
+
+        const { data, error } = await supabase
+          .from('dev_collections')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('created_at', taiwanStartOfDay)
+          .lt('created_at', taiwanEndOfDay)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          todayFavorites = data;
+        }
+      }
+
+      if (todayFavorites.length === 0) {
+        const noFavoritesMessage = {
+          type: 'flex',
+          altText: '今天還沒有收藏',
+          contents: {
+            type: 'bubble',
+            size: 'kilo',
+            body: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'text',
+                  text: '📋 今天還沒有收藏',
+                  weight: 'bold',
+                  size: 'lg',
+                  align: 'center'
+                },
+                {
+                  type: 'text',
+                  text: '快去收藏一些有趣的內容吧！',
+                  size: 'sm',
+                  color: '#666666',
+                  align: 'center',
+                  margin: 'md'
+                }
+              ],
+              spacing: 'md',
+              paddingAll: 'xl'
+            }
+          }
+        };
+
+        if (client) {
+          return client.replyMessage(event.replyToken, noFavoritesMessage);
+        } else {
+          console.log('測試模式：無收藏訊息', JSON.stringify(noFavoritesMessage, null, 2));
+          return Promise.resolve(null);
+        }
+      }
+
+      const favoritesFlexMessage = await createFavoritesFlexMessage(todayFavorites);
+
+      if (client) {
+        return client.replyMessage(event.replyToken, favoritesFlexMessage);
+      } else {
+        console.log('測試模式：收藏卡片 FLEX MESSAGE', JSON.stringify(favoritesFlexMessage, null, 2));
+        return Promise.resolve(null);
+      }
+    } catch (error) {
+      console.error('❌ [收藏卡片] 處理錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '⚠️ 獲取收藏資料時發生錯誤，請稍後再試。'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 處理我的按鈕點擊
+  if (postbackData === 'my_account') {
+    console.log(`👤 用戶 ${userId} 點擊我的按鈕`);
+
+    const accountMessage = {
+      type: 'text',
+      text: '👤 我的帳戶\n\n您可以通過以下連結管理帳戶：\nhttps://138b00c20997.ngrok.app/liff/account'
+    };
+
+    if (client) {
+      return client.replyMessage(event.replyToken, accountMessage);
+    } else {
+      console.log('測試模式：帳戶訊息', accountMessage.text);
+      return Promise.resolve(null);
+    }
+  }
+
   return Promise.resolve(null);
 }
 
@@ -1979,34 +2106,6 @@ app.get('/liff/records', (req, res) => {
   }
 });
 
-// 任務收藏頁面路由
-app.get('/liff/favorites', (req, res) => {
-  const fs = require('fs');
-  const path = require('path');
-  
-  try {
-    let html = fs.readFileSync(path.join(__dirname, 'liff-favorites.html'), 'utf8');
-    
-    // 進行 LIFF ID 動態替換
-    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
-    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
-    
-    console.log(`⭐ [收藏頁面] 使用 LIFF ID: ${liffId}`);
-    console.log(`🔗 [收藏頁面] URL 參數:`, req.url);
-    
-    // 強制不緩存
-    res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-    
-    res.send(html);
-  } catch (error) {
-    console.error('讀取收藏頁面錯誤:', error);
-    res.status(500).send('收藏頁面載入失敗');
-  }
-});
 
 // 帳戶頁面路由
 app.get('/liff/account', (req, res) => {
