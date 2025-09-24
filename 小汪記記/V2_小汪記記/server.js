@@ -3142,7 +3142,7 @@ app.get('/api/get-task', async (req, res) => {
     if (supabase) {
       try {
         const tablePrefix = process.env.TABLE_PREFIX || '';
-        const tableName = tablePrefix + 'messages';
+        const tableName = `${tablePrefix}messages`;
 
         const { data, error } = await supabase
           .from(tableName)
@@ -3489,6 +3489,101 @@ app.post('/api/favorites', async (req, res) => {
     }
   } catch (err) {
     console.error('❌ [新增收藏] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 創建新標籤
+app.post('/api/create-tag', async (req, res) => {
+  try {
+    // 設置響應編碼
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    const userId = req.headers['x-user-id'];
+    const { name, color, icon } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Missing tag name' });
+    }
+
+    // 確保中文字符正確處理
+    const safeName = Buffer.from(name.trim(), 'utf8').toString('utf8');
+    const safeColor = color || '#007bff';
+    const safeIcon = icon || '📝';
+
+    console.log(`🏷️ [創建標籤] 用戶 ${userId} 創建新標籤: ${safeName}`);
+    console.log(`🎨 [創建標籤] 標籤屬性:`, { name: safeName, color: safeColor, icon: safeIcon });
+
+    // 使用 Supabase 儲存新標籤
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const tableName = `${tablePrefix}tags`;
+
+        // 先檢查是否已存在相同名稱的標籤
+        const { data: existingTag, error: checkError } = await supabase
+          .from(tableName)
+          .select('id')
+          .eq('user_id', userId)
+          .eq('name', safeName)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('❌ [創建標籤] 檢查重複標籤錯誤:', checkError);
+          return res.status(500).json({ error: 'Database error' });
+        }
+
+        if (existingTag) {
+          return res.status(409).json({ error: '標籤名稱已存在' });
+        }
+
+        // 插入新標籤
+        const { data, error } = await supabase
+          .from(tableName)
+          .insert([
+            {
+              user_id: userId,
+              name: safeName,
+              color: safeColor,
+              icon: safeIcon,
+              created_at: new Date().toISOString()
+            }
+          ])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('❌ [創建標籤] Supabase 儲存錯誤:', error);
+          return res.status(500).json({ error: 'Database error' });
+        }
+
+        console.log(`✅ [創建標籤] 新標籤創建成功，ID: ${data.id}`);
+
+        // 格式化返回數據
+        const formattedTag = {
+          id: data.id,
+          name: data.name,
+          color: data.color,
+          icon: data.icon,
+          created_at: data.created_at
+        };
+
+        res.json({ success: true, tag: formattedTag });
+      } catch (dbError) {
+        console.error('❌ [創建標籤] 資料庫連線錯誤:', dbError);
+        return res.status(500).json({ error: 'Database connection error' });
+      }
+    } else {
+      // 如果沒有 Supabase 連線，返回錯誤
+      console.log('⚠️ [創建標籤] Supabase 未連接，無法創建標籤');
+      return res.status(503).json({ error: 'Database service unavailable' });
+    }
+  } catch (err) {
+    console.error('❌ [創建標籤] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

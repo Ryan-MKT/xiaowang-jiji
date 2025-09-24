@@ -161,6 +161,33 @@
             font-size: 14px;
         }
 
+        /* 新增標籤按鈕樣式 */
+        .add-tag-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #007AFF;
+            color: white;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .add-tag-btn:hover {
+            background: #0056CC;
+            transform: scale(1.1);
+        }
+
+        .add-tag-btn:active {
+            transform: scale(0.95);
+        }
+
         /* 操作按鈕區域 */
         .action-buttons {
             margin: 20px 16px;
@@ -703,6 +730,200 @@
         .reminder-setting.expanded .setting-arrow {
             transform: rotate(90deg);
         }
+
+        /* 標籤彈窗樣式 */
+        .tag-picker-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .tag-picker-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+        }
+
+        .tag-picker-container {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow: hidden;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .tag-picker-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tag-picker-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .tag-picker-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #999;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .tag-picker-close:hover {
+            background: #f0f0f0;
+        }
+
+        /* 新增標籤專用樣式 */
+        .new-tag-content {
+            padding: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .input-group input[type="text"]:focus {
+            outline: none;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+        }
+
+        .color-picker, .icon-picker {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.selected {
+            border-color: #007AFF;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+        }
+
+        .icon-option {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .icon-option:hover {
+            background: #f8f9fa;
+            transform: scale(1.1);
+        }
+
+        .icon-option.selected {
+            border-color: #007AFF;
+            background: rgba(0, 122, 255, 0.1);
+        }
+
+        .new-tag-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .cancel-btn, .confirm-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .cancel-btn {
+            background: #f8f9fa;
+            color: #666;
+        }
+
+        .cancel-btn:hover {
+            background: #e9ecef;
+        }
+
+        .confirm-btn {
+            background: #007AFF;
+            color: white;
+        }
+
+        .confirm-btn:hover {
+            background: #0056CC;
+        }
+
+        .confirm-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -756,8 +977,9 @@
                 <div class="setting-icon">🏷️</div>
                 <div class="setting-content">
                     <span class="setting-label">任務標籤</span>
-                    <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
                         <span class="setting-value" id="taskTag">無</span>
+                        <button class="add-tag-btn" onclick="openNewTagModal(event)" title="新增標籤">+</button>
                         <span class="setting-arrow" id="tagArrow">›</span>
                     </div>
                 </div>
@@ -882,6 +1104,54 @@
             </div>
             <div class="tag-picker-content" id="tagPickerContent">
                 <!-- 標籤選項將動態載入 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增標籤彈窗 -->
+    <div id="newTagModal" class="tag-picker-overlay">
+        <div class="tag-picker-container">
+            <div class="tag-picker-header">
+                <h3>新增標籤</h3>
+                <button class="tag-picker-close" onclick="closeNewTagModal()">×</button>
+            </div>
+            <div class="new-tag-content">
+                <div class="input-group">
+                    <label for="tagNameInput">標籤名稱</label>
+                    <input type="text" id="tagNameInput" placeholder="輸入標籤名稱..." maxlength="20">
+                </div>
+                <div class="input-group">
+                    <label for="tagColorInput">標籤顏色</label>
+                    <div class="color-picker">
+                        <div class="color-option" data-color="#FF6B6B" style="background: #FF6B6B;" onclick="selectColor(this)"></div>
+                        <div class="color-option" data-color="#4ECDC4" style="background: #4ECDC4;" onclick="selectColor(this)"></div>
+                        <div class="color-option" data-color="#45B7D1" style="background: #45B7D1;" onclick="selectColor(this)"></div>
+                        <div class="color-option" data-color="#9B59B6" style="background: #9B59B6;" onclick="selectColor(this)"></div>
+                        <div class="color-option" data-color="#F39C12" style="background: #F39C12;" onclick="selectColor(this)"></div>
+                        <div class="color-option" data-color="#E74C3C" style="background: #E74C3C;" onclick="selectColor(this)"></div>
+                        <div class="color-option" data-color="#2ECC71" style="background: #2ECC71;" onclick="selectColor(this)"></div>
+                        <div class="color-option" data-color="#34495E" style="background: #34495E;" onclick="selectColor(this)"></div>
+                    </div>
+                    <input type="hidden" id="selectedColor" value="#4169E1">
+                </div>
+                <div class="input-group">
+                    <label for="tagIconInput">標籤圖示</label>
+                    <div class="icon-picker">
+                        <div class="icon-option" data-icon="🏷️" onclick="selectIcon(this)">🏷️</div>
+                        <div class="icon-option" data-icon="💼" onclick="selectIcon(this)">💼</div>
+                        <div class="icon-option" data-icon="📚" onclick="selectIcon(this)">📚</div>
+                        <div class="icon-option" data-icon="🏃‍♂️" onclick="selectIcon(this)">🏃‍♂️</div>
+                        <div class="icon-option" data-icon="🎯" onclick="selectIcon(this)">🎯</div>
+                        <div class="icon-option" data-icon="⭐" onclick="selectIcon(this)">⭐</div>
+                        <div class="icon-option" data-icon="🎨" onclick="selectIcon(this)">🎨</div>
+                        <div class="icon-option" data-icon="🔥" onclick="selectIcon(this)">🔥</div>
+                    </div>
+                    <input type="hidden" id="selectedIcon" value="🏷️">
+                </div>
+                <div class="new-tag-actions">
+                    <button class="cancel-btn" onclick="closeNewTagModal()">取消</button>
+                    <button class="confirm-btn" onclick="createNewTag()">新增</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1868,6 +2138,99 @@
                     }
                 }, 1500); // 備註儲存延遲稍長，避免頻繁儲存
             });
+        });
+
+        // 新標籤模態框功能
+        function openNewTagModal(event) {
+            event.stopPropagation();
+            const modal = document.getElementById('newTagModal');
+            if (modal) {
+                modal.classList.add('show');
+            }
+        }
+
+        function closeNewTagModal() {
+            const modal = document.getElementById('newTagModal');
+            modal.classList.remove('show');
+
+            // 重置表單
+            document.getElementById('tagNameInput').value = '';
+            document.querySelectorAll('.color-option.selected').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.icon-option.selected').forEach(el => el.classList.remove('selected'));
+        }
+
+        function selectColor(element) {
+            // 移除其他選中狀態
+            document.querySelectorAll('.color-option.selected').forEach(el => el.classList.remove('selected'));
+            // 選中當前顏色
+            element.classList.add('selected');
+        }
+
+        function selectIcon(element) {
+            // 移除其他選中狀態
+            document.querySelectorAll('.icon-option.selected').forEach(el => el.classList.remove('selected'));
+            // 選中當前圖示
+            element.classList.add('selected');
+        }
+
+        async function createNewTag() {
+            const nameInput = document.getElementById('tagNameInput');
+            const tagName = nameInput.value.trim();
+
+            if (!tagName) {
+                alert('請輸入標籤名稱');
+                return;
+            }
+
+            // 獲取選中的顏色
+            const selectedColor = document.querySelector('.color-option.selected');
+            const tagColor = selectedColor ? selectedColor.dataset.color : '#007bff';
+
+            // 獲取選中的圖示
+            const selectedIcon = document.querySelector('.icon-option.selected');
+            const tagIcon = selectedIcon ? selectedIcon.dataset.icon : '📝';
+
+            try {
+                const response = await fetch('/api/create-tag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify({
+                        name: tagName,
+                        color: tagColor,
+                        icon: tagIcon
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('新標籤創建成功:', result);
+
+                    // 關閉模態框
+                    closeNewTagModal();
+
+                    // 重新載入可用標籤列表（如果需要的話）
+                    // loadAvailableTags();
+
+                    // 顯示成功消息
+                    console.log('✅ 標籤創建成功！');
+                } else {
+                    throw new Error(`創建標籤失敗: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('創建新標籤錯誤:', error);
+                alert('創建標籤時發生錯誤，請稍後再試');
+            }
+        }
+
+        // 點擊模態框背景關閉新標籤模態框
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('newTagModal');
+            if (event.target === modal) {
+                closeNewTagModal();
+            }
         });
 
         // 頁面載入時初始化 LIFF
