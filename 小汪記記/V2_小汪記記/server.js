@@ -304,6 +304,16 @@ app.use(session({
 app.use('/screenshots', express.static(path.join(__dirname, 'public', 'screenshots')));
 console.log('📁 Static files enabled for screenshots at /screenshots');
 
+// 靜態檔案服務 - 提供JavaScript文件
+app.use(express.static(__dirname, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+    }
+  }
+}));
+console.log('📁 Static files enabled for JS files');
+
 // 判斷是否為問句或請求
 function isQuestion(text) {
   // 問句特徵
@@ -3584,6 +3594,87 @@ app.post('/api/create-tag', async (req, res) => {
     }
   } catch (err) {
     console.error('❌ [創建標籤] 錯誤:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 獲取分類任務數量統計
+app.get('/api/category-counts', async (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    console.log(`📊 [分類統計] 用戶 ${userId} 獲取分類任務統計`);
+
+    // 初始化分類計數
+    const categoryCounts = {
+      work: 0,
+      study: 0,
+      life: 0,
+      health: 0,
+      entertainment: 0
+    };
+
+    // 使用 Supabase 查詢分類統計
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const messagesTable = `${tablePrefix}messages`;
+        const tagsTable = `${tablePrefix}tags`;
+
+        // 查詢用戶的所有未完成任務
+        const { data: tasks, error: tasksError } = await supabase
+          .from(messagesTable)
+          .select('id, completed, tag')
+          .eq('user_id', userId)
+          .eq('completed', false)
+          .not('tag', 'is', null);
+
+        if (tasksError) {
+          console.error('❌ [分類統計] 查詢任務錯誤:', tasksError);
+        } else if (tasks) {
+          console.log(`📊 [分類統計] 找到 ${tasks.length} 個未完成任務`);
+
+          // 根據標籤名稱統計分類
+          tasks.forEach(task => {
+            const tagName = task.tag || '';
+            console.log(`📊 [分類統計] 處理任務標籤: "${tagName}"`);
+
+            // 根據標籤內容判斷分類
+            if (tagName.includes('工作')) {
+              categoryCounts.work++;
+            } else if (tagName.includes('學習') || tagName.includes('讀書')) {
+              categoryCounts.study++;
+            } else if (tagName.includes('運動') || tagName.includes('健康') || tagName.includes('走路')) {
+              categoryCounts.health++;
+            } else if (tagName.includes('娛樂') || tagName.includes('遊戲')) {
+              categoryCounts.entertainment++;
+            } else {
+              // 預設歸類到生活雜事
+              categoryCounts.life++;
+            }
+          });
+        }
+
+        console.log(`✅ [分類統計] 統計完成:`, categoryCounts);
+        res.json(categoryCounts);
+
+      } catch (dbError) {
+        console.error('❌ [分類統計] 資料庫錯誤:', dbError);
+        res.json(categoryCounts); // 返回空統計
+      }
+    } else {
+      console.log('⚠️ [分類統計] Supabase 未連接，返回空統計');
+      res.json(categoryCounts);
+    }
+
+  } catch (err) {
+    console.error('❌ [分類統計] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
