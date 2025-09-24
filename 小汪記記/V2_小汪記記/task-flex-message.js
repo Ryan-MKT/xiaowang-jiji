@@ -169,19 +169,6 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
           layout: 'vertical',
           flex: 1,
           contents: taskBoxContents
-        },
-        {
-          type: 'text',
-          text: task.favorited ? '★' : '☆',
-          size: 'md',
-          color: '#000000',
-          flex: 0,
-          margin: 'xs',
-          action: {
-            type: 'message',
-            label: '收藏任務',
-            text: `收藏任務_${task.id}`
-          }
         }
       ]
     });
@@ -223,7 +210,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
-        backgroundColor: '#FFF8DC',
+        backgroundColor: '#FFFFFF',
         contents: taskContents.concat([
           {
             type: 'separator',
@@ -315,7 +302,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             contents: [
               {
                 type: 'text',
-                text: '🏷️ 展開標籤',
+                text: '𕸘🏷️ 展開標籤',
                 size: 'sm',
                 color: '#FFFFFF',
                 align: 'center',
@@ -483,7 +470,7 @@ function generateQuickReply(userTags) {
       type: 'action',
       action: {
         type: 'message',
-        label: `${tag.icon || '🏷️'} ${tag.name}`,
+        label: `${tag.icon || '𕸘🏷️'} ${tag.name}`,
         text: tag.name
       }
     }));
@@ -661,13 +648,13 @@ function createTagBubble(tagName, tasks, userTags = null) {
   console.log(`🏷️ [標籤BUBBLE] 為標籤"${tagName}"生成BUBBLE頁面，包含${tasks.length}個任務`);
 
   // 尋找標籤的圖標和顏色
-  let tagIcon = '🏷️';
+  let tagIcon = '𕸘🏷️';
   let tagColor = '#4169E1';
 
   if (userTags && Array.isArray(userTags)) {
     const userTag = userTags.find(tag => tag.name === tagName);
     if (userTag) {
-      tagIcon = userTag.icon || '🏷️';
+      tagIcon = userTag.icon || '𕸘🏷️';
       tagColor = userTag.color || '#4169E1';
     }
   }
@@ -721,19 +708,6 @@ function createTagBubble(tagName, tasks, userTags = null) {
           layout: 'vertical',
           flex: 1,
           contents: taskBoxContents
-        },
-        {
-          type: 'text',
-          text: task.favorited ? '★' : '☆',
-          size: 'md',
-          color: '#000000',
-          flex: 0,
-          margin: 'xs',
-          action: {
-            type: 'message',
-            label: '收藏任務',
-            text: `收藏任務_${task.id}`
-          }
         },
         {
           type: 'text',
@@ -888,19 +862,6 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
             layout: 'vertical',
             flex: 1,
             contents: taskBoxContents
-          },
-          {
-            type: 'text',
-            text: task.favorited ? '★' : '☆',
-            size: 'md',
-            color: '#000000',
-            flex: 0,
-            margin: 'xs',
-            action: {
-              type: 'message',
-              label: '收藏任務',
-              text: `收藏任務_${task.id}`
-            }
           }
         ]
       });
@@ -1014,7 +975,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
           contents: [
             {
               type: 'text',
-              text: '🏷️ 展開標籤',
+              text: '𕸘🏷️ 展開標籤',
               size: 'sm',
               color: '#FFFFFF',
               align: 'center',
@@ -1083,7 +1044,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
-        backgroundColor: '#FFF8DC',
+        backgroundColor: '#FFFFFF',
         contents: taskContents
       }
     }
@@ -1247,7 +1208,7 @@ function createCollectionsBubble() {
                   },
                   {
                     type: 'text',
-                    text: '🏷️ AI 智能標籤',
+                    text: '𕸘🏷️ AI 智能標籤',
                     size: 'sm',
                     color: '#666666'
                   },
