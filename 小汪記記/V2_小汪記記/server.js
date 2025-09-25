@@ -13,6 +13,8 @@ const axios = require('axios');
 const path = require('path');
 const { setupRoundedImageRoute, generateRoundedImageUrl, clearImageCache } = require('./realtime-rounded-image-api');
 const { createBookmarkSuccessFlexMessage } = require('./flex-message-builder');
+const { generateFrequentTasksFlexMessage } = require('./frequent-tasks-flex-message');
+
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
   const modulePath = require.resolve('./task-flex-message');
@@ -737,6 +739,114 @@ async function handlePostback(event) {
     } else {
       console.log('測試模式：帳戶訊息', accountMessage.text);
       return Promise.resolve(null);
+    }
+  }
+
+  // 處理常用任務按鈕點擊
+  if (postbackData === 'frequent_tasks') {
+    console.log(`⭐ 用戶 ${userId} 點擊常用任務按鈕`);
+
+    try {
+      // 獲取用戶的常用任務
+      const response = await fetch(`http://localhost:3002/api/frequent-tasks/${userId}`);
+
+      if (!response.ok) {
+        throw new Error(`API 請求失敗: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`📋 [常用任務] 獲取到 ${result.count} 個常用任務`);
+
+      // 生成 FLEX MESSAGE
+      const flexMessage = generateFrequentTasksFlexMessage(result.data || []);
+
+      if (client) {
+        return client.replyMessage(event.replyToken, flexMessage);
+      } else {
+        console.log('測試模式：常用任務訊息', flexMessage);
+        return Promise.resolve(null);
+      }
+
+    } catch (error) {
+      console.error('❌ [常用任務] 獲取常用任務失敗:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '⚠️ 獲取常用任務失敗，請稍後再試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 處理從常用任務創建新任務
+  if (postbackData.startsWith('create_task_from_frequent|')) {
+    console.log(`📝 用戶 ${userId} 從常用任務創建新任務`);
+
+    try {
+      const parts = postbackData.split('|');
+      const taskText = parts[1] || '';
+      const tag = parts[2] || '';
+      const note = parts[3] || '';
+
+      console.log(`📝 [從常用創建] 任務: "${taskText}", 標籤: "${tag}", 備註: "${note}"`);
+
+      // 創建新任務ID
+      const taskId = Date.now();
+      const timestamp = new Date().toISOString();
+
+      // 添加到用戶任務堆疊
+      const userTasks = userTaskStacks.get(userId) || [];
+      userTasks.push({
+        text: taskText,
+        id: taskId,
+        timestamp: timestamp,
+        tag: tag || '無',
+        note: note || ''
+      });
+      userTaskStacks.set(userId, userTasks);
+
+      console.log(`✅ [從常用創建] 任務已添加，用戶 ${userId} 目前有 ${userTasks.length} 個任務`);
+
+      // 生成更新後的任務 FLEX MESSAGE
+      const { generateTaskFlexMessage } = getTaskFlexModule();
+      const userTags = await getUserTags(userId);
+      const flexMessage = generateTaskFlexMessage(userTasks, userTags);
+
+      const successMessage = {
+        type: 'text',
+        text: `✅ 已從常用任務創建新任務：\n"${taskText}"\n\n🏷️ 標籤：${tag || '無'}\n📝 備註：${note || '無'}`
+      };
+
+      if (client) {
+        // 先發送成功訊息，再發送更新的任務列表
+        await client.replyMessage(event.replyToken, successMessage);
+        return client.pushMessage(userId, flexMessage);
+      } else {
+        console.log('測試模式：成功創建任務訊息', successMessage.text);
+        console.log('測試模式：更新任務列表', flexMessage);
+        return Promise.resolve(null);
+      }
+
+    } catch (error) {
+      console.error('❌ [從常用創建] 創建任務失敗:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '⚠️ 從常用任務創建新任務失敗，請稍後再試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
     }
   }
 
@@ -3342,7 +3452,7 @@ app.get('/api/get-task', async (req, res) => {
               reminder: taskData.reminder_minutes,
               repeat: taskData.repeat_pattern
             }
-          }, userId);
+          });
         } else {
           console.log(`⚠️ [載入任務] 未找到任務資料: "${taskText}"`);
           res.json({
@@ -3511,6 +3621,154 @@ app.post('/api/save-task', async (req, res) => {
 
   } catch (error) {
     console.error('❌ [儲存任務] 發生錯誤:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+// 加入常用任務 API
+app.post('/api/add-frequent-task', async (req, res) => {
+  try {
+    // 設置響應編碼
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    const userId = req.headers['x-user-id'];
+    const { taskText, tag, note } = req.body;
+
+    console.log(`⭐ [加入常用] 用戶 ${userId} 加入常用任務: "${taskText}"`);
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    if (!taskText?.trim()) {
+      return res.status(400).json({ error: 'Missing task text' });
+    }
+
+    // 確保中文字符正確處理
+    const safeTaskText = Buffer.from(taskText, 'utf8').toString('utf8');
+    const safeTag = tag ? Buffer.from(tag, 'utf8').toString('utf8') : null;
+    const safeNote = note ? Buffer.from(note, 'utf8').toString('utf8') : null;
+
+    // 儲存到數據庫
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const tableName = `${tablePrefix}frequent_tasks`;
+
+        // 如果沒有前綴，強制使用 dev_ 前綴（根據其他表格的命名模式）
+        const actualTableName = tablePrefix ? tableName : 'dev_frequent_tasks';
+
+        console.log(`🔍 [加入常用] tablePrefix: "${tablePrefix}", tableName: "${tableName}", actualTableName: "${actualTableName}"`);
+
+        // 使用 INSERT ON CONFLICT 來避免重複插入
+        const { data, error } = await supabase
+          .from(actualTableName)
+          .upsert([
+            {
+              user_id: userId,
+              task_text: safeTaskText,
+              tag: safeTag,
+              note: safeNote,
+              updated_at: new Date().toISOString(),
+              usage_count: 1
+            }
+          ], {
+            onConflict: 'user_id,task_text',
+            ignoreDuplicates: false
+          })
+          .select();
+
+        if (error) {
+          console.error('❌ [加入常用] 數據庫儲存失敗:', error);
+          return res.status(500).json({ error: 'Database save failed', details: error.message });
+        }
+
+        console.log(`✅ [加入常用] 常用任務儲存成功:`, data);
+
+        res.json({
+          success: true,
+          message: '成功加入常用任務',
+          data: data
+        });
+
+      } catch (dbError) {
+        console.error('❌ [加入常用] 數據庫操作失敗:', dbError);
+        res.status(500).json({ error: 'Database operation failed', details: dbError.message });
+      }
+    } else {
+      console.warn('⚠️ [加入常用] Supabase 未初始化');
+      res.status(500).json({ error: 'Database not available' });
+    }
+
+  } catch (error) {
+    console.error('❌ [加入常用] 發生錯誤:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+// 獲取常用任務 API
+app.get('/api/frequent-tasks/:userId', async (req, res) => {
+  try {
+    // 設置響應編碼
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    const { userId } = req.params;
+
+    console.log(`📋 [獲取常用任務] 用戶 ${userId} 請求常用任務列表`);
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    // 檢查 Supabase 連接
+    if (supabase) {
+      try {
+        // 確定表格名稱
+        const tablePrefix = process.env.SUPABASE_TABLE_PREFIX;
+        const tableName = tablePrefix ? `${tablePrefix}frequent_tasks` : 'frequent_tasks';
+        const actualTableName = tablePrefix ? tableName : 'dev_frequent_tasks';
+
+        console.log(`🔍 [獲取常用任務] tablePrefix: "${tablePrefix}", tableName: "${tableName}", actualTableName: "${actualTableName}"`);
+
+        // 查詢用戶的常用任務
+        const { data, error } = await supabase
+          .from(actualTableName)
+          .select('*')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false })
+          .limit(10); // 限制最多10個常用任務
+
+        if (error) {
+          console.error('❌ [獲取常用任務] 數據庫查詢失敗:', error);
+          return res.status(500).json({ error: 'Database query failed', details: error.message });
+        }
+
+        console.log(`✅ [獲取常用任務] 找到 ${data?.length || 0} 個常用任務`);
+
+        res.json({
+          success: true,
+          message: '成功獲取常用任務',
+          data: data || [],
+          count: data?.length || 0
+        });
+
+      } catch (dbError) {
+        console.error('❌ [獲取常用任務] 數據庫操作失敗:', dbError);
+        res.status(500).json({ error: 'Database operation failed', details: dbError.message });
+      }
+    } else {
+      console.warn('⚠️ [獲取常用任務] Supabase 未初始化');
+      res.status(500).json({ error: 'Database not available' });
+    }
+
+  } catch (error) {
+    console.error('❌ [獲取常用任務] 發生錯誤:', error);
     res.status(500).json({
       error: 'Internal server error',
       message: error.message

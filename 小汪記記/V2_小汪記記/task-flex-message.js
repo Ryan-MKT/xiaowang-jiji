@@ -228,7 +228,12 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 text: '常用',
                 size: 'sm',
                 color: '#666666',
-                flex: 0
+                flex: 0,
+                action: {
+                  type: 'postback',
+                  label: '常用任務',
+                  data: 'frequent_tasks'
+                }
               },
               {
                 type: 'text',

@@ -103,6 +103,8 @@ class GlobalSidebar {
                 'body > .row',
                 'main',
                 '.content-wrapper',
+                '.main-content',
+                '#mainContent',
                 'body'
             ];
 
@@ -138,7 +140,9 @@ class GlobalSidebar {
                 '.container-fluid',
                 'body > .row',
                 'main',
-                '.content-wrapper'
+                '.content-wrapper',
+                '.main-content',
+                '#mainContent'
             ];
 
             selectors.forEach(selector => {

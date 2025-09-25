@@ -925,6 +925,37 @@
             background: #ccc;
             cursor: not-allowed;
         }
+
+        /* 切換開關樣式 */
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #007AFF;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body>
@@ -990,6 +1021,17 @@
             <div class="tag-dropdown" id="tagDropdown">
                 <div class="tag-dropdown-content" id="tagDropdownContent">
                     <!-- 標籤選項將動態載入 -->
+                </div>
+            </div>
+
+            <!-- 常用任務設定 -->
+            <div class="setting-item">
+                <div class="setting-icon">⭐</div>
+                <div class="setting-content">
+                    <span class="setting-label">加入常用</span>
+                    <div class="toggle-switch" onclick="toggleFrequentTask()">
+                        <div class="toggle-slider" id="frequentTaskToggle"></div>
+                    </div>
                 </div>
             </div>
 
@@ -1343,6 +1385,11 @@
                     updateDateDisplay();
                 }
 
+                // 恢復常用任務開關狀態
+                setTimeout(() => {
+                    restoreFrequentTaskState();
+                }, 100); // 小延遲確保 DOM 元素完全載入
+
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('mainContent').classList.remove('hidden');
 
@@ -1541,6 +1588,59 @@
         // 清除時間
         function clearTime() {
             document.getElementById('timePicker').value = '';
+        }
+
+        // 切換常用任務開關
+        function toggleFrequentTask() {
+            const toggle = document.getElementById('frequentTaskToggle');
+            const toggleSwitch = toggle.parentElement;
+
+            if (toggleSwitch.classList.contains('active')) {
+                toggleSwitch.classList.remove('active');
+                console.log('🔄 [常用任務] 關閉常用任務設定');
+
+                // 保存設定到 localStorage
+                if (currentTaskData && currentTaskData.text) {
+                    const frequentKey = `frequent_${liffProfile?.userId}_${currentTaskData.text}`;
+                    localStorage.setItem(frequentKey, 'false');
+                    currentTaskData.isFrequent = false;
+                }
+            } else {
+                toggleSwitch.classList.add('active');
+                console.log('🔄 [常用任務] 開啟常用任務設定');
+
+                // 保存設定到 localStorage
+                if (currentTaskData && currentTaskData.text) {
+                    const frequentKey = `frequent_${liffProfile?.userId}_${currentTaskData.text}`;
+                    localStorage.setItem(frequentKey, 'true');
+                    currentTaskData.isFrequent = true;
+                }
+            }
+        }
+
+        // 恢復常用任務開關狀態
+        function restoreFrequentTaskState() {
+            if (currentTaskData && currentTaskData.text && liffProfile?.userId) {
+                const frequentKey = `frequent_${liffProfile.userId}_${currentTaskData.text}`;
+                const savedState = localStorage.getItem(frequentKey);
+
+                console.log(`🔄 [恢復狀態] 任務: "${currentTaskData.text}", 儲存狀態: ${savedState}`);
+
+                const toggle = document.getElementById('frequentTaskToggle');
+                const toggleSwitch = toggle?.parentElement;
+
+                if (toggleSwitch) {
+                    if (savedState === 'true') {
+                        toggleSwitch.classList.add('active');
+                        currentTaskData.isFrequent = true;
+                        console.log('✅ [恢復狀態] 開關設為開啟');
+                    } else {
+                        toggleSwitch.classList.remove('active');
+                        currentTaskData.isFrequent = false;
+                        console.log('❌ [恢復狀態] 開關設為關閉');
+                    }
+                }
+            }
         }
 
         // 確認日期時間選擇
@@ -1744,7 +1844,53 @@
                     currentTaskData.note = taskNote;
 
                     console.log('✅ [儲存任務] 儲存成功:', result);
-                    await showAlert('儲存成功', '任務已成功儲存，TODO LIST 將同步更新！');
+
+                    // 檢查是否需要加入常用任務
+                    const frequentToggle = document.getElementById('frequentTaskToggle');
+                    const toggleSwitch = frequentToggle.parentElement;
+                    const isFrequent = toggleSwitch.classList.contains('active');
+
+                    console.log('🔍 [常用檢查] frequentToggle:', frequentToggle);
+                    console.log('🔍 [常用檢查] toggleSwitch:', toggleSwitch);
+                    console.log('🔍 [常用檢查] toggleSwitch classes:', toggleSwitch.classList.toString());
+                    console.log('🔍 [常用檢查] isFrequent:', isFrequent);
+
+                    if (isFrequent) {
+                        try {
+                            console.log('⭐ [加入常用] 開始加入常用任務...');
+
+                            // 準備常用任務資料
+                            const frequentTaskData = {
+                                taskText: taskTitle,
+                                tag: taskTag !== '無' ? taskTag : null,
+                                note: taskNote || null
+                            };
+
+                            // 發送加入常用請求
+                            const frequentResponse = await fetch('/api/add-frequent-task', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-User-ID': liffProfile.userId
+                                },
+                                body: JSON.stringify(frequentTaskData)
+                            });
+
+                            if (frequentResponse.ok) {
+                                const frequentResult = await frequentResponse.json();
+                                console.log('✅ [加入常用] 加入常用任務成功:', frequentResult);
+                                await showAlert('儲存成功', '任務已儲存並加入常用任務列表！');
+                            } else {
+                                console.warn('⚠️ [加入常用] 加入常用任務失敗');
+                                await showAlert('儲存成功', '任務已儲存，但加入常用任務失敗！');
+                            }
+                        } catch (frequentError) {
+                            console.error('❌ [加入常用] 加入常用任務時發生錯誤:', frequentError);
+                            await showAlert('儲存成功', '任務已儲存，但加入常用任務失敗！');
+                        }
+                    } else {
+                        await showAlert('儲存成功', '任務已成功儲存，TODO LIST 將同步更新！');
+                    }
 
                     // 延遲關閉視窗，讓用戶看到成功訊息
                     setTimeout(() => {
