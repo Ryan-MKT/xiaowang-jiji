@@ -20,6 +20,7 @@ function getTaskFlexModule() {
   return require('./task-flex-message');
 }
 
+
 // 用戶任務堆疊儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{text: string, id: number, timestamp: string}>>
 const userTaskStacks = new Map();
@@ -93,10 +94,6 @@ function createSingleFavoriteBubble(favorite) {
   } else {
     displayImage = 'https://picsum.photos/400/300';
     console.log(`🖼️ [收藏卡片-單張] 無圖片，使用預設圖片`);
-    console.log(`🎯 [修改確認] aspectRatio 1:1 已添加到單張卡片`);
-  console.log(`🔥 [強制重載] FLEX MESSAGE 使用最新 1:1 格式 - ${new Date().toISOString()}`);
-  console.log(`🚨 [緊急重啟] 強制重啟服務器載入最新程式碼`);
-  setTimeout(() => process.exit(1), 100);
   }
 
   return {
@@ -399,7 +396,7 @@ async function handlePostback(event) {
       
       if (client) {
         // 先發送恭喜訊息，再發送更新的任務清單
-        await client.replyMessage(event.replyToken, congratsMessage);
+        await replyWithQuickReply(client, event.replyToken, congratsMessage, userId);
         return client.pushMessage(userId, updatedFlexMessage);
       } else {
         console.log('測試模式：恭喜訊息', congratsMessage.text);
@@ -484,7 +481,7 @@ async function handlePostback(event) {
           waitingForTag: true,
           targetTaskId: taskId,
           timestamp: Date.now()
-        });
+        }, userId);
         console.log(`🏷️ [標籤選擇] 用戶 ${userId} 進入標籤選擇狀態，目標任務 ID: ${taskId}`);
         
         // 準備標籤詢問訊息（包含 Quick Reply 按鈕）
@@ -497,7 +494,7 @@ async function handlePostback(event) {
         };
         
         // 只發送詢問標籤的訊息，不更新 FLEX MESSAGE
-        return client.replyMessage(event.replyToken, tagQuestionMessage);
+        return replyWithQuickReply(client, event.replyToken, tagQuestionMessage, userId);
       } else {
         console.log('測試模式：標籤詢問訊息（含 Quick Reply）', '希望收藏到哪個標籤?');
         return Promise.resolve(null);
@@ -539,7 +536,7 @@ async function handlePostback(event) {
           error: error?.message || null,
           dataCount: data?.length || 0,
           firstItem: data?.[0] || null
-        });
+        }, userId);
 
         if (!error && data) {
           todayFavorites = data;
@@ -583,7 +580,7 @@ async function handlePostback(event) {
         };
 
         if (client) {
-          return client.replyMessage(event.replyToken, noFavoritesMessage);
+          return replyWithQuickReply(client, event.replyToken, noFavoritesMessage, userId);
         } else {
           console.log('測試模式：無收藏訊息', JSON.stringify(noFavoritesMessage, null, 2));
           return Promise.resolve(null);
@@ -594,7 +591,7 @@ async function handlePostback(event) {
       const favoritesFlexMessage = await createFavoritesFlexMessage(todayFavorites);
 
       if (client) {
-        return client.replyMessage(event.replyToken, favoritesFlexMessage);
+        return replyWithQuickReply(client, event.replyToken, favoritesFlexMessage, userId);
       } else {
         console.log('測試模式：收藏卡片 FLEX MESSAGE', JSON.stringify(favoritesFlexMessage, null, 2));
         return Promise.resolve(null);
@@ -609,7 +606,7 @@ async function handlePostback(event) {
       };
 
       if (client) {
-        return client.replyMessage(event.replyToken, errorMessage);
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
       } else {
         return Promise.resolve(null);
       }
@@ -626,7 +623,7 @@ async function handlePostback(event) {
     };
 
     if (client) {
-      return client.replyMessage(event.replyToken, calendarMessage);
+      return replyWithQuickReply(client, event.replyToken, calendarMessage, userId);
     } else {
       console.log('測試模式：日曆訊息', calendarMessage.text);
       return Promise.resolve(null);
@@ -695,7 +692,7 @@ async function handlePostback(event) {
         };
 
         if (client) {
-          return client.replyMessage(event.replyToken, noFavoritesMessage);
+          return replyWithQuickReply(client, event.replyToken, noFavoritesMessage, userId);
         } else {
           console.log('測試模式：無收藏訊息', JSON.stringify(noFavoritesMessage, null, 2));
           return Promise.resolve(null);
@@ -705,7 +702,7 @@ async function handlePostback(event) {
       const favoritesFlexMessage = await createFavoritesFlexMessage(todayFavorites);
 
       if (client) {
-        return client.replyMessage(event.replyToken, favoritesFlexMessage);
+        return replyWithQuickReply(client, event.replyToken, favoritesFlexMessage, userId);
       } else {
         console.log('測試模式：收藏卡片 FLEX MESSAGE', JSON.stringify(favoritesFlexMessage, null, 2));
         return Promise.resolve(null);
@@ -719,7 +716,7 @@ async function handlePostback(event) {
       };
 
       if (client) {
-        return client.replyMessage(event.replyToken, errorMessage);
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
       } else {
         return Promise.resolve(null);
       }
@@ -736,7 +733,7 @@ async function handlePostback(event) {
     };
 
     if (client) {
-      return client.replyMessage(event.replyToken, accountMessage);
+      return replyWithQuickReply(client, event.replyToken, accountMessage, userId);
     } else {
       console.log('測試模式：帳戶訊息', accountMessage.text);
       return Promise.resolve(null);
@@ -795,6 +792,62 @@ function getDefaultUserTags() {
     { id: 7, name: 'AI', color: '#9B59B6', icon: '🤖', sort_order: 4, is_active: true },
     { id: 9, name: '日本', color: '#E74C3C', icon: '🗾', sort_order: 5, is_active: true }
   ];
+}
+
+// 通用的回覆函數，自動添加 Quick Reply 按鈕 - 100% 強制顯示
+async function replyWithQuickReply(client, replyToken, message, userId) {
+  try {
+    // 💪 強制添加 Quick Reply 按鈕 - 永遠覆蓋現有設定
+    const userTags = await getUserTags(userId);
+    const { generateQuickReply } = getTaskFlexModule();
+    const quickReply = generateQuickReply(userTags);
+
+    if (quickReply && quickReply.items && quickReply.items.length > 0) {
+      message.quickReply = quickReply;
+      console.log('🎯 [Quick Reply] 強制添加 Quick Reply 按鈕，確保永遠顯示');
+    } else {
+      console.log('⚠️ [Quick Reply] 無法生成 Quick Reply 按鈕');
+    }
+
+    return client.replyMessage(replyToken, message);
+  } catch (error) {
+    console.error('❌ [Quick Reply] 添加失敗:', error);
+    // 即使失敗，也嘗試添加基本的 Quick Reply
+    try {
+      message.quickReply = {
+        items: [
+          {
+            type: 'action',
+            action: {
+              type: 'postback',
+              label: '📅 日曆',
+              data: 'calendar_view'
+            }
+          },
+          {
+            type: 'action',
+            action: {
+              type: 'postback',
+              label: '⭐ 收藏',
+              data: 'show_favorites'
+            }
+          },
+          {
+            type: 'action',
+            action: {
+              type: 'postback',
+              label: '👤 我的',
+              data: 'my_account'
+            }
+          }
+        ]
+      };
+      console.log('🛟 [Quick Reply] 使用備用 Quick Reply 按鈕');
+    } catch (backupError) {
+      console.error('❌ [Quick Reply] 備用按鈕也失敗:', backupError);
+    }
+    return client.replyMessage(replyToken, message);
+  }
 }
 
 // 語音轉文字處理函數
@@ -862,7 +915,7 @@ async function processAudioMessage(event) {
           ],
           max_tokens: 500,
           temperature: 0
-        });
+        }, userId);
         
         const convertedText = conversionResponse.choices[0].message.content.trim();
         if (convertedText && convertedText !== transcribedText) {
@@ -943,7 +996,7 @@ async function handleEvent(event) {
         text: '抱歉，語音轉文字功能暫時無法使用，請嘗試發送文字訊息。'
       };
       
-      return client.replyMessage(event.replyToken, errorReply);
+      return replyWithQuickReply(client, event.replyToken, errorReply, userId);
     }
   } else {
     // 其他類型訊息不處理
@@ -1048,7 +1101,7 @@ async function handleEvent(event) {
       }
     };
 
-    return client.replyMessage(event.replyToken, premiumCardMessage);
+    return replyWithQuickReply(client, event.replyToken, premiumCardMessage, userId);
   }
   
   console.log('🧹 原始訊息:', userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''));
@@ -1128,10 +1181,10 @@ async function handleEvent(event) {
           console.log(`📋 [調試] 最近任務列表:`, recentTasks.map(t => ({ id: t.id, text: t.message_text.substring(0, 50) })));
         }
 
-        return client.replyMessage(event.replyToken, {
+        return replyWithQuickReply(client, event.replyToken, {
           type: 'text',
           text: '❌ 找不到指定的任務'
-        });
+        }, userId);
       }
 
       console.log(`📝 找到任務: ${taskData.message_text}`);
@@ -1272,12 +1325,12 @@ async function handleEvent(event) {
       };
 
       // 發送 Flex Message
-      await client.replyMessage(event.replyToken, flexMessage);
+      await replyWithQuickReply(client, event.replyToken, flexMessage, userId);
       console.log(`✅ 圓角圖片 Flex Message 發送成功`);
 
     } catch (error) {
       console.error('❌ 圓角圖片處理失敗:', error);
-      await client.replyMessage(event.replyToken, {
+      await replyWithQuickReply(client, event.replyToken, {
         type: 'text',
         text: '❌ 圓角圖片處理失敗，請稍後再試'
       });
@@ -1336,7 +1389,7 @@ async function handleEvent(event) {
           console.log(`✅ [自動收藏] 連結已成功儲存到收藏卡: ${cleanedMessage}`);
 
           // 直接回傳 FLEX MESSAGE
-          return client.replyMessage(event.replyToken,
+          return replyWithQuickReply(client, event.replyToken,
             createBookmarkSuccessFlexMessage(cleanedMessage)
           );
         } else {
@@ -1344,14 +1397,14 @@ async function handleEvent(event) {
         }
       } catch (error) {
         console.error('❌ [自動收藏] 收藏失敗:', error);
-        return client.replyMessage(event.replyToken, {
+        return replyWithQuickReply(client, event.replyToken, {
           type: 'text',
           text: '❌ 連結收藏失敗，請稍後再試'
-        });
+        }, userId);
       }
     } else {
       console.log('📝 [自動收藏] 資料庫未連接，無法收藏連結');
-      return client.replyMessage(event.replyToken, {
+      return replyWithQuickReply(client, event.replyToken, {
         type: 'text',
         text: '❌ 資料庫未連接，無法收藏連結'
       });
@@ -1398,7 +1451,7 @@ async function handleEvent(event) {
             userId,
             userMessage: cleanedMessage,
             tag: detectedTag || '無標籤'
-          });
+          }, userId);
         }
       } catch (err) {
         console.error('資料庫連線錯誤:', err);
@@ -1459,10 +1512,10 @@ async function handleEvent(event) {
 
       if (!task) {
         console.error('❌ [收藏卡] 無法找到任務');
-        return client.replyMessage(event.replyToken, {
+        return replyWithQuickReply(client, event.replyToken, {
           type: 'text',
           text: '❌ 找不到該任務，無法加入收藏卡'
-        });
+        }, userId);
       }
 
       // 建立收藏卡資料
@@ -1523,7 +1576,7 @@ async function handleEvent(event) {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ url: url })
-                    });
+                    }, userId);
 
                     if (response.ok) {
                       const apiResult = await response.json();
@@ -1566,10 +1619,10 @@ async function handleEvent(event) {
             } catch (autoError) {
               console.error(`LINE Bot自動預覽背景處理失敗: ${autoError.message}`);
             }
-          });
+          }, userId);
         }
 
-        return client.replyMessage(event.replyToken,
+        return replyWithQuickReply(client, event.replyToken,
           createBookmarkSuccessFlexMessage(task.message_text)
         );
       } else {
@@ -1578,7 +1631,7 @@ async function handleEvent(event) {
 
     } catch (error) {
       console.error('❌ [收藏卡] 加入失敗:', error);
-      return client.replyMessage(event.replyToken, {
+      return replyWithQuickReply(client, event.replyToken, {
         type: 'text',
         text: '❌ 加入收藏卡失敗，請稍後再試'
       });
@@ -1628,7 +1681,7 @@ async function handleEvent(event) {
       text: `🎛️ 任務功能選單 (ID: ${taskId})\n\n請選擇要執行的功能：\n• 編輯任務內容\n• 設定提醒時間\n• 移動到其他分類\n• 複製任務\n• 分享任務`
     };
 
-    return client.replyMessage(event.replyToken, functionMenuMessage);
+    return replyWithQuickReply(client, event.replyToken, functionMenuMessage, userId);
   }
 
   // 特殊指令：任務更新完成，重新生成任務堆疊
@@ -1681,7 +1734,7 @@ async function handleEvent(event) {
         
         if (client) {
           try {
-            return client.replyMessage(event.replyToken, taskStackFlexMessage);
+            return replyWithQuickReply(client, event.replyToken, taskStackFlexMessage, userId);
           } catch (replyError) {
             console.error('❌ Flex Message 發送失敗:', replyError);
             // 發送簡單文字訊息作為備用
@@ -1689,7 +1742,7 @@ async function handleEvent(event) {
               type: 'text',
               text: `✅ 任務已同步更新，共 ${cleanedTasks.length} 個任務`
             };
-            return client.replyMessage(event.replyToken, fallbackMessage);
+            return replyWithQuickReply(client, event.replyToken, fallbackMessage, userId);
           }
         } else {
           console.log('測試模式：回覆同步後的任務堆疊 Flex Message');
@@ -1707,7 +1760,7 @@ async function handleEvent(event) {
           const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
           
           if (client) {
-            return client.replyMessage(event.replyToken, taskStackFlexMessage);
+            return replyWithQuickReply(client, event.replyToken, taskStackFlexMessage, userId);
           } else {
             console.log('測試模式：回覆任務堆疊 Flex Message（解析失敗）');
             return Promise.resolve(null);
@@ -1720,7 +1773,7 @@ async function handleEvent(event) {
           };
           
           if (client) {
-            return client.replyMessage(event.replyToken, noTaskMessage);
+            return replyWithQuickReply(client, event.replyToken, noTaskMessage, userId);
           } else {
             console.log('測試模式：沒有任務（解析失敗）');
             return Promise.resolve(null);
@@ -1741,7 +1794,7 @@ async function handleEvent(event) {
         console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
         
         if (client) {
-          return client.replyMessage(event.replyToken, taskStackFlexMessage);
+          return replyWithQuickReply(client, event.replyToken, taskStackFlexMessage, userId);
         } else {
           console.log('測試模式：回覆任務堆疊 Flex Message');
           return Promise.resolve(null);
@@ -1754,7 +1807,7 @@ async function handleEvent(event) {
         };
         
         if (client) {
-          return client.replyMessage(event.replyToken, noTaskMessage);
+          return replyWithQuickReply(client, event.replyToken, noTaskMessage, userId);
         } else {
           console.log('測試模式：沒有任務');
           return Promise.resolve(null);
@@ -1806,7 +1859,7 @@ async function handleEvent(event) {
       const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
       
       if (client) {
-        return client.replyMessage(event.replyToken, updatedFlexMessage);
+        return replyWithQuickReply(client, event.replyToken, updatedFlexMessage, userId);
       } else {
         console.log('測試模式：發送標記後的任務堆疊');
         return Promise.resolve(null);
@@ -1821,7 +1874,7 @@ async function handleEvent(event) {
       };
       
       if (client) {
-        return client.replyMessage(event.replyToken, errorMessage);
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
       } else {
         console.log('測試模式：任務不存在錯誤');
         return Promise.resolve(null);
@@ -1855,7 +1908,7 @@ async function handleEvent(event) {
           ],
           max_tokens: 150,
           temperature: 0.7,
-        });
+        }, userId);
         
         aiResponse = completion.choices[0].message.content;
         console.log('✅ AI 回覆生成成功');
@@ -1879,7 +1932,7 @@ async function handleEvent(event) {
     };
     
     if (client) {
-      return client.replyMessage(event.replyToken, replyMessage);
+      return replyWithQuickReply(client, event.replyToken, replyMessage, userId);
     } else {
       console.log('測試模式：回覆訊息', replyMessage.text);
       return Promise.resolve(null);
@@ -1911,7 +1964,7 @@ async function handleEvent(event) {
           console.log('✅ [任務預覽] 成功取得預覽資訊:', {
             title: previewResult.title,
             description: previewResult.description?.substring(0, 50) + '...'
-          });
+          }, userId);
         }
       } catch (error) {
         console.log('⚠️ [任務預覽] 取得預覽資訊失敗:', error.message);
@@ -1958,7 +2011,7 @@ async function handleEvent(event) {
             const actionType = icon.action?.type || 'none';
             const actionData = icon.action?.data || icon.action?.uri || 'none';
             console.log(`    - ICON ${iconIdx + 1}: ${icon.text} (${actionType}: ${actionData})`);
-          });
+          }, userId);
         }
       }
     });
@@ -1982,19 +2035,19 @@ async function handleEvent(event) {
     
     if (client) {
       console.log('🚀 [FLEX SEND] 開始發送 FLEX MESSAGE 到 LINE...');
-      return client.replyMessage(event.replyToken, flexMessage)
+      return replyWithQuickReply(client, event.replyToken, flexMessage, userId)
         .then(result => {
           console.log('✅ [FLEX SEND] FLEX MESSAGE 發送成功!', {
             requestId: result['x-line-request-id'],
             sentMessages: result.sentMessages?.length || 0
-          });
+          }, userId);
           return result;
         })
         .catch(error => {
           console.error('❌ [FLEX SEND] FLEX MESSAGE 發送失敗:', error);
           console.error('❌ [FLEX ERROR] 錯誤詳情:', error.message);
           throw error;
-        });
+        }, userId);
     } else {
       console.log('測試模式：任務堆疊 Flex Message', JSON.stringify(flexMessage, null, 2));
       return Promise.resolve(null);
@@ -2236,7 +2289,7 @@ app.post('/api/collections', async (req, res) => {
         }, {
           headers: { 'Content-Type': 'application/json' },
           timeout: 30000
-        });
+        }, userId);
 
         let analysisResult;
         if (previewResponse.data.success && previewResponse.data.data) {
@@ -2320,7 +2373,7 @@ app.post('/api/collections', async (req, res) => {
             }, {
               headers: { 'Content-Type': 'application/json' },
               timeout: 60000
-            });
+            }, userId);
 
             if (apiResponse.data.success && apiResponse.data.data) {
               const analysisResult = apiResponse.data.data;
@@ -2365,7 +2418,7 @@ app.post('/api/collections', async (req, res) => {
           } catch (error) {
             console.error(`❌ [背景AI分析] 收藏卡 ${result.data.id} 處理出錯:`, error.message);
           }
-        });
+        }, userId);
       }
 
       res.json(result);
@@ -2419,7 +2472,7 @@ app.post('/api/collections/:userId', async (req, res) => {
         }, {
           headers: { 'Content-Type': 'application/json' },
           timeout: 30000
-        });
+        }, userId);
 
         let analysisResult;
         if (previewResponse.data.success && previewResponse.data.data) {
@@ -2503,7 +2556,7 @@ app.post('/api/collections/:userId', async (req, res) => {
             }, {
               headers: { 'Content-Type': 'application/json' },
               timeout: 60000
-            });
+            }, userId);
 
             if (apiResponse.data.success && apiResponse.data.data) {
               const analysisResult = apiResponse.data.data;
@@ -2550,7 +2603,7 @@ app.post('/api/collections/:userId', async (req, res) => {
           } catch (autoError) {
             console.error(`❌ [背景AI分析] 收藏卡 ${result.data.id} 處理失敗: ${autoError.message}`);
           }
-        });
+        }, userId);
       }
 
       res.json({ success: true, data: result.data });
@@ -3276,7 +3329,7 @@ app.get('/api/get-task', async (req, res) => {
             scheduled_date: taskData.scheduled_date,
             reminder_minutes: taskData.reminder_minutes,
             repeat_pattern: taskData.repeat_pattern
-          });
+          }, userId);
 
           res.json({
             success: true,
@@ -3289,7 +3342,7 @@ app.get('/api/get-task', async (req, res) => {
               reminder: taskData.reminder_minutes,
               repeat: taskData.repeat_pattern
             }
-          });
+          }, userId);
         } else {
           console.log(`⚠️ [載入任務] 未找到任務資料: "${taskText}"`);
           res.json({
@@ -3302,7 +3355,7 @@ app.get('/api/get-task', async (req, res) => {
               reminder: null,
               repeat: null
             }
-          });
+          }, userId);
         }
       } catch (dbError) {
         console.error('❌ [載入任務] 數據庫錯誤:', dbError);
@@ -3458,6 +3511,83 @@ app.post('/api/save-task', async (req, res) => {
 
   } catch (error) {
     console.error('❌ [儲存任務] 發生錯誤:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+// 刪除任務 API
+app.delete('/api/delete-task/:taskId', async (req, res) => {
+  try {
+    // 設置響應編碼
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+    const userId = req.headers['x-user-id'];
+    const { taskId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing user ID' });
+    }
+
+    if (!taskId) {
+      return res.status(400).json({ error: 'Missing task ID' });
+    }
+
+    console.log(`🗑️ [刪除任務] 用戶 ${userId} 刪除任務 ID: ${taskId}`);
+
+    // 從記憶體中移除任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskIndex = userTasks.findIndex(task => task.id === taskId);
+
+    if (taskIndex !== -1) {
+      const deletedTask = userTasks.splice(taskIndex, 1)[0];
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [刪除任務] 記憶體任務已移除: ${deletedTask.text}`);
+    } else {
+      console.log(`⚠️ [刪除任務] 在記憶體中未找到任務 ID: ${taskId}`);
+    }
+
+    // 從數據庫中刪除任務記錄
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const tableName = tablePrefix + 'messages';
+
+        // 根據任務ID刪除數據庫記錄
+        const { data, error } = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', taskId)
+          .eq('user_id', userId)
+          .select();
+
+        if (error) {
+          console.error('❌ [刪除任務] 數據庫刪除失敗:', error);
+          return res.status(500).json({ error: 'Database deletion failed' });
+        }
+
+        if (data && data.length > 0) {
+          console.log(`✅ [刪除任務] 數據庫記錄已刪除:`, data[0]);
+        } else {
+          console.log(`⚠️ [刪除任務] 在數據庫中未找到匹配的記錄`);
+        }
+
+      } catch (dbError) {
+        console.error('❌ [刪除任務] 數據庫操作失敗:', dbError);
+        return res.status(500).json({ error: 'Database operation failed' });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: '任務刪除成功',
+      taskId: taskId
+    });
+
+  } catch (error) {
+    console.error('❌ [刪除任務] 發生錯誤:', error);
     res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -3757,7 +3887,7 @@ app.get('/api/category-counts', async (req, res) => {
               // 預設歸類到生活雜事
               categoryCounts.life++;
             }
-          });
+          }, userId);
         }
 
         console.log(`✅ [分類統計] 統計完成:`, categoryCounts);

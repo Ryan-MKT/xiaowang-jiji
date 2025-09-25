@@ -2020,15 +2020,11 @@
                 console.log('🗑️ [刪除任務] 開始刪除:', currentEditingTaskId);
 
                 // 發送刪除請求到後端
-                const response = await fetch('/api/tasks/delete', {
-                    method: 'POST',
+                const response = await fetch(`/api/delete-task/${currentEditingTaskId}`, {
+                    method: 'DELETE',
                     headers: {
-                        'Content-Type': 'application/json',
                         'X-User-ID': liffProfile ? liffProfile.userId : ''
-                    },
-                    body: JSON.stringify({
-                        taskId: currentEditingTaskId
-                    })
+                    }
                 });
 
                 if (response.ok) {
