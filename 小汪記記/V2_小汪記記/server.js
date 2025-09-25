@@ -984,11 +984,20 @@ async function handlePostback(event) {
         const messages = result.data.map((task) => {
           let taskText = task.task_text || '未命名任務';
 
+          // 限制任務文字長度，避免LINE API 400錯誤
+          if (taskText.length > 300) {
+            taskText = taskText.substring(0, 297) + '...';
+          }
+
           if (task.tag && task.tag !== '無') {
             taskText += `\n🏷️ ${task.tag}`;
           }
           if (task.note && task.note.trim() !== '') {
-            taskText += `\n📝 ${task.note}`;
+            let noteText = task.note.trim();
+            if (noteText.length > 100) {
+              noteText = noteText.substring(0, 97) + '...';
+            }
+            taskText += `\n📝 ${noteText}`;
           }
 
           return {
@@ -997,8 +1006,46 @@ async function handlePostback(event) {
           };
         });
 
+        console.log(`📨 [常用任務] 準備發送 ${messages.length} 則訊息`);
+        messages.forEach((msg, index) => {
+          console.log(`📨 [常用任務] 訊息 ${index + 1}: "${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"`);
+        });
+
         if (client) {
-          return client.replyMessage(event.replyToken, messages);
+          try {
+            // LINE API 限制：一次最多發送5則訊息，所以分批發送
+            if (messages.length <= 5) {
+              const result = await client.replyMessage(event.replyToken, messages);
+              console.log(`✅ [常用任務] 成功發送 ${messages.length} 則訊息`, result);
+              return result;
+            } else {
+              // 分批發送：第一批用 replyMessage，後續用 pushMessage
+              const firstBatch = messages.slice(0, 5);
+              const remainingBatches = [];
+              for (let i = 5; i < messages.length; i += 5) {
+                remainingBatches.push(messages.slice(i, i + 5));
+              }
+
+              console.log(`📨 [常用任務] 分批發送：第一批 ${firstBatch.length} 則，後續 ${remainingBatches.length} 批`);
+
+              // 發送第一批
+              const firstResult = await client.replyMessage(event.replyToken, firstBatch);
+              console.log(`✅ [常用任務] 第一批發送成功`, firstResult);
+
+              // 發送後續批次
+              for (let i = 0; i < remainingBatches.length; i++) {
+                const batch = remainingBatches[i];
+                await new Promise(resolve => setTimeout(resolve, 500)); // 延遲500ms避免API限制
+                const pushResult = await client.pushMessage(event.source.userId, batch);
+                console.log(`✅ [常用任務] 第 ${i + 2} 批發送成功`, pushResult);
+              }
+
+              return firstResult;
+            }
+          } catch (sendError) {
+            console.error('❌ [常用任務] 發送訊息失敗:', sendError);
+            throw sendError;
+          }
         } else {
           console.log('測試模式：常用任務訊息', messages);
           return Promise.resolve(null);
