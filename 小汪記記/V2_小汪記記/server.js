@@ -966,40 +966,43 @@ async function handlePostback(event) {
       const result = await response.json();
       console.log(`📋 [常用任務] 獲取到 ${result.count} 個常用任務`);
 
-      // 生成純文字常用任務訊息
-      let textMessage;
+      // 生成多則獨立常用任務訊息
       if (!result.data || result.data.length === 0) {
-        textMessage = {
+        const emptyMessage = {
           type: 'text',
-          text: '⭐ 常用任務\n\n您還沒有設定任何常用任務\n\n💡 提示：在編輯任務時開啟「加入常用」開關，即可將任務加入常用列表'
+          text: '您還沒有設定任何常用任務\n\n💡 提示：在編輯任務時開啟「加入常用」開關，即可將任務加入常用列表'
         };
-      } else {
-        let messageText = `⭐ 常用任務 (共 ${result.data.length} 個)\n\n`;
 
-        result.data.forEach((task, index) => {
-          messageText += `${index + 1}. ${task.task_text || '未命名任務'}`;
+        if (client) {
+          return client.replyMessage(event.replyToken, emptyMessage);
+        } else {
+          console.log('測試模式：無常用任務訊息', emptyMessage);
+          return Promise.resolve(null);
+        }
+      } else {
+        // 為每個常用任務創建獨立訊息
+        const messages = result.data.map((task) => {
+          let taskText = task.task_text || '未命名任務';
+
           if (task.tag && task.tag !== '無') {
-            messageText += `\n   🏷️ ${task.tag}`;
+            taskText += `\n🏷️ ${task.tag}`;
           }
           if (task.note && task.note.trim() !== '') {
-            messageText += `\n   📝 ${task.note}`;
+            taskText += `\n📝 ${task.note}`;
           }
-          messageText += '\n\n';
+
+          return {
+            type: 'text',
+            text: taskText
+          };
         });
 
-        messageText += '💡 您可以直接複製上方任何任務內容使用';
-
-        textMessage = {
-          type: 'text',
-          text: messageText
-        };
-      }
-
-      if (client) {
-        return client.replyMessage(event.replyToken, textMessage);
-      } else {
-        console.log('測試模式：常用任務訊息', textMessage);
-        return Promise.resolve(null);
+        if (client) {
+          return client.replyMessage(event.replyToken, messages);
+        } else {
+          console.log('測試模式：常用任務訊息', messages);
+          return Promise.resolve(null);
+        }
       }
 
     } catch (error) {
