@@ -13,7 +13,216 @@ const axios = require('axios');
 const path = require('path');
 const { setupRoundedImageRoute, generateRoundedImageUrl, clearImageCache } = require('./realtime-rounded-image-api');
 const { createBookmarkSuccessFlexMessage } = require('./flex-message-builder');
-const { generateFrequentTasksFlexMessage } = require('./frequent-tasks-flex-message');
+// 動態載入frequent-tasks-flex-message模組以支援熱重載（和其他FLEX MESSAGE一樣）
+function getFrequentTasksFlexModule() {
+  const modulePath = require.resolve('./frequent-tasks-flex-message');
+  delete require.cache[modulePath];
+  return require('./frequent-tasks-flex-message');
+}
+
+// 直接內嵌的常用任務FLEX MESSAGE生成函數（包含複製按鈕）
+function generateFrequentTasksFlexMessageInline(frequentTasks) {
+  console.log(`🎨 [常用任務FLEX內嵌] 開始生成 ${frequentTasks.length} 個常用任務的 FLEX MESSAGE`);
+
+  // 如果沒有常用任務
+  if (!frequentTasks || frequentTasks.length === 0) {
+    return {
+      type: 'flex',
+      altText: '您還沒有常用任務',
+      contents: {
+        type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '⭐ 常用任務',
+              weight: 'bold',
+              size: 'xl',
+              color: '#333333'
+            }
+          ],
+          paddingBottom: 'md'
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '您還沒有設定任何常用任務',
+              size: 'md',
+              color: '#666666',
+              wrap: true,
+              align: 'center'
+            },
+            {
+              type: 'separator',
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: '💡 提示：在編輯任務時開啟「加入常用」開關，即可將任務加入常用列表',
+              size: 'sm',
+              color: '#999999',
+              wrap: true,
+              margin: 'md'
+            }
+          ]
+        }
+      }
+    };
+  }
+
+  // 生成任務項目
+  const taskContents = [];
+
+  frequentTasks.forEach((task, index) => {
+    // 任務標題行（包含複製按鈕）
+    taskContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'text',
+          text: `${index + 1}.`,
+          size: 'sm',
+          color: '#666666',
+          flex: 0,
+          margin: 'none'
+        },
+        {
+          type: 'text',
+          text: task.task_text || '未命名任務',
+          size: 'md',
+          color: '#333333',
+          weight: 'bold',
+          wrap: true,
+          flex: 1,
+          margin: 'sm',
+          action: {
+            type: 'postback',
+            label: '新增任務',
+            data: `create_task_from_frequent|${task.task_text}|${task.tag || ''}|${task.note || ''}`
+          }
+        },
+        {
+          type: 'text',
+          text: '📋 複製',
+          size: 'xs',
+          color: '#0084ff',
+          flex: 0,
+          align: 'center',
+          action: {
+            type: 'postback',
+            label: '複製任務',
+            data: `copy_frequent_task|${task.task_text}|${task.tag || ''}|${task.note || ''}`
+          }
+        }
+      ],
+      margin: index === 0 ? 'none' : 'md'
+    });
+
+    // 標籤（如果有的話）
+    if (task.tag && task.tag !== '無') {
+      taskContents.push({
+        type: 'text',
+        text: `🏷️ ${task.tag}`,
+        size: 'xs',
+        color: '#0084ff',
+        margin: 'xs'
+      });
+    }
+
+    // 備註（如果有的話）
+    if (task.note && task.note.trim() !== '') {
+      taskContents.push({
+        type: 'text',
+        text: `📝 ${task.note}`,
+        size: 'xs',
+        color: '#666666',
+        wrap: true,
+        margin: 'xs'
+      });
+    }
+
+    // 分隔線（除了最後一個項目）
+    if (index < frequentTasks.length - 1) {
+      taskContents.push({
+        type: 'separator',
+        margin: 'md'
+      });
+    }
+  });
+
+  const flexMessage = {
+    type: 'flex',
+    altText: `⭐ 您的 ${frequentTasks.length} 個常用任務`,
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '⭐ 常用任務',
+            weight: 'bold',
+            size: 'xl',
+            color: '#333333'
+          },
+          {
+            type: 'text',
+            text: `共 ${frequentTasks.length} 個常用任務`,
+            size: 'sm',
+            color: '#666666',
+            margin: 'xs'
+          }
+        ],
+        paddingBottom: 'md'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '點擊任務名稱即可快速新增到待辦清單：',
+            size: 'sm',
+            color: '#666666',
+            wrap: true,
+            margin: 'none'
+          },
+          {
+            type: 'separator',
+            margin: 'md'
+          },
+          ...taskContents
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'button',
+            style: 'secondary',
+            action: {
+              type: 'postback',
+              label: '🔄 重新整理',
+              data: 'frequent_tasks'
+            }
+          }
+        ]
+      }
+    }
+  };
+
+  console.log('✅ [常用任務FLEX內嵌] FLEX MESSAGE 生成完成');
+  return flexMessage;
+}
 
 // 動態載入模組以支援熱重載
 function getTaskFlexModule() {
@@ -757,13 +966,39 @@ async function handlePostback(event) {
       const result = await response.json();
       console.log(`📋 [常用任務] 獲取到 ${result.count} 個常用任務`);
 
-      // 生成 FLEX MESSAGE
-      const flexMessage = generateFrequentTasksFlexMessage(result.data || []);
+      // 生成純文字常用任務訊息
+      let textMessage;
+      if (!result.data || result.data.length === 0) {
+        textMessage = {
+          type: 'text',
+          text: '⭐ 常用任務\n\n您還沒有設定任何常用任務\n\n💡 提示：在編輯任務時開啟「加入常用」開關，即可將任務加入常用列表'
+        };
+      } else {
+        let messageText = `⭐ 常用任務 (共 ${result.data.length} 個)\n\n`;
+
+        result.data.forEach((task, index) => {
+          messageText += `${index + 1}. ${task.task_text || '未命名任務'}`;
+          if (task.tag && task.tag !== '無') {
+            messageText += `\n   🏷️ ${task.tag}`;
+          }
+          if (task.note && task.note.trim() !== '') {
+            messageText += `\n   📝 ${task.note}`;
+          }
+          messageText += '\n\n';
+        });
+
+        messageText += '💡 您可以直接複製上方任何任務內容使用';
+
+        textMessage = {
+          type: 'text',
+          text: messageText
+        };
+      }
 
       if (client) {
-        return client.replyMessage(event.replyToken, flexMessage);
+        return client.replyMessage(event.replyToken, textMessage);
       } else {
-        console.log('測試模式：常用任務訊息', flexMessage);
+        console.log('測試模式：常用任務訊息', textMessage);
         return Promise.resolve(null);
       }
 
@@ -839,6 +1074,56 @@ async function handlePostback(event) {
       const errorMessage = {
         type: 'text',
         text: '⚠️ 從常用任務創建新任務失敗，請稍後再試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 處理複製常用任務
+  if (postbackData.startsWith('copy_frequent_task|')) {
+    console.log(`📋 用戶 ${userId} 點擊複製常用任務按鈕`);
+
+    try {
+      const parts = postbackData.split('|');
+      const taskText = parts[1] || '';
+      const tag = parts[2] || '';
+      const note = parts[3] || '';
+
+      console.log(`📋 [複製常用] 準備複製任務: "${taskText}", 標籤: "${tag}", 備註: "${note}"`);
+
+      // 複製到剪貼簿的文字內容
+      let copyText = taskText;
+      if (tag && tag !== '') {
+        copyText += `\n🏷️ ${tag}`;
+      }
+      if (note && note !== '') {
+        copyText += `\n📝 ${note}`;
+      }
+
+      const copyMessage = {
+        type: 'text',
+        text: `📋 已複製常用任務內容：\n\n${copyText}\n\n💡 提示：您可以將此內容貼到其他地方使用`
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, copyMessage);
+      } else {
+        console.log('測試模式：複製訊息', copyMessage.text);
+        return Promise.resolve(null);
+      }
+
+    } catch (error) {
+      console.error('❌ [複製常用] 複製任務失敗:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '⚠️ 複製常用任務失敗，請稍後再試'
       };
 
       if (client) {

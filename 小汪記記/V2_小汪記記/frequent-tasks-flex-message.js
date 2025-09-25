@@ -58,7 +58,7 @@ function generateFrequentTasksFlexMessage(frequentTasks) {
   const taskContents = [];
 
   frequentTasks.forEach((task, index) => {
-    // 任務標題
+    // 任務標題行（包含複製按鈕）
     taskContents.push({
       type: 'box',
       layout: 'horizontal',
@@ -84,6 +84,19 @@ function generateFrequentTasksFlexMessage(frequentTasks) {
             type: 'postback',
             label: '新增任務',
             data: `create_task_from_frequent|${task.task_text}|${task.tag || ''}|${task.note || ''}`
+          }
+        },
+        {
+          type: 'text',
+          text: '📋 複製',
+          size: 'xs',
+          color: '#0084ff',
+          flex: 0,
+          align: 'center',
+          action: {
+            type: 'postback',
+            label: '複製任務',
+            data: `copy_frequent_task|${task.task_text}|${task.tag || ''}|${task.note || ''}`
           }
         }
       ],

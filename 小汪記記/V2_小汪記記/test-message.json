@@ -1,0 +1,21 @@
+{
+  "to": "U60a346d5ed1a7f6d29b08e1c5bd5e88b",
+  "messages": [
+    {
+      "type": "text",
+      "text": "spacer test",
+      "quickReply": {
+        "items": [
+          {
+            "type": "action",
+            "action": {
+              "type": "postback",
+              "label": "spacer test",
+              "data": "spacer_test"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
