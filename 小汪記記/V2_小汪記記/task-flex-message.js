@@ -218,126 +218,38 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
             color: '#E0E0E0'
           },
           {
-            type: 'text',
-            text: `已完成 ${displayedCompleted} 件，待完成 ${displayedPending} 件`,
-            size: 'xs',
-            color: '#999999',
-            align: 'center',
-            margin: 'md'
-          },
-          {
-            type: 'separator',
-            margin: 'md',
-            color: '#E0E0E0'
-          },
-          {
             type: 'box',
             layout: 'horizontal',
             spacing: 'md',
-            margin: 'md',
+            margin: 'xs',
             contents: [
               {
                 type: 'text',
-                text: '日歷',
+                text: '常用',
                 size: 'sm',
-                color: '#000000',
-                align: 'center',
-                flex: 1,
-                action: {
-                  type: 'uri',
-                  uri: 'https://138b00c20997.ngrok.app/liff/records'
-                }
+                color: '#666666',
+                flex: 0
               },
               {
                 type: 'text',
-                text: '收藏',
+                text: '卡片',
                 size: 'sm',
-                color: '#000000',
-                align: 'center',
-                flex: 1,
-                action: {
-                  type: 'uri',
-                  uri: 'https://138b00c20997.ngrok.app/liff/favorites'
-                }
-              },
-              {
-                type: 'text',
-                text: '我的',
-                size: 'sm',
-                color: '#000000',
-                align: 'center',
-                flex: 1,
-                action: {
-                  type: 'uri',
-                  uri: 'https://138b00c20997.ngrok.app/liff/account'
-                }
-              },
-              {
-                type: 'text',
-                text: '收藏卡',
-                size: 'sm',
-                color: '#000000',
-                align: 'center',
-                flex: 1,
-                action: {
-                  type: 'uri',
-                  uri: 'https://138b00c20997.ngrok.app/liff/collections'
-                }
-              }
-            ]
-          },
-          {
-            type: 'separator',
-            margin: 'md',
-            color: '#E0E0E0'
-          },
-          {
-            type: 'box',
-            layout: 'horizontal',
-            spacing: 'none',
-            margin: 'md',
-            paddingAll: 'sm',
-            backgroundColor: '#667eea',
-            cornerRadius: '8px',
-            contents: [
-              {
-                type: 'text',
-                text: '𕸘🏷️ 展開標籤',
-                size: 'sm',
-                color: '#FFFFFF',
-                align: 'center',
-                weight: 'bold',
-                flex: 1,
+                color: '#666666',
+                flex: 0,
                 action: {
                   type: 'postback',
-                  label: '展開標籤',
-                  data: 'expand_tags'
-                }
-              }
-            ]
-          },
-          {
-            type: 'box',
-            layout: 'horizontal',
-            spacing: 'none',
-            margin: 'md',
-            paddingAll: 'sm',
-            backgroundColor: '#f765a3',
-            cornerRadius: '8px',
-            contents: [
-              {
-                type: 'text',
-                text: '📋 卡片收藏',
-                size: 'sm',
-                color: '#FFFFFF',
-                align: 'center',
-                weight: 'bold',
-                flex: 1,
-                action: {
-                  type: 'postback',
-                  label: '卡片收藏',
+                  label: '卡片',
                   data: 'card_collection'
                 }
+              },
+              {
+                type: 'text',
+                text: '➡︎',
+                size: 'sm',
+                color: '#000000',
+                align: 'end',
+                weight: 'bold',
+                flex: 1
               }
             ]
           }
@@ -450,9 +362,9 @@ function createTaskStatsCard(completedCount, favoriteCount) {
 
 // 生成動態 Quick Reply
 function generateQuickReply(userTags) {
-  console.log(`🔍 [Quick Reply] 生成固定的三個按鈕：日曆、收藏、我的`);
+  console.log(`🔍 [Quick Reply] 生成固定的四個按鈕：日曆、收藏、分析、我的`);
 
-  // 固定的三個Quick Reply按鈕
+  // 固定的四個Quick Reply按鈕
   const quickReplyItems = [
     {
       type: 'action',
@@ -468,6 +380,14 @@ function generateQuickReply(userTags) {
         type: 'uri',
         label: '收藏',
         uri: 'https://138b00c20997.ngrok.app/liff/collections'
+      }
+    },
+    {
+      type: 'action',
+      action: {
+        type: 'message',
+        label: '分析',
+        text: '分析'
       }
     },
     {
@@ -868,12 +788,9 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
       color: '#E0E0E0'
     },
     {
-      type: 'text',
-      text: `已完成 ${displayedCompleted} 件，待完成 ${displayedPending} 件`,
-      size: 'xs',
-      color: '#999999',
-      align: 'center',
-      margin: 'md'
+      type: 'separator',
+      margin: 'md',
+      color: '#E0E0E0'
     },
     {
       type: 'separator',
@@ -886,92 +803,6 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
       spacing: 'sm',
       margin: 'md',
       contents: [
-        {
-          type: 'text',
-          text: '日歷',
-          size: 'xs',
-          color: '#000000',
-          align: 'center',
-          flex: 1,
-          action: {
-            type: 'uri',
-            uri: 'https://138b00c20997.ngrok.app/liff/records'
-          }
-        },
-        {
-          type: 'text',
-          text: '收藏',
-          size: 'xs',
-          color: '#000000',
-          align: 'center',
-          flex: 1,
-          action: {
-            type: 'uri',
-            uri: 'https://138b00c20997.ngrok.app/liff/favorites'
-          }
-        },
-        {
-          type: 'text',
-          text: '收藏卡',
-          size: 'xs',
-          color: '#000000',
-          align: 'center',
-          flex: 1,
-          action: {
-            type: 'uri',
-            uri: 'https://138b00c20997.ngrok.app/liff/collections'
-          }
-        },
-        {
-          type: 'text',
-          text: '我的',
-          size: 'xs',
-          color: '#000000',
-          align: 'center',
-          flex: 1,
-          action: {
-            type: 'uri',
-            uri: 'https://138b00c20997.ngrok.app/liff/account'
-          }
-        }
-      ]
-    },
-    {
-      type: 'separator',
-      margin: 'md',
-      color: '#E0E0E0'
-    },
-    {
-      type: 'box',
-      layout: 'horizontal',
-      spacing: 'sm',
-      margin: 'md',
-      contents: [
-        {
-          type: 'box',
-          layout: 'horizontal',
-          spacing: 'none',
-          paddingAll: 'sm',
-          backgroundColor: '#667eea',
-          cornerRadius: '8px',
-          flex: 1,
-          contents: [
-            {
-              type: 'text',
-              text: '𕸘🏷️ 展開標籤',
-              size: 'sm',
-              color: '#FFFFFF',
-              align: 'center',
-              weight: 'bold',
-              flex: 1,
-              action: {
-                type: 'postback',
-                label: '展開標籤',
-                data: 'expand_tags'
-              }
-            }
-          ]
-        },
         {
           type: 'box',
           layout: 'horizontal',
