@@ -734,6 +734,131 @@ function getTaskFlexModule() {
 // 資料結構: Map<userId, Array<{text: string, id: number, timestamp: string}>>
 const userTaskStacks = new Map();
 
+// 🗓️ 日期過濾幫助函數：只返回今天的任務
+function filterTodayTasks(allTasks) {
+  console.log(`📅 [日期過濾] 開始過濾，總任務數: ${allTasks.length}`);
+
+  // 獲取台灣當前時間的日期字符串 (YYYY-MM-DD)
+  const now = new Date();
+  const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const todayDateString = taiwanNow.toISOString().split('T')[0];
+
+  console.log(`📅 [日期過濾] 今天日期: ${todayDateString}`);
+
+  const todayTasks = allTasks.filter(task => {
+    // 如果沒有預定時間，視為今天的任務
+    if (!task.scheduledDate) {
+      console.log(`📅 [日期過濾] "${task.text}": 無時間 ✅今天`);
+      return true;
+    }
+
+    // 正確解析台灣時區的日期
+    // task.scheduledDate 格式: "2025-09-28T00:00:00+08:00"
+    const taskDateStr = task.scheduledDate;
+
+    // 從 ISO 字符串中提取日期部分
+    let taskDateString;
+    if (taskDateStr.includes('+08:00')) {
+      // 如果已經包含台灣時區，直接提取日期部分
+      taskDateString = taskDateStr.split('T')[0];
+    } else {
+      // 如果沒有時區信息，當作 UTC 處理
+      const taskDate = new Date(taskDateStr);
+      const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+      taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+    }
+
+    const isToday = taskDateString === todayDateString;
+    console.log(`📅 [日期過濾] "${task.text}": ${taskDateString} ${isToday ? '✅今天' : '❌非今天'} (原始: ${taskDateStr})`);
+    return isToday;
+  });
+
+  console.log(`📅 [日期過濾] 過濾結果：總任務數 ${allTasks.length} → 今天任務數 ${todayTasks.length}`);
+  console.log(`📅 [日期過濾] 今天的任務: ${todayTasks.map(t => t.text).join(', ')}`);
+
+  return todayTasks;
+}
+
+// 過濾明天的任務
+function filterTomorrowTasks(allTasks) {
+  console.log(`📅 [明天過濾] 開始過濾，總任務數: ${allTasks.length}`);
+
+  // 獲取台灣明天的日期字符串 (YYYY-MM-DD)
+  const now = new Date();
+  const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const tomorrowDate = new Date(taiwanNow.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowDateString = tomorrowDate.toISOString().split('T')[0];
+
+  console.log(`📅 [明天過濾] 明天日期: ${tomorrowDateString}`);
+
+  const tomorrowTasks = allTasks.filter(task => {
+    // 如果沒有預定時間，不是明天的任務
+    if (!task.scheduledDate) {
+      return false;
+    }
+
+    // 正確解析台灣時區的日期
+    const taskDateStr = task.scheduledDate;
+    let taskDateString;
+    if (taskDateStr.includes('+08:00')) {
+      taskDateString = taskDateStr.split('T')[0];
+    } else {
+      const taskDate = new Date(taskDateStr);
+      const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+      taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+    }
+
+    const isTomorrow = taskDateString === tomorrowDateString;
+    console.log(`📅 [明天過濾] "${task.text}": ${taskDateString} ${isTomorrow ? '✅明天' : '❌非明天'}`);
+    return isTomorrow;
+  });
+
+  console.log(`📅 [明天過濾] 過濾結果：總任務數 ${allTasks.length} → 明天任務數 ${tomorrowTasks.length}`);
+  console.log(`📅 [明天過濾] 明天的任務: ${tomorrowTasks.map(t => t.text).join(', ')}`);
+
+  return tomorrowTasks;
+}
+
+// 過濾後天的任務
+function filterDayAfterTomorrowTasks(allTasks) {
+  console.log(`📅 [後天過濾] 開始過濾，總任務數: ${allTasks.length}`);
+
+  // 獲取台灣後天的日期字符串 (YYYY-MM-DD)
+  const now = new Date();
+  const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const dayAfterTomorrowDate = new Date(taiwanNow.getTime() + 48 * 60 * 60 * 1000);
+  const dayAfterTomorrowDateString = dayAfterTomorrowDate.toISOString().split('T')[0];
+
+  console.log(`📅 [後天過濾] 後天日期: ${dayAfterTomorrowDateString}`);
+
+  const dayAfterTomorrowTasks = allTasks.filter(task => {
+    // 如果沒有預定時間，不是後天的任務
+    if (!task.scheduledDate) {
+      return false;
+    }
+
+    // 正確解析台灣時區的日期
+    const taskDateStr = task.scheduledDate;
+    let taskDateString;
+    if (taskDateStr.includes('+08:00')) {
+      taskDateString = taskDateStr.split('T')[0];
+    } else {
+      const taskDate = new Date(taskDateStr);
+      const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+      taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+    }
+
+    const isDayAfterTomorrow = taskDateString === dayAfterTomorrowDateString;
+    console.log(`📅 [後天過濾] "${task.text}": ${taskDateString} ${isDayAfterTomorrow ? '✅後天' : '❌非後天'}`);
+    return isDayAfterTomorrow;
+  });
+
+  console.log(`📅 [後天過濾] 過濾結果：總任務數 ${allTasks.length} → 後天任務數 ${dayAfterTomorrowTasks.length}`);
+  console.log(`📅 [後天過濾] 後天的任務: ${dayAfterTomorrowTasks.map(t => t.text).join(', ')}`);
+
+  return dayAfterTomorrowTasks;
+}
+
 // 用戶收藏任務儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{id: string, name: string, description: string, category: string, used_count: number, created_at: string}>>
 const userFavoriteTasks = new Map();
@@ -1098,10 +1223,11 @@ async function handlePostback(event) {
         text: `🎉 恭喜！${completedTask.text} 已完成！`
       };
       
-      // 發送更新後的任務清單
+      // 發送更新後的任務清單（只顯示今天的任務）
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+      const todayTasks = filterTodayTasks(userTasks);
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
       
       if (client) {
         // 先發送恭喜訊息，再發送更新的任務清單
@@ -1626,141 +1752,95 @@ async function handlePostback(event) {
     }
   }
 
-  // 處理展開常用任務多頁檢視
+  // 處理展開常用任務多頁檢視 - 今天、明天、後天任務
   if (postbackData === 'expand_frequent_tasks_pages') {
-    console.log(`🎨 用戶 ${userId} 點擊展開3個空白BUBBLE頁面`);
+    console.log(`🎨 用戶 ${userId} 點擊展開3個任務頁面（今天、明天、後天）`);
 
     try {
-      // 獲取用戶任務資料以重建原本的BUBBLE
+      // 獲取用戶任務資料
       let userTasks = userTaskStacks.get(userId) || [];
+      const userTags = await getUserTags(userId);
 
-      // 使用task-flex-message.js的函數重新生成原本的BUBBLE內容
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const originalFlexMessage = createTaskStackFlexMessage(userTasks, await getUserTags(userId));
+      // 分別過濾今天、明天、後天的任務
+      const todayTasks = filterTodayTasks(userTasks);
+      const tomorrowTasks = filterTomorrowTasks(userTasks);
+      const dayAfterTomorrowTasks = filterDayAfterTomorrowTasks(userTasks);
 
-      // 生成4個BUBBLE的carousel FLEX MESSAGE (原本任務 + 3個新頁面)
-      const fourPagesFlexMessage = {
+      // 使用task-flex-message.js的函數生成各頁面
+      const { createTaskStackFlexMessage, generateTomorrowTitle, generateDayAfterTomorrowTitle, generateQuickReply } = getTaskFlexModule();
+
+      // 第1頁：今天的任務
+      const todayFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+
+      // 第2頁：明天的任務
+      const tomorrowFlexMessage = createTaskStackFlexMessage(tomorrowTasks, userTags);
+      // 修改明天頁面的標題
+      const tomorrowTitle = generateTomorrowTitle(tomorrowTasks.length);
+      tomorrowFlexMessage.contents.header.contents[0].text = tomorrowTitle;
+      tomorrowFlexMessage.altText = tomorrowTitle;
+
+      // 第3頁：後天的任務
+      const dayAfterTomorrowFlexMessage = createTaskStackFlexMessage(dayAfterTomorrowTasks, userTags);
+      // 修改後天頁面的標題
+      const dayAfterTomorrowTitle = generateDayAfterTomorrowTitle(dayAfterTomorrowTasks.length);
+      dayAfterTomorrowFlexMessage.contents.header.contents[0].text = dayAfterTomorrowTitle;
+      dayAfterTomorrowFlexMessage.altText = dayAfterTomorrowTitle;
+
+      // 生成3個BUBBLE的carousel FLEX MESSAGE
+      const threePagesFlexMessage = {
         type: 'flex',
-        altText: '任務頁面 + 3個新頁面',
+        altText: '今天、明天、後天任務',
         contents: {
           type: 'carousel',
           contents: [
-            // 第1頁：原本的任務頁面（移除size屬性以符合carousel格式）
+            // 第1頁：今天的任務（移除size屬性以符合carousel格式）
             {
               type: 'bubble',
-              header: originalFlexMessage.contents.header,
-              body: originalFlexMessage.contents.body,
-              footer: originalFlexMessage.contents.footer
+              header: todayFlexMessage.contents.header,
+              body: todayFlexMessage.contents.body,
+              footer: todayFlexMessage.contents.footer
             },
-            // 第2頁：新頁面1
+            // 第2頁：明天的任務
             {
               type: 'bubble',
-              header: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '📄 頁面 2',
-                    weight: 'bold',
-                    size: 'xl',
-                    color: '#333333'
-                  }
-                ]
-              },
-              body: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '這是第二個頁面',
-                    size: 'md',
-                    color: '#666666',
-                    wrap: true
-                  }
-                ]
-              }
+              header: tomorrowFlexMessage.contents.header,
+              body: tomorrowFlexMessage.contents.body,
+              footer: tomorrowFlexMessage.contents.footer
             },
-            // 第3頁：新頁面2
+            // 第3頁：後天的任務
             {
               type: 'bubble',
-              header: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '📄 頁面 3',
-                    weight: 'bold',
-                    size: 'xl',
-                    color: '#333333'
-                  }
-                ]
-              },
-              body: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '這是第三個頁面',
-                    size: 'md',
-                    color: '#666666',
-                    wrap: true
-                  }
-                ]
-              }
-            },
-            // 第4頁：新頁面3
-            {
-              type: 'bubble',
-              header: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '📄 頁面 4',
-                    weight: 'bold',
-                    size: 'xl',
-                    color: '#333333'
-                  }
-                ]
-              },
-              body: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '這是第四個頁面',
-                    size: 'md',
-                    color: '#666666',
-                    wrap: true
-                  }
-                ]
-              }
+              header: dayAfterTomorrowFlexMessage.contents.header,
+              body: dayAfterTomorrowFlexMessage.contents.body,
+              footer: dayAfterTomorrowFlexMessage.contents.footer
             }
           ]
         }
       };
 
-      console.log(`📨 [4頁BUBBLE] 準備發送4頁BUBBLE頁面（原任務+3新頁面）`);
+      // 添加 Quick Reply 按鈕 - 確保4個固定按鈕永遠顯示
+      const quickReply = generateQuickReply(userTags);
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        threePagesFlexMessage.quickReply = quickReply;
+        console.log('🎯 [3頁任務] 附加 Quick Reply 按鈕，確保永遠顯示');
+      }
+
+      console.log(`📨 [3頁任務] 準備發送3頁任務頁面`);
+      console.log(`📊 [3頁任務] 今天: ${todayTasks.length}件, 明天: ${tomorrowTasks.length}件, 後天: ${dayAfterTomorrowTasks.length}件`);
 
       if (client) {
-        return client.replyMessage(event.replyToken, fourPagesFlexMessage);
+        return client.replyMessage(event.replyToken, threePagesFlexMessage);
       } else {
-        console.log('測試模式：4頁BUBBLE FLEX MESSAGE', JSON.stringify(fourPagesFlexMessage, null, 2));
+        console.log('測試模式：3頁任務 FLEX MESSAGE', JSON.stringify(threePagesFlexMessage, null, 2));
         return Promise.resolve(null);
       }
 
     } catch (error) {
-      console.error('❌ [空白BUBBLE] 展開3個空白頁面失敗:', error);
+      console.error('❌ [3頁任務] 展開任務頁面失敗:', error);
 
       const errorMessage = {
         type: 'text',
-        text: '⚠️ 展開頁面失敗，請稍後再試'
+        text: '⚠️ 展開任務頁面失敗，請稍後再試'
       };
 
       if (client) {
@@ -2756,10 +2836,11 @@ async function handleEvent(event) {
         // 更新伺服器端的任務堆疊
         userTaskStacks.set(userId, cleanedTasks);
         
-        // 重新生成任務堆疊 Flex Message
+        // 重新生成任務堆疊 Flex Message（只顯示今天的任務）
         const userTags = await getUserTags(userId);
         const { createTaskStackFlexMessage } = getTaskFlexModule();
-        const taskStackFlexMessage = createTaskStackFlexMessage(cleanedTasks, userTags);
+        const todayTasks = filterTodayTasks(cleanedTasks);
+        const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
         
         console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
         console.log('📝 更新後任務清單:', cleanedTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -2789,7 +2870,8 @@ async function handleEvent(event) {
         if (userTasks.length > 0) {
           const userTags = await getUserTags(userId);
           const { createTaskStackFlexMessage } = getTaskFlexModule();
-          const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+          const todayTasks = filterTodayTasks(userTasks);
+          const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
           
           if (client) {
             return replyWithQuickReply(client, event.replyToken, taskStackFlexMessage, userId);
@@ -2817,10 +2899,11 @@ async function handleEvent(event) {
       let userTasks = userTaskStacks.get(userId) || [];
       
       if (userTasks.length > 0) {
-        // 重新生成任務堆疊 Flex Message
+        // 重新生成任務堆疊 Flex Message（只顯示今天的任務）
         const userTags = await getUserTags(userId);
         const { createTaskStackFlexMessage } = getTaskFlexModule();
-        const taskStackFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+        const todayTasks = filterTodayTasks(userTasks);
+        const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
         
         console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
         console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -2885,10 +2968,11 @@ async function handleEvent(event) {
         }
       }
       
-      // 重新生成任務堆疊 Flex Message
+      // 重新生成任務堆疊 Flex Message（只顯示今天的任務）
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const updatedFlexMessage = createTaskStackFlexMessage(userTasks, userTags);
+      const todayTasks = filterTodayTasks(userTasks);
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
       
       if (client) {
         return replyWithQuickReply(client, event.replyToken, updatedFlexMessage, userId);
@@ -2995,12 +3079,12 @@ async function handleEvent(event) {
               content: `你是時間解析助手。今天是 ${today} (星期${todayWeekday})。
 請解析用戶訊息中的任務內容和時間資訊。
 
-規則：
+重要規則：
 1. 提取任務的核心動作（去除時間相關詞彙）
-2. 解析時間並轉換為台灣時區格式 YYYY-MM-DDTHH:mm:00+08:00
-3. 如果沒有指定日期，默認為今天
-4. 如果說"明天"，則為明天的日期
-5. 如果只有時間沒有日期，使用今天
+2. 只有在用戶明確提到時間時才解析時間，轉換為台灣時區格式 YYYY-MM-DDTHH:mm:00+08:00
+3. 如果用戶沒有明確提到任何時間詞彙，scheduledDate 必須設為 null
+4. 明確的時間詞彙包括：今天、明天、後天、幾點、幾時、上午、下午、晚上、特定日期等
+5. 如果只有時間沒有日期，使用今天的日期
 
 回覆格式（必須是有效JSON）：
 {
@@ -3016,7 +3100,18 @@ async function handleEvent(event) {
 輸出：{"task": "開會", "scheduledDate": "${new Date(taiwanDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T14:00:00+08:00"}
 
 輸入："買牛奶"
-輸出：{"task": "買牛奶", "scheduledDate": null}`
+輸出：{"task": "買牛奶", "scheduledDate": null}
+
+輸入："吃飯"
+輸出：{"task": "吃飯", "scheduledDate": null}
+
+輸入："去運動"
+輸出：{"task": "去運動", "scheduledDate": null}
+
+輸入："睡覺"
+輸出：{"task": "睡覺", "scheduledDate": null}
+
+特別注意：不要為沒有明確時間的日常活動添加時間！`
             },
             {
               role: "user",
@@ -3093,10 +3188,13 @@ async function handleEvent(event) {
     // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
     console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
     
-    // 創建包含所有任務的 Flex Message
+    // 🗓️ 過濾今天的任務來顯示在 Flex Message 中
+    const todayTasks = filterTodayTasks(userTasks);
+
+    // 創建包含今天任務的 Flex Message
     const userTags = await getUserTags(userId);
     const { createTaskStackFlexMessage } = getTaskFlexModule();
-    const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
+    const flexMessage = createTaskStackFlexMessage(todayTasks, userTags);
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;

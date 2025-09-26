@@ -1,5 +1,33 @@
 // 任務 Flex Message 建構器 - 統計卡片功能版本 2025-09-11-23:50-STATS-CARD-LATEST
 
+// 生成帶日期的標題函數
+function generateDateTitle(taskCount) {
+  // 生成標題
+  if (taskCount === 0) {
+    return `今天 0 件事`;
+  } else {
+    return `今天 ${taskCount} 件事`;
+  }
+}
+
+function generateTomorrowTitle(taskCount) {
+  // 生成明天標題
+  if (taskCount === 0) {
+    return `明天 0 件事`;
+  } else {
+    return `明天 ${taskCount} 件事`;
+  }
+}
+
+function generateDayAfterTomorrowTitle(taskCount) {
+  // 生成後天標題
+  if (taskCount === 0) {
+    return `後天 0 件事`;
+  } else {
+    return `後天 ${taskCount} 件事`;
+  }
+}
+
 // 單一任務 Flex Message
 function createTaskFlexMessage(taskText) {
   const timestamp = new Date().toLocaleString('zh-TW', {
@@ -207,10 +235,13 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
     }
   });
 
+  // 生成帶日期的標題
+  const titleText = generateDateTitle(displayedTotal);
+
   // Linus 風格：資料結構簡單，直接附加 Quick Reply
   const flexMessage = {
     type: 'flex',
-    altText: `顯示 ${displayedTotal} 件事`,
+    altText: titleText,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -222,7 +253,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         contents: [
           {
             type: 'text',
-            text: `顯示 ${displayedTotal} 件事`,
+            text: titleText,
             color: '#FFFFFF',
             size: 'md',
             weight: 'bold',
@@ -866,9 +897,12 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
     }
   );
 
+  // 生成帶日期的標題
+  const titleText = generateDateTitle(displayedTotal);
+
   return {
     type: 'flex',
-    altText: `顯示 ${displayedTotal} 件事`,
+    altText: titleText,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -880,7 +914,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         contents: [
           {
             type: 'text',
-            text: `顯示 ${displayedTotal} 件事`,
+            text: titleText,
             color: '#FFFFFF',
             size: 'md',
             weight: 'bold',
@@ -1122,5 +1156,7 @@ module.exports = {
   createMainTaskList,
   parseTasksByTags,
   createTagBubble,
-  createCollectionsBubble
+  createCollectionsBubble,
+  generateTomorrowTitle,
+  generateDayAfterTomorrowTitle
 };
