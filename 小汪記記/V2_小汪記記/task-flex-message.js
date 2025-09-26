@@ -254,7 +254,12 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
                 color: '#000000',
                 align: 'end',
                 weight: 'bold',
-                flex: 1
+                flex: 1,
+                action: {
+                  type: 'postback',
+                  label: '展開更多頁面',
+                  data: 'expand_frequent_tasks_pages'
+                }
               }
             ]
           }

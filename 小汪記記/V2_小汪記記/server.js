@@ -166,11 +166,32 @@ function generateFrequentTasksFlexMessageInline(frequentTasks) {
         layout: 'vertical',
         contents: [
           {
-            type: 'text',
-            text: '⭐ 常用任務',
-            weight: 'bold',
-            size: 'xl',
-            color: '#333333'
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: '⭐ 常用任務',
+                weight: 'bold',
+                size: 'xl',
+                color: '#333333',
+                flex: 1
+              },
+              {
+                type: 'text',
+                text: '➜',
+                size: 'xl',
+                color: '#0084ff',
+                weight: 'bold',
+                flex: 0,
+                gravity: 'center',
+                action: {
+                  type: 'postback',
+                  label: '展開更多頁面',
+                  data: 'expand_frequent_tasks_pages'
+                }
+              }
+            ]
           },
           {
             type: 'text',
@@ -222,6 +243,483 @@ function generateFrequentTasksFlexMessageInline(frequentTasks) {
 
   console.log('✅ [常用任務FLEX內嵌] FLEX MESSAGE 生成完成');
   return flexMessage;
+}
+
+// 生成多頁常用任務 FLEX MESSAGE（1個原有頁面 + 3個新頁面）
+function generateExpandedFrequentTasksFlexMessage(frequentTasks) {
+  console.log(`🎨 [多頁常用任務FLEX] 開始生成多頁 FLEX MESSAGE，包含 ${frequentTasks ? frequentTasks.length : 0} 個常用任務`);
+
+  // 第一頁：原有的常用任務頁面（修改為 carousel 格式）
+  const originalBubble = {
+    type: 'bubble',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '⭐ 常用任務',
+              weight: 'bold',
+              size: 'xl',
+              color: '#333333',
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: '第 1/4 頁',
+              size: 'sm',
+              color: '#666666',
+              flex: 0,
+              align: 'end'
+            }
+          ]
+        },
+        {
+          type: 'text',
+          text: `共 ${frequentTasks ? frequentTasks.length : 0} 個常用任務`,
+          size: 'sm',
+          color: '#666666',
+          margin: 'xs'
+        }
+      ],
+      paddingBottom: 'md'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      contents: frequentTasks && frequentTasks.length > 0 ?
+        createFrequentTasksContent(frequentTasks.slice(0, 6)) : // 顯示前6個任務
+        [
+          {
+            type: 'text',
+            text: '您還沒有設定任何常用任務',
+            size: 'md',
+            color: '#666666',
+            wrap: true,
+            align: 'center'
+          }
+        ]
+    }
+  };
+
+  // 第二頁：統計頁面
+  const statsPage = {
+    type: 'bubble',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '📊 任務統計',
+              weight: 'bold',
+              size: 'xl',
+              color: '#333333',
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: '第 2/4 頁',
+              size: 'sm',
+              color: '#666666',
+              flex: 0,
+              align: 'end'
+            }
+          ]
+        }
+      ],
+      paddingBottom: 'md',
+      backgroundColor: '#f8f9fa'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'text',
+          text: '今日任務概覽',
+          size: 'lg',
+          weight: 'bold',
+          color: '#333333',
+          margin: 'none'
+        },
+        {
+          type: 'separator',
+          margin: 'md'
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '📝 總任務數',
+              size: 'sm',
+              color: '#666666',
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: frequentTasks ? frequentTasks.length.toString() : '0',
+              size: 'sm',
+              color: '#333333',
+              weight: 'bold',
+              flex: 0
+            }
+          ],
+          margin: 'md'
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '⏰ 本週使用',
+              size: 'sm',
+              color: '#666666',
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: '12 次',
+              size: 'sm',
+              color: '#333333',
+              weight: 'bold',
+              flex: 0
+            }
+          ],
+          margin: 'sm'
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '🔥 最熱門',
+              size: 'sm',
+              color: '#666666',
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: frequentTasks && frequentTasks.length > 0 ? frequentTasks[0].task_text.substring(0, 10) + '...' : '暫無',
+              size: 'sm',
+              color: '#333333',
+              weight: 'bold',
+              flex: 0
+            }
+          ],
+          margin: 'sm'
+        }
+      ]
+    }
+  };
+
+  // 第三頁：快捷操作頁面
+  const quickActionsPage = {
+    type: 'bubble',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '⚡ 快捷操作',
+              weight: 'bold',
+              size: 'xl',
+              color: '#333333',
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: '第 3/4 頁',
+              size: 'sm',
+              color: '#666666',
+              flex: 0,
+              align: 'end'
+            }
+          ]
+        }
+      ],
+      paddingBottom: 'md',
+      backgroundColor: '#e8f5e8'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'button',
+          style: 'primary',
+          action: {
+            type: 'uri',
+            label: '📝 編輯常用任務',
+            uri: 'https://138b00c20997.ngrok.app/liff-app.html'
+          },
+          margin: 'none'
+        },
+        {
+          type: 'button',
+          style: 'secondary',
+          action: {
+            type: 'postback',
+            label: '🔄 重新載入',
+            data: 'frequent_tasks'
+          },
+          margin: 'md'
+        },
+        {
+          type: 'separator',
+          margin: 'lg'
+        },
+        {
+          type: 'text',
+          text: '🎯 快速新增',
+          size: 'md',
+          weight: 'bold',
+          color: '#333333',
+          margin: 'md'
+        },
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'button',
+              style: 'secondary',
+              action: {
+                type: 'message',
+                label: '工作',
+                text: '(工作)'
+              },
+              flex: 1
+            },
+            {
+              type: 'button',
+              style: 'secondary',
+              action: {
+                type: 'message',
+                label: '生活',
+                text: '(生活)'
+              },
+              flex: 1,
+              margin: 'sm'
+            }
+          ],
+          margin: 'md'
+        }
+      ]
+    }
+  };
+
+  // 第四頁：設定頁面
+  const settingsPage = {
+    type: 'bubble',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          contents: [
+            {
+              type: 'text',
+              text: '⚙️ 設定',
+              weight: 'bold',
+              size: 'xl',
+              color: '#333333',
+              flex: 1
+            },
+            {
+              type: 'text',
+              text: '第 4/4 頁',
+              size: 'sm',
+              color: '#666666',
+              flex: 0,
+              align: 'end'
+            }
+          ]
+        }
+      ],
+      paddingBottom: 'md',
+      backgroundColor: '#fff5ee'
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'text',
+          text: '📱 應用設定',
+          size: 'lg',
+          weight: 'bold',
+          color: '#333333',
+          margin: 'none'
+        },
+        {
+          type: 'separator',
+          margin: 'md'
+        },
+        {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '🔔 提醒設定',
+              size: 'sm',
+              color: '#666666',
+              action: {
+                type: 'message',
+                label: '提醒設定',
+                text: '提醒設定'
+              }
+            },
+            {
+              type: 'text',
+              text: '🎨 介面主題',
+              size: 'sm',
+              color: '#666666',
+              margin: 'md',
+              action: {
+                type: 'message',
+                label: '介面主題',
+                text: '介面主題'
+              }
+            },
+            {
+              type: 'text',
+              text: '📊 資料匯出',
+              size: 'sm',
+              color: '#666666',
+              margin: 'md',
+              action: {
+                type: 'message',
+                label: '資料匯出',
+                text: '資料匯出'
+              }
+            },
+            {
+              type: 'text',
+              text: '❓ 說明文件',
+              size: 'sm',
+              color: '#666666',
+              margin: 'md',
+              action: {
+                type: 'uri',
+                label: '說明文件',
+                uri: 'https://138b00c20997.ngrok.app/help'
+              }
+            }
+          ],
+          margin: 'md'
+        }
+      ]
+    }
+  };
+
+  const carouselMessage = {
+    type: 'flex',
+    altText: '⭐ 常用任務多頁檢視 (1/4)',
+    contents: {
+      type: 'carousel',
+      contents: [originalBubble, statsPage, quickActionsPage, settingsPage]
+    }
+  };
+
+  console.log('✅ [多頁常用任務FLEX] 4頁 FLEX MESSAGE 生成完成');
+  return carouselMessage;
+}
+
+// 創建常用任務內容的輔助函數
+function createFrequentTasksContent(tasks) {
+  const taskContents = [];
+
+  taskContents.push({
+    type: 'text',
+    text: '點擊任務名稱即可快速新增到待辦清單：',
+    size: 'sm',
+    color: '#666666',
+    wrap: true,
+    margin: 'none'
+  });
+
+  taskContents.push({
+    type: 'separator',
+    margin: 'md'
+  });
+
+  tasks.forEach((task, index) => {
+    // 任務標題行
+    taskContents.push({
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        {
+          type: 'text',
+          text: `${index + 1}.`,
+          size: 'sm',
+          color: '#666666',
+          flex: 0,
+          margin: 'none'
+        },
+        {
+          type: 'text',
+          text: task.task_text || '未命名任務',
+          size: 'md',
+          color: '#333333',
+          weight: 'bold',
+          wrap: true,
+          flex: 1,
+          margin: 'sm',
+          action: {
+            type: 'postback',
+            label: '新增任務',
+            data: `create_task_from_frequent|${task.task_text}|${task.tag || ''}|${task.note || ''}`
+          }
+        },
+        {
+          type: 'text',
+          text: '📋',
+          size: 'sm',
+          color: '#0084ff',
+          flex: 0,
+          align: 'center',
+          action: {
+            type: 'postback',
+            label: '複製任務',
+            data: `copy_frequent_task|${task.task_text}|${task.tag || ''}|${task.note || ''}`
+          }
+        }
+      ],
+      margin: index === 0 ? 'none' : 'md'
+    });
+
+    // 分隔線（除了最後一個項目）
+    if (index < tasks.length - 1) {
+      taskContents.push({
+        type: 'separator',
+        margin: 'md'
+      });
+    }
+  });
+
+  return taskContents;
 }
 
 // 動態載入模組以支援熱重載
@@ -980,74 +1478,17 @@ async function handlePostback(event) {
           return Promise.resolve(null);
         }
       } else {
-        // 為每個常用任務創建獨立訊息
-        const messages = result.data.map((task) => {
-          let taskText = task.task_text || '未命名任務';
+        // 使用帶有「➜」按鈕的常用任務 FLEX MESSAGE
+        const frequentTasksFlexMessage = generateFrequentTasksFlexMessageInline(result.data);
 
-          // 限制任務文字長度，避免LINE API 400錯誤
-          if (taskText.length > 300) {
-            taskText = taskText.substring(0, 297) + '...';
-          }
-
-          if (task.tag && task.tag !== '無') {
-            taskText += `\n🏷️ ${task.tag}`;
-          }
-          if (task.note && task.note.trim() !== '') {
-            let noteText = task.note.trim();
-            if (noteText.length > 100) {
-              noteText = noteText.substring(0, 97) + '...';
-            }
-            taskText += `\n📝 ${noteText}`;
-          }
-
-          return {
-            type: 'text',
-            text: taskText
-          };
-        });
-
-        console.log(`📨 [常用任務] 準備發送 ${messages.length} 則訊息`);
-        messages.forEach((msg, index) => {
-          console.log(`📨 [常用任務] 訊息 ${index + 1}: "${msg.text.substring(0, 50)}${msg.text.length > 50 ? '...' : ''}"`);
-        });
+        console.log(`📨 [常用任務] 準備發送帶有「➜」按鈕的 FLEX MESSAGE`);
 
         if (client) {
-          try {
-            // LINE API 限制：一次最多發送5則訊息，所以分批發送
-            if (messages.length <= 5) {
-              const result = await client.replyMessage(event.replyToken, messages);
-              console.log(`✅ [常用任務] 成功發送 ${messages.length} 則訊息`, result);
-              return result;
-            } else {
-              // 分批發送：第一批用 replyMessage，後續用 pushMessage
-              const firstBatch = messages.slice(0, 5);
-              const remainingBatches = [];
-              for (let i = 5; i < messages.length; i += 5) {
-                remainingBatches.push(messages.slice(i, i + 5));
-              }
-
-              console.log(`📨 [常用任務] 分批發送：第一批 ${firstBatch.length} 則，後續 ${remainingBatches.length} 批`);
-
-              // 發送第一批
-              const firstResult = await client.replyMessage(event.replyToken, firstBatch);
-              console.log(`✅ [常用任務] 第一批發送成功`, firstResult);
-
-              // 發送後續批次
-              for (let i = 0; i < remainingBatches.length; i++) {
-                const batch = remainingBatches[i];
-                await new Promise(resolve => setTimeout(resolve, 500)); // 延遲500ms避免API限制
-                const pushResult = await client.pushMessage(event.source.userId, batch);
-                console.log(`✅ [常用任務] 第 ${i + 2} 批發送成功`, pushResult);
-              }
-
-              return firstResult;
-            }
-          } catch (sendError) {
-            console.error('❌ [常用任務] 發送訊息失敗:', sendError);
-            throw sendError;
-          }
+          const result = await client.replyMessage(event.replyToken, frequentTasksFlexMessage);
+          console.log(`✅ [常用任務] 成功發送 FLEX MESSAGE`, result);
+          return result;
         } else {
-          console.log('測試模式：常用任務訊息', messages);
+          console.log('測試模式：常用任務 FLEX MESSAGE', JSON.stringify(frequentTasksFlexMessage, null, 2));
           return Promise.resolve(null);
         }
       }
@@ -1174,6 +1615,152 @@ async function handlePostback(event) {
       const errorMessage = {
         type: 'text',
         text: '⚠️ 複製常用任務失敗，請稍後再試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 處理展開常用任務多頁檢視
+  if (postbackData === 'expand_frequent_tasks_pages') {
+    console.log(`🎨 用戶 ${userId} 點擊展開3個空白BUBBLE頁面`);
+
+    try {
+      // 獲取用戶任務資料以重建原本的BUBBLE
+      let userTasks = userTaskStacks.get(userId) || [];
+
+      // 使用task-flex-message.js的函數重新生成原本的BUBBLE內容
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const originalFlexMessage = createTaskStackFlexMessage(userTasks, await getUserTags(userId));
+
+      // 生成4個BUBBLE的carousel FLEX MESSAGE (原本任務 + 3個新頁面)
+      const fourPagesFlexMessage = {
+        type: 'flex',
+        altText: '任務頁面 + 3個新頁面',
+        contents: {
+          type: 'carousel',
+          contents: [
+            // 第1頁：原本的任務頁面（移除size屬性以符合carousel格式）
+            {
+              type: 'bubble',
+              header: originalFlexMessage.contents.header,
+              body: originalFlexMessage.contents.body,
+              footer: originalFlexMessage.contents.footer
+            },
+            // 第2頁：新頁面1
+            {
+              type: 'bubble',
+              header: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '📄 頁面 2',
+                    weight: 'bold',
+                    size: 'xl',
+                    color: '#333333'
+                  }
+                ]
+              },
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '這是第二個頁面',
+                    size: 'md',
+                    color: '#666666',
+                    wrap: true
+                  }
+                ]
+              }
+            },
+            // 第3頁：新頁面2
+            {
+              type: 'bubble',
+              header: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '📄 頁面 3',
+                    weight: 'bold',
+                    size: 'xl',
+                    color: '#333333'
+                  }
+                ]
+              },
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '這是第三個頁面',
+                    size: 'md',
+                    color: '#666666',
+                    wrap: true
+                  }
+                ]
+              }
+            },
+            // 第4頁：新頁面3
+            {
+              type: 'bubble',
+              header: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '📄 頁面 4',
+                    weight: 'bold',
+                    size: 'xl',
+                    color: '#333333'
+                  }
+                ]
+              },
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '這是第四個頁面',
+                    size: 'md',
+                    color: '#666666',
+                    wrap: true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      };
+
+      console.log(`📨 [4頁BUBBLE] 準備發送4頁BUBBLE頁面（原任務+3新頁面）`);
+
+      if (client) {
+        return client.replyMessage(event.replyToken, fourPagesFlexMessage);
+      } else {
+        console.log('測試模式：4頁BUBBLE FLEX MESSAGE', JSON.stringify(fourPagesFlexMessage, null, 2));
+        return Promise.resolve(null);
+      }
+
+    } catch (error) {
+      console.error('❌ [空白BUBBLE] 展開3個空白頁面失敗:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '⚠️ 展開頁面失敗，請稍後再試'
       };
 
       if (client) {
