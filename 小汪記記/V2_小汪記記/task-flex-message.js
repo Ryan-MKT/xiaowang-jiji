@@ -127,6 +127,30 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
       }
     ];
 
+    // 如果有預定時間，在任務下方顯示
+    if (task.scheduledDate) {
+      console.log(`⏰ [FLEX 時間] 任務 ${task.id} 顯示預定時間: ${task.scheduledDate}`);
+      // 將時間格式轉換為較易閱讀的格式
+      const date = new Date(task.scheduledDate);
+      const formattedTime = date.toLocaleString('zh-TW', {
+        timeZone: 'Asia/Taipei',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: false
+      });
+      taskBoxContents.push({
+        type: 'text',
+        text: `⏰ ${formattedTime}`,
+        size: 'xs',
+        color: '#0084ff',
+        flex: 1,
+        wrap: true,
+        margin: 'xs'
+      });
+    }
+
     // 如果有備註，在任務下方顯示
     if (task.note && task.note.trim()) {
       console.log(`💬 [FLEX 備註] 任務 ${task.id} 正在顯示備註: "${task.note}"`);

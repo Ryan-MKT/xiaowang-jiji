@@ -2972,14 +2972,95 @@ async function handleEvent(event) {
   } else {
     // 任務：加入任務堆疊並使用 Flex Message 記錄
     console.log('📝 偵測到任務，加入任務堆疊');
-    
+
+    // 🤖 使用AI解析任務中的時間資訊
+    let parsedTask = {
+      text: userMessage,
+      scheduledDate: null
+    };
+
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== '你的OpenAI_API_Key') {
+      try {
+        console.log('🤖 [AI解析] 正在解析任務時間資訊...');
+        const currentDate = new Date();
+        const taiwanDate = new Date(currentDate.getTime() + 8 * 60 * 60 * 1000); // 台灣時間
+        const today = taiwanDate.toISOString().split('T')[0];
+        const todayWeekday = ['日', '一', '二', '三', '四', '五', '六'][taiwanDate.getDay()];
+
+        const parseCompletion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: `你是時間解析助手。今天是 ${today} (星期${todayWeekday})。
+請解析用戶訊息中的任務內容和時間資訊。
+
+規則：
+1. 提取任務的核心動作（去除時間相關詞彙）
+2. 解析時間並轉換為台灣時區格式 YYYY-MM-DDTHH:mm:00+08:00
+3. 如果沒有指定日期，默認為今天
+4. 如果說"明天"，則為明天的日期
+5. 如果只有時間沒有日期，使用今天
+
+回覆格式（必須是有效JSON）：
+{
+  "task": "任務核心內容",
+  "scheduledDate": "2025-09-26T18:00:00+08:00" 或 null
+}
+
+範例：
+輸入："我今天晚上6點回家"
+輸出：{"task": "回家", "scheduledDate": "${today}T18:00:00+08:00"}
+
+輸入："明天下午2點開會"
+輸出：{"task": "開會", "scheduledDate": "${new Date(taiwanDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T14:00:00+08:00"}
+
+輸入："買牛奶"
+輸出：{"task": "買牛奶", "scheduledDate": null}`
+            },
+            {
+              role: "user",
+              content: userMessage
+            }
+          ],
+          max_tokens: 200,
+          temperature: 0.1,
+        });
+
+        const aiResponse = parseCompletion.choices[0].message.content.trim();
+        console.log('🤖 [AI解析] 原始回應:', aiResponse);
+
+        try {
+          const parsedResult = JSON.parse(aiResponse);
+          if (parsedResult.task && typeof parsedResult.task === 'string') {
+            parsedTask.text = parsedResult.task;
+            parsedTask.scheduledDate = parsedResult.scheduledDate;
+            console.log('✅ [AI解析] 成功解析:', {
+              原始訊息: userMessage,
+              解析任務: parsedTask.text,
+              預定時間: parsedTask.scheduledDate
+            });
+          }
+        } catch (parseError) {
+          console.log('⚠️ [AI解析] JSON解析失敗，使用原始訊息');
+        }
+
+      } catch (error) {
+        console.error('❌ [AI解析] 時間解析失敗:', error.message);
+      }
+    } else {
+      console.log('⚠️ [AI解析] OpenAI API Key 未設定，跳過AI解析');
+    }
+
     // 取得或初始化用戶任務堆疊
     let userTasks = userTaskStacks.get(userId) || [];
-    
+
     // 新增任務到堆疊
     const newTask = {
       id: Date.now(),
-      text: userMessage,
+      text: parsedTask.text,
+      originalText: userMessage,
+      scheduledDate: parsedTask.scheduledDate,
       timestamp: new Date().toISOString()
     };
 
@@ -4331,6 +4412,32 @@ app.get('/api/get-task', async (req, res) => {
     }
 
     console.log(`🔍 [載入任務] 用戶 ${userId} 查詢任務: "${taskText}"`);
+
+    // 🔍 首先檢查記憶體中的任務堆疊（包含AI解析的資料）
+    const userTasks = userTaskStacks.get(userId) || [];
+    const memoryTask = userTasks.find(task => task.text === taskText);
+
+    if (memoryTask && memoryTask.scheduledDate) {
+      console.log(`✅ [載入任務] 從記憶體找到任務和AI解析時間:`, {
+        taskText: memoryTask.text,
+        scheduledDate: memoryTask.scheduledDate,
+        originalText: memoryTask.originalText
+      });
+
+      // 回傳記憶體中的資料（包含AI解析的時間）
+      return res.json({
+        success: true,
+        taskData: {
+          id: memoryTask.id,
+          title: memoryTask.text,
+          tag: memoryTask.tag || null,
+          note: memoryTask.note || null,
+          date: memoryTask.scheduledDate, // AI解析的時間
+          reminder: memoryTask.reminder || null,
+          repeat: memoryTask.repeat || null
+        }
+      });
+    }
 
     // 從 Supabase 數據庫查詢任務詳細資料
     if (supabase) {

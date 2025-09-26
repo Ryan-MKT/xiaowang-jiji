@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小汪記記 - 任務編輯</title>
+    <title>小汪記記 - 任務編輯 v2.1</title>
 
     <!-- LINE LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -1671,12 +1671,12 @@
 
             // 儲存完整的 datetime 資料到元素屬性中，供儲存時使用
             if (selectedTime) {
-                // 合併日期和時間成完整的 datetime string (ISO 8601 格式)
-                const fullDateTime = `${selectedDate}T${selectedTime}:00`;
+                // 合併日期和時間成完整的 datetime string (ISO 8601 格式 + 台灣時區)
+                const fullDateTime = `${selectedDate}T${selectedTime}:00+08:00`;
                 taskDateElement.setAttribute('data-full-datetime', fullDateTime);
             } else {
-                // 只有日期，設為當天 00:00:00
-                const fullDateTime = `${selectedDate}T00:00:00`;
+                // 只有日期，設為當天 00:00:00 台灣時區
+                const fullDateTime = `${selectedDate}T00:00:00+08:00`;
                 taskDateElement.setAttribute('data-full-datetime', fullDateTime);
             }
 
@@ -1800,12 +1800,12 @@
                     // 如果沒有完整的 datetime 資料，使用顯示的文字
                     taskDate = taskDateElement.textContent;
                     if (taskDate && taskDate !== '2025/09/14') {
-                        // 嘗試解析顯示格式並轉換成 ISO 格式
+                        // 嘗試解析顯示格式並轉換成 ISO 格式（台灣時區）
                         try {
                             const dateMatch = taskDate.match(/(\d{4})\/(\d{2})\/(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
                             if (dateMatch) {
                                 const [, year, month, day, hour, minute] = dateMatch;
-                                taskDate = `${year}-${month}-${day}T${hour || '00'}:${minute || '00'}:00`;
+                                taskDate = `${year}-${month}-${day}T${hour || '00'}:${minute || '00'}:00+08:00`;
                             }
                         } catch (error) {
                             console.warn('日期格式轉換失敗:', error);
@@ -1893,9 +1893,10 @@
                     }
 
                     // 延遲關閉視窗，讓用戶看到成功訊息
-                    setTimeout(() => {
-                        closeWindow();
-                    }, 1500);
+                    // setTimeout(() => {
+                    //     closeWindow();
+                    // }, 1500);
+                    console.log('🔧 [測試模式] 儲存成功，但不關閉視窗以便檢查console');
 
                 } else {
                     const error = await response.text();
@@ -2014,9 +2015,10 @@
                     await showAlert('刪除成功', '任務已成功刪除並同步更新到 TODO LIST！');
 
                     // 延遲關閉視窗，讓用戶看到成功訊息
-                    setTimeout(() => {
-                        closeWindow();
-                    }, 1500);
+                    // setTimeout(() => {
+                    //     closeWindow();
+                    // }, 1500);
+                    console.log('🔧 [測試模式] 刪除成功，但不關閉視窗以便檢查console');
 
                 } else {
                     const error = await response.text();
