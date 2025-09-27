@@ -5970,6 +5970,8 @@ app.get('/api/google-calendar/callback', async (req, res) => {
         refresh_token: tokens.refresh_token,
         expiry_date: tokens.expiry_date,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       });
 
     if (error) {
