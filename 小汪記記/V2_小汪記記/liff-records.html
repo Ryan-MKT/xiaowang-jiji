@@ -1187,6 +1187,25 @@
                         <div class="reminder-option" onclick="selectRepeat('自訂')">自訂</div>
                     </div>
                 </div>
+
+                <div class="setting-item" onclick="toggleGoogleCalendar()">
+                    <div class="setting-icon">📅</div>
+                    <div class="setting-content">
+                        <span class="setting-label">加入Google日曆</span>
+                        <div>
+                            <span class="setting-value" id="taskGoogleCalendar">否</span>
+                            <span class="setting-arrow" id="googleCalendarArrow">›</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google日曆下拉選單 -->
+                <div class="dropdown-container" id="googleCalendarDropdown">
+                    <div class="dropdown-content">
+                        <div class="reminder-option" onclick="selectGoogleCalendar('否')">否</div>
+                        <div class="reminder-option" onclick="selectGoogleCalendar('是')">是</div>
+                    </div>
+                </div>
             </div>
 
             <!-- 操作按鈕區域 -->
@@ -1902,6 +1921,7 @@
             document.getElementById('taskTag').textContent = '無';
             document.getElementById('taskReminder').textContent = '否';
             document.getElementById('taskRepeat').textContent = '不重複';
+            document.getElementById('taskGoogleCalendar').textContent = '否';
 
             // 顯示面板
             rightPanel.classList.add('open');
@@ -1929,6 +1949,7 @@
                 const taskDateElement = document.getElementById('taskDate');
                 const taskReminder = document.getElementById('taskReminder').textContent;
                 const taskRepeat = document.getElementById('taskRepeat').textContent;
+                const taskGoogleCalendar = document.getElementById('taskGoogleCalendar').textContent;
 
                 if (!taskTitle) {
                     showNotification('請輸入任務標題');
@@ -1969,7 +1990,8 @@
                         tag: taskTag !== '無' ? taskTag : null,
                         date: taskDate,
                         reminder: taskReminder !== '否' ? taskReminder : null,
-                        repeat: taskRepeat !== '不重複' ? taskRepeat : null
+                        repeat: taskRepeat !== '不重複' ? taskRepeat : null,
+                        googleCalendar: taskGoogleCalendar === '是'
                     })
                 });
 
@@ -2365,6 +2387,49 @@
             closeRepeatPicker();
 
             console.log('🔄 [重複設定] 選擇重複模式:', repeatValue);
+        }
+
+        // 切換Google日曆選擇器
+        function toggleGoogleCalendar() {
+            const dropdown = document.getElementById('googleCalendarDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('googleCalendarArrow');
+
+            if (dropdown.classList.contains('show')) {
+                closeGoogleCalendarPicker();
+                return;
+            }
+
+            dropdown.classList.add('show');
+            setting.classList.add('reminder-setting', 'expanded');
+            arrow.textContent = '⌄';
+        }
+
+        // 關閉Google日曆選擇器
+        function closeGoogleCalendarPicker() {
+            const dropdown = document.getElementById('googleCalendarDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('googleCalendarArrow');
+
+            dropdown.classList.remove('show');
+            setting.classList.remove('expanded');
+            arrow.textContent = '›';
+        }
+
+        // 選擇Google日曆設定
+        function selectGoogleCalendar(calendarValue) {
+            const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
+
+            taskGoogleCalendarElement.textContent = calendarValue;
+            closeGoogleCalendarPicker();
+
+            console.log('📅 [Google日曆設定] 選擇設定:', calendarValue);
+
+            if (calendarValue === '是') {
+                showNotification('已開啟Google日曆同步功能');
+            } else {
+                showNotification('已關閉Google日曆同步功能');
+            }
         }
 
         // 關閉右側面板

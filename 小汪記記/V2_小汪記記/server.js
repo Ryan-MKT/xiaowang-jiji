@@ -3010,7 +3010,8 @@ async function handleEvent(event) {
   
   // 判斷是問句還是任務
   const isQuestionMessage = isQuestion(userMessage);
-  
+  console.log(`🔍 [訊息分類] 訊息: "${userMessage}" | 判斷結果: ${isQuestionMessage ? '問句' : '任務'}`);
+
   if (isQuestionMessage) {
     // 問句或請求：使用 AI 回覆
     console.log('💬 偵測到問句/請求，使用 AI 回覆');
@@ -3070,8 +3071,20 @@ async function handleEvent(event) {
     // 🤖 使用AI解析任務中的時間資訊
     let parsedTask = {
       text: userMessage,
-      scheduledDate: null
+      scheduledDate: null,
+      needGoogleCalendar: false
     };
+
+    // 🔍 檢測Google日曆關鍵字
+    console.log(`🔍 [Google檢測] 開始檢測訊息中的Google關鍵字: "${userMessage}"`);
+    const googleKeywords = ['google', 'google日曆', 'google calendar', 'google calender', 'GOOGLE', 'GOOGLE日曆', 'GOOGLE CALENDAR', 'GOOGLE CALENDER'];
+    const hasGoogleKeyword = googleKeywords.some(keyword => userMessage.includes(keyword));
+    console.log(`🔍 [Google檢測] 關鍵字檢測結果: ${hasGoogleKeyword}`);
+
+    if (hasGoogleKeyword) {
+      parsedTask.needGoogleCalendar = true;
+      console.log('📅 [Google檢測] 偵測到Google日曆關鍵字，將自動啟用Google Calendar功能');
+    }
 
     if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== '你的OpenAI_API_Key') {
       try {
@@ -3090,11 +3103,12 @@ async function handleEvent(event) {
 請解析用戶訊息中的任務內容和時間資訊。
 
 重要規則：
-1. 提取任務的核心動作（去除時間相關詞彙）
+1. 提取任務的核心動作（去除時間相關詞彙和Google日曆關鍵字）
 2. 只有在用戶明確提到時間時才解析時間，轉換為台灣時區格式 YYYY-MM-DDTHH:mm:00+08:00
 3. 如果用戶沒有明確提到任何時間詞彙，scheduledDate 必須設為 null
-4. 明確的時間詞彙包括：今天、明天、後天、幾點、幾時、上午、下午、晚上、特定日期等
+4. 明確的時間詞彙包括：今天、明天、後天、幾點、幾時、上午、下午、晚上、特定日期、24小時制時間格式（如：18:00、14:30、09:15等）
 5. 如果只有時間沒有日期，使用今天的日期
+6. 在提取任務內容時，去除"記到GOOGLE日曆"、"記到Google日曆"等相關詞彙
 
 回覆格式（必須是有效JSON）：
 {
@@ -3105,6 +3119,12 @@ async function handleEvent(event) {
 範例：
 輸入："我今天晚上6點回家"
 輸出：{"task": "回家", "scheduledDate": "${today}T18:00:00+08:00"}
+
+輸入："18:00 睡覺 記到GOOGLE日曆"
+輸出：{"task": "睡覺", "scheduledDate": "${today}T18:00:00+08:00"}
+
+輸入："14:30 開會"
+輸出：{"task": "開會", "scheduledDate": "${today}T14:30:00+08:00"}
 
 輸入："明天下午2點開會"
 輸出：{"task": "開會", "scheduledDate": "${new Date(taiwanDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T14:00:00+08:00"}
@@ -3191,9 +3211,86 @@ async function handleEvent(event) {
     
     userTasks.push(newTask);
     userTaskStacks.set(userId, userTasks);
-    
+
     console.log(`📋 [任務同步] 用戶 ${userId} 目前任務數量: ${userTasks.length}`);
     console.log('📝 [任務同步] 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
+
+    // 🗓️ 如果檢測到Google日曆關鍵字，自動建立Google Calendar事件
+    if (parsedTask.needGoogleCalendar) {
+      try {
+        console.log('📅 [自動Google日曆] 開始自動建立Google日曆事件...');
+
+        // 獲取用戶的Google tokens
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('user_google_tokens')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        if (!tokenError && tokenData) {
+          // 檢查token是否過期
+          const now = new Date().getTime();
+          const expiryDate = new Date(tokenData.expiry_date).getTime();
+
+          if (now < expiryDate) {
+            // 設定OAuth2客戶端的憑證
+            oauth2Client.setCredentials({
+              access_token: tokenData.access_token,
+              refresh_token: tokenData.refresh_token,
+              expiry_date: tokenData.expiry_date
+            });
+
+            // 建立Calendar API實例
+            const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+            // 準備事件資料
+            let startDateTime, endDateTime;
+            if (parsedTask.scheduledDate) {
+              startDateTime = new Date(parsedTask.scheduledDate);
+              endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 預設1小時
+            } else {
+              const today = new Date();
+              today.setHours(9, 0, 0, 0); // 預設上午9點
+              startDateTime = today;
+              endDateTime = new Date(today.getTime() + 60 * 60 * 1000);
+            }
+
+            const event = {
+              summary: parsedTask.text,
+              description: `來自小汪記記的任務\n原始訊息: ${userMessage}`,
+              start: {
+                dateTime: startDateTime.toISOString(),
+                timeZone: 'Asia/Taipei',
+              },
+              end: {
+                dateTime: endDateTime.toISOString(),
+                timeZone: 'Asia/Taipei',
+              },
+              reminders: {
+                useDefault: false,
+                overrides: [{ method: 'popup', minutes: 10 }],
+              },
+            };
+
+            // 建立事件
+            const result = await calendar.events.insert({
+              calendarId: 'primary',
+              resource: event,
+            });
+
+            console.log('✅ [自動Google日曆] Google日曆事件自動建立成功:', result.data.id);
+            console.log('🔗 [自動Google日曆] 事件連結:', result.data.htmlLink);
+
+          } else {
+            console.log('⚠️ [自動Google日曆] Google授權已過期，無法自動建立事件');
+          }
+        } else {
+          console.log('⚠️ [自動Google日曆] 用戶未授權Google日曆，無法自動建立事件');
+        }
+      } catch (calendarError) {
+        console.error('❌ [自動Google日曆] 自動建立Google日曆事件失敗:', calendarError);
+      }
+    }
     
     // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
     console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
