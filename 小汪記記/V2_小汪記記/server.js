@@ -11,6 +11,7 @@ const fs = require('fs-extra');
 const FormData = require('form-data');
 const axios = require('axios');
 const path = require('path');
+const { google } = require('googleapis');
 const { setupRoundedImageRoute, generateRoundedImageUrl, clearImageCache } = require('./realtime-rounded-image-api');
 const { createBookmarkSuccessFlexMessage } = require('./flex-message-builder');
 // 動態載入frequent-tasks-flex-message模組以支援熱重載（和其他FLEX MESSAGE一樣）
@@ -1107,6 +1108,15 @@ const client = process.env.LINE_CHANNEL_ACCESS_TOKEN ?
   new line.Client(config) : 
   null;
 console.log('📱 LINE Client created:', !!client);
+
+// Google Calendar OAuth2 設定
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI || `${process.env.BASE_URL || 'https://138b00c20997.ngrok.app'}/api/google-calendar/callback`
+);
+
+console.log('📅 Google OAuth2 Client initialized:', !!process.env.GOOGLE_CLIENT_ID);
 
 // Express middleware with UTF-8 encoding support
 app.use(express.json({
@@ -4630,7 +4640,7 @@ app.post('/api/save-task', async (req, res) => {
     const userId = req.headers['x-user-id'];
 
     // 直接使用請求體並確保 UTF-8 編碼
-    const { taskId, title, note, tag, date, reminder, repeat } = req.body;
+    const { taskId, title, note, tag, date, reminder, repeat, googleCalendar } = req.body;
 
     // 確保中文字符正確處理
     const safeTag = tag ? Buffer.from(tag, 'utf8').toString('utf8') : null;
@@ -4638,8 +4648,8 @@ app.post('/api/save-task', async (req, res) => {
     const safeNote = note ? Buffer.from(note, 'utf8').toString('utf8') : note;
 
     // 檢查接收到的原始資料和處理後資料
-    console.log(`🔍 [接收資料] 原始輸入:`, { taskId, title, note, tag, date, reminder, repeat });
-    console.log(`🔍 [UTF-8處理] 處理後:`, { taskId, safeTitle, safeNote, safeTag, date, reminder, repeat });
+    console.log(`🔍 [接收資料] 原始輸入:`, { taskId, title, note, tag, date, reminder, repeat, googleCalendar });
+    console.log(`🔍 [UTF-8處理] 處理後:`, { taskId, safeTitle, safeNote, safeTag, date, reminder, repeat, googleCalendar });
 
     if (!userId) {
       return res.status(400).json({ error: 'Missing user ID' });
@@ -4737,6 +4747,95 @@ app.post('/api/save-task', async (req, res) => {
       } catch (dbError) {
         console.error('❌ [儲存任務] 數據庫更新失敗:', dbError);
         // 數據庫更新失敗不影響記憶體更新的成功
+      }
+    }
+
+    // 如果啟用了Google Calendar，建立日曆事件
+    if (googleCalendar === true) {
+      try {
+        console.log('📅 [Google日曆] 檢測到需要建立日曆事件，開始處理...');
+
+        // 獲取用戶的Google tokens
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('user_google_tokens')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        if (!tokenError && tokenData) {
+          // 檢查token是否過期
+          const now = new Date().getTime();
+          const expiryDate = new Date(tokenData.expiry_date).getTime();
+
+          if (now < expiryDate) {
+            // 設定OAuth2客戶端的憑證
+            oauth2Client.setCredentials({
+              access_token: tokenData.access_token,
+              refresh_token: tokenData.refresh_token,
+              expiry_date: tokenData.expiry_date
+            });
+
+            // 建立Calendar API實例
+            const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+            // 準備事件資料
+            let startDateTime, endDateTime;
+            if (date) {
+              startDateTime = new Date(date);
+              endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 預設1小時
+            } else {
+              const today = new Date();
+              today.setHours(9, 0, 0, 0); // 預設上午9點
+              startDateTime = today;
+              endDateTime = new Date(today.getTime() + 60 * 60 * 1000);
+            }
+
+            const reminderMinutes = reminder ? parseInt(reminder.replace(/[^\d]/g, '')) : 10;
+
+            const event = {
+              summary: safeTitle,
+              description: safeNote || '來自小汪記記的任務',
+              start: {
+                dateTime: startDateTime.toISOString(),
+                timeZone: 'Asia/Taipei',
+              },
+              end: {
+                dateTime: endDateTime.toISOString(),
+                timeZone: 'Asia/Taipei',
+              },
+              reminders: {
+                useDefault: false,
+                overrides: [{ method: 'popup', minutes: reminderMinutes }],
+              },
+            };
+
+            // 建立事件
+            const result = await calendar.events.insert({
+              calendarId: 'primary',
+              resource: event,
+            });
+
+            console.log('✅ [Google日曆] 事件建立成功:', result.data.id);
+
+            res.json({
+              success: true,
+              message: '任務儲存成功並已加入Google日曆',
+              taskId: taskId,
+              googleCalendarEvent: {
+                eventId: result.data.id,
+                eventLink: result.data.htmlLink
+              }
+            });
+            return;
+          } else {
+            console.log('⚠️ [Google日曆] Google授權已過期');
+          }
+        } else {
+          console.log('⚠️ [Google日曆] 用戶未授權Google日曆');
+        }
+      } catch (calendarError) {
+        console.error('❌ [Google日曆] 建立事件失敗:', calendarError);
+        // 不影響主要儲存功能，繼續正常回應
       }
     }
 
@@ -5704,6 +5803,252 @@ app.get('/api/image-proxy', async (req, res) => {
   } catch (error) {
     console.error('❌ [圖片代理] 代理圖片失敗:', error);
     res.status(500).json({ error: 'Image proxy error' });
+  }
+});
+
+// ====================================
+// Google Calendar API 路由
+// ====================================
+
+// 生成Google授權URL
+app.get('/api/google-calendar/auth-url', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少用戶ID' });
+    }
+
+    console.log('🔑 [Google授權] 為用戶生成授權URL:', userId);
+
+    // 設定授權範圍
+    const scopes = [
+      'https://www.googleapis.com/auth/calendar.events'
+    ];
+
+    // 生成授權URL，包含state參數來追蹤用戶
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      state: userId, // 用於回調時識別用戶
+      prompt: 'consent' // 確保獲得refresh token
+    });
+
+    console.log('✅ [Google授權] 授權URL生成成功');
+    res.json({ authUrl: authUrl });
+
+  } catch (error) {
+    console.error('❌ [Google授權] 生成授權URL失敗:', error);
+    res.status(500).json({ error: '生成授權URL失敗' });
+  }
+});
+
+// Google授權回調處理
+app.get('/api/google-calendar/callback', async (req, res) => {
+  try {
+    const { code, state: userId } = req.query;
+
+    if (!code) {
+      console.error('❌ [Google回調] 缺少授權代碼');
+      return res.status(400).send('授權失敗：缺少授權代碼');
+    }
+
+    if (!userId) {
+      console.error('❌ [Google回調] 缺少用戶ID');
+      return res.status(400).send('授權失敗：缺少用戶ID');
+    }
+
+    console.log('🔑 [Google回調] 處理授權回調，用戶:', userId);
+
+    // 使用授權代碼獲取token
+    const { tokens } = await oauth2Client.getToken(code);
+    console.log('✅ [Google回調] 成功獲取tokens');
+
+    // 儲存用戶的Google tokens到資料庫
+    const { data, error } = await supabase
+      .from('user_google_tokens')
+      .upsert({
+        user_id: userId,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expiry_date: tokens.expiry_date,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('❌ [Google回調] 儲存tokens失敗:', error);
+      return res.status(500).send('授權失敗：無法儲存授權資訊');
+    }
+
+    console.log('✅ [Google回調] tokens已儲存到資料庫');
+
+    // 重導向回到任務編輯頁面，並顯示成功訊息
+    const redirectUrl = `/liff-app.html?googleAuth=success`;
+    res.redirect(redirectUrl);
+
+  } catch (error) {
+    console.error('❌ [Google回調] 處理回調失敗:', error);
+    res.status(500).send('授權失敗：' + error.message);
+  }
+});
+
+// 檢查用戶Google授權狀態
+app.get('/api/google-calendar/auth-status', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少用戶ID' });
+    }
+
+    // 查詢用戶的Google tokens
+    const { data, error } = await supabase
+      .from('user_google_tokens')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !data) {
+      return res.json({ authorized: false });
+    }
+
+    // 檢查token是否過期
+    const now = new Date().getTime();
+    const expiryDate = new Date(data.expiry_date).getTime();
+
+    if (now >= expiryDate) {
+      // Token已過期，需要重新授權
+      return res.json({ authorized: false, expired: true });
+    }
+
+    res.json({ authorized: true });
+
+  } catch (error) {
+    console.error('❌ [Google授權狀態] 檢查失敗:', error);
+    res.status(500).json({ error: '檢查授權狀態失敗' });
+  }
+});
+
+// 建立Google Calendar事件
+app.post('/api/google-calendar/create-event', async (req, res) => {
+  try {
+    const { taskTitle, taskNote, scheduledDate, reminderMinutes } = req.body;
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少用戶ID' });
+    }
+
+    if (!taskTitle) {
+      return res.status(400).json({ error: '缺少任務標題' });
+    }
+
+    console.log('📅 [建立事件] 開始為用戶建立Google日曆事件:', userId, '任務:', taskTitle);
+
+    // 獲取用戶的Google tokens
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('user_google_tokens')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (tokenError || !tokenData) {
+      console.error('❌ [建立事件] 用戶未授權Google日曆:', userId);
+      return res.status(401).json({ error: '用戶未授權Google日曆', requireAuth: true });
+    }
+
+    // 檢查token是否過期
+    const now = new Date().getTime();
+    const expiryDate = new Date(tokenData.expiry_date).getTime();
+
+    if (now >= expiryDate) {
+      console.error('❌ [建立事件] Google授權已過期:', userId);
+      return res.status(401).json({ error: 'Google授權已過期', expired: true, requireAuth: true });
+    }
+
+    // 設定OAuth2客戶端的憑證
+    oauth2Client.setCredentials({
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expiry_date: tokenData.expiry_date
+    });
+
+    // 建立Calendar API實例
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+    // 準備事件資料
+    let startDateTime, endDateTime;
+
+    if (scheduledDate) {
+      // 如果有指定時間，使用該時間
+      startDateTime = new Date(scheduledDate);
+      endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 預設1小時
+    } else {
+      // 如果沒有指定時間，設為今天的提醒時間
+      const today = new Date();
+      today.setHours(9, 0, 0, 0); // 預設上午9點
+      startDateTime = today;
+      endDateTime = new Date(today.getTime() + 60 * 60 * 1000); // 預設1小時
+    }
+
+    const event = {
+      summary: taskTitle,
+      description: taskNote || '來自小汪記記的任務',
+      start: {
+        dateTime: startDateTime.toISOString(),
+        timeZone: 'Asia/Taipei',
+      },
+      end: {
+        dateTime: endDateTime.toISOString(),
+        timeZone: 'Asia/Taipei',
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          {
+            method: 'popup',
+            minutes: reminderMinutes || 10, // 預設10分鐘前提醒
+          },
+        ],
+      },
+    };
+
+    console.log('📅 [建立事件] 準備建立事件:', {
+      summary: event.summary,
+      start: event.start.dateTime,
+      end: event.end.dateTime
+    });
+
+    // 建立事件
+    const result = await calendar.events.insert({
+      calendarId: 'primary',
+      resource: event,
+    });
+
+    console.log('✅ [建立事件] Google日曆事件建立成功:', result.data.id);
+
+    res.json({
+      success: true,
+      eventId: result.data.id,
+      eventLink: result.data.htmlLink,
+      message: 'Google日曆事件建立成功'
+    });
+
+  } catch (error) {
+    console.error('❌ [建立事件] 建立Google日曆事件失敗:', error);
+
+    if (error.code === 401) {
+      return res.status(401).json({
+        error: 'Google授權無效',
+        requireAuth: true,
+        message: '請重新授權Google日曆'
+      });
+    }
+
+    res.status(500).json({
+      error: '建立Google日曆事件失敗',
+      message: error.message
+    });
   }
 });
 

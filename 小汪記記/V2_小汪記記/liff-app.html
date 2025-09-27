@@ -1116,6 +1116,25 @@
                     <div class="reminder-option" onclick="selectRepeat('自訂')">自訂</div>
                 </div>
             </div>
+
+            <div class="setting-item" onclick="toggleGoogleCalendar()">
+                <div class="setting-icon">📅</div>
+                <div class="setting-content">
+                    <span class="setting-label">加入Google日曆</span>
+                    <div>
+                        <span class="setting-value" id="taskGoogleCalendar">否</span>
+                        <span class="setting-arrow" id="googleCalendarArrow">›</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Google日曆下拉選單 -->
+            <div class="dropdown-container" id="googleCalendarDropdown">
+                <div class="dropdown-content">
+                    <div class="reminder-option" onclick="selectGoogleCalendar('否')">否</div>
+                    <div class="reminder-option" onclick="selectGoogleCalendar('是')">是</div>
+                </div>
+            </div>
         </div>
 
         <!-- 操作按鈕區域 -->
@@ -1208,7 +1227,8 @@
             time: null,
             reminder: null,
             repeat: null,
-            note: ''
+            note: '',
+            googleCalendar: false
         };
 
         // 從 URL 參數取得任務資訊
@@ -1370,6 +1390,16 @@
                                 console.log('🔄 [任務載入] 載入重複模式:', data.repeat);
                             } else {
                                 document.getElementById('taskRepeat').textContent = '不重複';
+                            }
+
+                            // 載入Google日曆設定
+                            if (data.googleCalendar !== undefined) {
+                                currentTaskData.googleCalendar = data.googleCalendar;
+                                document.getElementById('taskGoogleCalendar').textContent = data.googleCalendar ? '是' : '否';
+                                console.log('📅 [任務載入] 載入Google日曆設定:', data.googleCalendar);
+                            } else {
+                                currentTaskData.googleCalendar = false;
+                                document.getElementById('taskGoogleCalendar').textContent = '否';
                             }
                         }
                     } else {
@@ -1778,6 +1808,181 @@
             console.log('🔄 [重複設定] 選擇重複模式:', repeatValue);
         }
 
+        // 切換Google日曆選擇器
+        function toggleGoogleCalendar() {
+            const dropdown = document.getElementById('googleCalendarDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('googleCalendarArrow');
+
+            if (dropdown.classList.contains('show')) {
+                closeGoogleCalendarPicker();
+                return;
+            }
+
+            dropdown.classList.add('show');
+            setting.classList.add('reminder-setting', 'expanded');
+            arrow.textContent = '⌄';
+        }
+
+        // 關閉Google日曆選擇器
+        function closeGoogleCalendarPicker() {
+            const dropdown = document.getElementById('googleCalendarDropdown');
+            const setting = dropdown.previousElementSibling;
+            const arrow = document.getElementById('googleCalendarArrow');
+
+            dropdown.classList.remove('show');
+            setting.classList.remove('expanded');
+            arrow.textContent = '›';
+        }
+
+        // 選擇Google日曆設定
+        async function selectGoogleCalendar(calendarValue) {
+            const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
+
+            closeGoogleCalendarPicker();
+
+            console.log('📅 [Google日曆設定] 選擇設定:', calendarValue);
+
+            if (calendarValue === '是') {
+                // 先檢查是否已經授權
+                console.log('🔑 [Google授權] 檢查授權狀態...');
+                await showAlert('Google日曆', '檢查授權狀態...');
+
+                try {
+                    const authResponse = await fetch('/api/google-calendar/auth-status', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-User-ID': liffProfile ? liffProfile.userId : ''
+                        }
+                    });
+
+                    if (authResponse.ok) {
+                        const authData = await authResponse.json();
+
+                        if (authData.authorized) {
+                            // 已經授權，直接設定為「是」
+                            console.log('✅ [Google授權] 已授權，直接啟用Google日曆');
+                            taskGoogleCalendarElement.textContent = '是';
+                            await showAlert('Google日曆', '✅ 已啟用！');
+                        } else {
+                            // 尚未授權，開始授權流程
+                            console.log('🔑 [Google授權] 尚未授權，開始授權流程...');
+                            await showAlert('Google日曆', '正在請求授權...');
+                            await initiateGoogleCalendarAuth();
+                        }
+                    } else {
+                        throw new Error('檢查授權狀態失敗');
+                    }
+                } catch (error) {
+                    console.error('❌ [Google授權] 處理失敗:', error);
+                    await showAlert('Google日曆', '設定失敗，請稍後重試');
+                    taskGoogleCalendarElement.textContent = '否';
+                }
+            } else {
+                taskGoogleCalendarElement.textContent = calendarValue;
+                await showAlert('Google日曆', '已關閉同步功能');
+            }
+        }
+
+        // 啟動Google日曆授權流程
+        async function initiateGoogleCalendarAuth() {
+            try {
+                console.log('🔑 [Google授權] 準備請求授權URL...');
+
+                // 請求後端產生授權URL
+                const response = await fetch('/api/google-calendar/auth-url', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile ? liffProfile.userId : ''
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('✅ [Google授權] 收到授權URL:', data.authUrl);
+
+                // 跳轉到Google授權頁面
+                window.location.href = data.authUrl;
+
+            } catch (error) {
+                console.error('❌ [Google授權] 請求授權URL失敗:', error);
+                throw error;
+            }
+        }
+
+        // 建立Google Calendar事件
+        async function createGoogleCalendarEvent(taskTitle, taskNote, scheduledDate, reminderText) {
+            try {
+                console.log('📅 [建立事件] 準備建立Google日曆事件:', taskTitle);
+
+                // 解析提醒時間為分鐘數
+                let reminderMinutes = 10; // 預設10分鐘
+                if (reminderText && reminderText !== '否') {
+                    const reminderMatch = reminderText.match(/(\d+)\s*分鐘/);
+                    if (reminderMatch) {
+                        reminderMinutes = parseInt(reminderMatch[1]);
+                    }
+                }
+
+                // 準備請求資料
+                const requestData = {
+                    taskTitle: taskTitle,
+                    taskNote: taskNote || '',
+                    scheduledDate: scheduledDate,
+                    reminderMinutes: reminderMinutes
+                };
+
+                console.log('📅 [建立事件] 請求資料:', requestData);
+
+                // 發送建立事件請求
+                const response = await fetch('/api/google-calendar/create-event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': liffProfile.userId
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+
+                    // 如果需要重新授權
+                    if (errorData.requireAuth) {
+                        console.log('🔑 [建立事件] 需要重新授權Google日曆');
+
+                        // 詢問用戶是否要授權
+                        const userWantsAuth = confirm('需要Google日曆授權才能建立事件。現在進行授權嗎？');
+                        if (userWantsAuth) {
+                            await initiateGoogleCalendarAuth();
+                            return;
+                        } else {
+                            console.log('👤 [建立事件] 用戶取消授權');
+                            await showAlert('Google日曆', '已取消授權');
+                            return;
+                        }
+                    }
+
+                    throw new Error(errorData.message || '建立事件失敗');
+                }
+
+                const result = await response.json();
+                console.log('✅ [建立事件] Google日曆事件建立成功:', result);
+
+                await showAlert('Google日曆', '✅ 任務已加入Google日曆！');
+
+            } catch (error) {
+                console.error('❌ [建立事件] 建立Google日曆事件失敗:', error);
+                await showAlert('Google日曆', '❌ 事件建立失敗: ' + error.message);
+                throw error;
+            }
+        }
+
         // 儲存任務
         async function saveTask() {
             try {
@@ -1788,6 +1993,7 @@
                 const taskDateElement = document.getElementById('taskDate');
                 const taskReminder = document.getElementById('taskReminder').textContent;
                 const taskRepeat = document.getElementById('taskRepeat').textContent;
+                const taskGoogleCalendar = document.getElementById('taskGoogleCalendar').textContent;
 
                 if (!taskTitle) {
                     await showAlert('儲存失敗', '請輸入任務標題');
@@ -1821,7 +2027,8 @@
                     tag: taskTag !== '無' ? taskTag : null,
                     date: taskDate,
                     reminder: taskReminder !== '否' ? taskReminder : null,
-                    repeat: taskRepeat !== '不重複' ? taskRepeat : null
+                    repeat: taskRepeat !== '不重複' ? taskRepeat : null,
+                    googleCalendar: taskGoogleCalendar === '是'
                 };
 
                 console.log('🔄 [儲存任務] 準備儲存任務資料:', taskData);
@@ -1842,8 +2049,20 @@
                     // 更新本地資料
                     currentTaskData.text = taskTitle;
                     currentTaskData.note = taskNote;
+                    currentTaskData.googleCalendar = taskGoogleCalendar === '是';
 
                     console.log('✅ [儲存任務] 儲存成功:', result);
+
+                    // 如果啟用了Google Calendar，建立日曆事件
+                    if (taskGoogleCalendar === '是') {
+                        try {
+                            console.log('📅 [Google日曆] 開始建立日曆事件...');
+                            await createGoogleCalendarEvent(taskTitle, taskNote, taskDate, taskReminder);
+                        } catch (calendarError) {
+                            console.error('❌ [Google日曆] 建立事件失敗:', calendarError);
+                            // 不中斷主要流程，只記錄錯誤
+                        }
+                    }
 
                     // 檢查是否需要加入常用任務
                     const frequentToggle = document.getElementById('frequentTaskToggle');
@@ -2056,7 +2275,8 @@
                         tag: currentTaskData.tag || null,
                         date: currentTaskData.date || null,
                         reminder: currentTaskData.reminder || null,
-                        repeat: currentTaskData.repeat || null
+                        repeat: currentTaskData.repeat || null,
+                        googleCalendar: currentTaskData.googleCalendar || false
                     })
                 });
 
@@ -2089,7 +2309,8 @@
                         tag: currentTaskData.tag || null,
                         date: currentTaskData.date || null,
                         reminder: currentTaskData.reminder || null,
-                        repeat: currentTaskData.repeat || null
+                        repeat: currentTaskData.repeat || null,
+                        googleCalendar: currentTaskData.googleCalendar || false
                     })
                 });
 
@@ -2382,8 +2603,32 @@
             }
         });
 
+        // 檢查Google授權回調
+        async function checkGoogleAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const googleAuth = urlParams.get('googleAuth');
+
+            if (googleAuth === 'success') {
+                console.log('✅ [Google授權] 授權成功回調');
+                await showAlert('Google日曆', '授權成功！');
+
+                // 更新UI狀態
+                const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
+                if (taskGoogleCalendarElement) {
+                    taskGoogleCalendarElement.textContent = '是';
+                }
+
+                // 清除URL參數
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+            }
+        }
+
         // 頁面載入時初始化 LIFF
-        window.addEventListener('load', initializeLiff);
+        window.addEventListener('load', async () => {
+            await checkGoogleAuthCallback();
+            initializeLiff();
+        });
     </script>
 </body>
 </html>
