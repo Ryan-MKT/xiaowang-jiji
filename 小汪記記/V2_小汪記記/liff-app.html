@@ -639,6 +639,59 @@
             background-color: #F0F0F0;
         }
 
+        /* Google日曆選項在時間選擇器內的樣式 */
+        .google-calendar-section {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .google-calendar-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 0;
+            transition: background-color 0.2s ease;
+        }
+
+        .google-calendar-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .google-calendar-icon {
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .google-calendar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+        }
+
+        .google-calendar-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .google-calendar-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .google-calendar-value {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .google-calendar-arrow {
+            font-size: 12px;
+            color: #999;
+        }
+
         .datetime-actions {
             display: flex;
             gap: 12px;
@@ -1058,8 +1111,22 @@
                     <!-- 時間選擇器 -->
                     <div class="time-picker-section">
                         <div class="time-picker-header">選擇時間 (可選)</div>
-                        <input type="time" id="timePicker" class="time-input">
+                        <input type="time" id="timePicker" class="time-input" onchange="updateTimeImmediately()">
                         <div class="time-clear" onclick="clearTime()">清除時間</div>
+
+                        <!-- Google日曆選項 -->
+                        <div class="google-calendar-section">
+                            <div class="google-calendar-item" onclick="toggleGoogleCalendar()">
+                                <div class="google-calendar-icon">📅</div>
+                                <div class="google-calendar-content">
+                                    <span class="google-calendar-label">加入Google日曆</span>
+                                    <div class="google-calendar-toggle">
+                                        <span class="google-calendar-value" id="taskGoogleCalendar">否</span>
+                                        <span class="google-calendar-arrow" id="googleCalendarArrow">›</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 確認按鈕 -->
@@ -1117,24 +1184,6 @@
                 </div>
             </div>
 
-            <div class="setting-item" onclick="toggleGoogleCalendar()">
-                <div class="setting-icon">📅</div>
-                <div class="setting-content">
-                    <span class="setting-label">加入Google日曆</span>
-                    <div>
-                        <span class="setting-value" id="taskGoogleCalendar">否</span>
-                        <span class="setting-arrow" id="googleCalendarArrow">›</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Google日曆下拉選單 -->
-            <div class="dropdown-container" id="googleCalendarDropdown">
-                <div class="dropdown-content">
-                    <div class="reminder-option" onclick="selectGoogleCalendar('否')">否</div>
-                    <div class="reminder-option" onclick="selectGoogleCalendar('是')">是</div>
-                </div>
-            </div>
         </div>
 
         <!-- 操作按鈕區域 -->
@@ -1364,9 +1413,8 @@
                                 const minute = String(dateObj.getMinutes()).padStart(2, '0');
 
                                 let displayText = `${year}/${month}/${day}`;
-                                if (hour !== '00' || minute !== '00') {
-                                    displayText += ` ${hour}:${minute}`;
-                                }
+                                // 總是顯示時間，除非明確沒有時間資訊
+                                displayText += ` ${hour}:${minute}`;
 
                                 const taskDateElement = document.getElementById('taskDate');
                                 taskDateElement.textContent = displayText;
@@ -1710,11 +1758,57 @@
                 taskDateElement.setAttribute('data-full-datetime', fullDateTime);
             }
 
-            console.log('📅 用戶選擇日期時間:', displayText);
-            console.log('📅 完整 DateTime 格式:', taskDateElement.getAttribute('data-full-datetime'));
+            console.log('📅 [confirmDateTime] 用戶選擇日期時間:', displayText);
+            console.log('📅 [confirmDateTime] 完整 DateTime 格式:', taskDateElement.getAttribute('data-full-datetime'));
+            console.log('📅 [confirmDateTime] selectedDate:', selectedDate);
+            console.log('📅 [confirmDateTime] selectedTime:', selectedTime);
 
             // 關閉選擇器
             closeDatePicker();
+        }
+
+        // 立即更新時間（當時間選擇器變更時）
+        function updateTimeImmediately() {
+            const datePicker = document.getElementById('datePicker');
+            const timePicker = document.getElementById('timePicker');
+            const taskDateElement = document.getElementById('taskDate');
+
+            const selectedDate = datePicker.value;
+            const selectedTime = timePicker.value;
+
+            console.log('⏰ [立即更新時間] 時間變更:', selectedTime);
+
+            if (!selectedDate) {
+                console.warn('⏰ [立即更新時間] 沒有選擇日期，無法更新');
+                return;
+            }
+
+            // 格式化日期顯示 - 用於UI展示
+            const dateObj = new Date(selectedDate);
+            const formattedDate = `${dateObj.getFullYear()}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}`;
+
+            let displayText = formattedDate;
+            if (selectedTime) {
+                displayText += ` ${selectedTime}`;
+            }
+
+            // 更新顯示
+            taskDateElement.textContent = displayText;
+
+            // 儲存完整的 datetime 資料到元素屬性中，供儲存時使用
+            if (selectedTime) {
+                // 合併日期和時間成完整的 datetime string (ISO 8601 格式 + 台灣時區)
+                const fullDateTime = `${selectedDate}T${selectedTime}:00+08:00`;
+                taskDateElement.setAttribute('data-full-datetime', fullDateTime);
+                console.log('⏰ [立即更新時間] 更新 data-full-datetime:', fullDateTime);
+            } else {
+                // 只有日期，設為當天 00:00:00 台灣時區
+                const fullDateTime = `${selectedDate}T00:00:00+08:00`;
+                taskDateElement.setAttribute('data-full-datetime', fullDateTime);
+                console.log('⏰ [立即更新時間] 設為 00:00 時間:', fullDateTime);
+            }
+
+            console.log('⏰ [立即更新時間] 顯示文字更新為:', displayText);
         }
 
         // 顯示時間選擇器
@@ -1808,38 +1902,22 @@
             console.log('🔄 [重複設定] 選擇重複模式:', repeatValue);
         }
 
-        // 切換Google日曆選擇器
+        // 切換Google日曆選項
         function toggleGoogleCalendar() {
-            const dropdown = document.getElementById('googleCalendarDropdown');
-            const setting = dropdown.previousElementSibling;
-            const arrow = document.getElementById('googleCalendarArrow');
+            const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
+            const currentValue = taskGoogleCalendarElement.textContent;
 
-            if (dropdown.classList.contains('show')) {
-                closeGoogleCalendarPicker();
-                return;
+            if (currentValue === '否') {
+                taskGoogleCalendarElement.textContent = '是';
+            } else {
+                taskGoogleCalendarElement.textContent = '否';
             }
-
-            dropdown.classList.add('show');
-            setting.classList.add('reminder-setting', 'expanded');
-            arrow.textContent = '⌄';
         }
 
-        // 關閉Google日曆選擇器
-        function closeGoogleCalendarPicker() {
-            const dropdown = document.getElementById('googleCalendarDropdown');
-            const setting = dropdown.previousElementSibling;
-            const arrow = document.getElementById('googleCalendarArrow');
-
-            dropdown.classList.remove('show');
-            setting.classList.remove('expanded');
-            arrow.textContent = '›';
-        }
 
         // 選擇Google日曆設定
         async function selectGoogleCalendar(calendarValue) {
             const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
-
-            closeGoogleCalendarPicker();
 
             console.log('📅 [Google日曆設定] 選擇設定:', calendarValue);
 
@@ -2000,22 +2078,70 @@
                     return;
                 }
 
-                // 獲取完整的日期時間 - 優先使用 ISO 格式，否則使用顯示文字
+                // 獲取完整的日期時間 - 優先檢查顯示文字是否與 data-full-datetime 一致
                 let taskDate = taskDateElement.getAttribute('data-full-datetime');
-                if (!taskDate) {
-                    // 如果沒有完整的 datetime 資料，使用顯示的文字
-                    taskDate = taskDateElement.textContent;
+                const displayText = taskDateElement.textContent;
+
+                console.log('📅 [日期驗證] 檢查日期一致性...');
+                console.log('📅 [日期驗證] 顯示文字:', displayText);
+                console.log('📅 [日期驗證] data-full-datetime:', taskDate);
+
+                // 檢查 data-full-datetime 是否與顯示文字一致
+                let needsRecalculation = false;
+                if (taskDate && displayText) {
+                    try {
+                        const storedDate = new Date(taskDate);
+                        const displayMatch = displayText.match(/(\d{4})\/(\d{2})\/(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+                        if (displayMatch) {
+                            const [, year, month, day, hour, minute] = displayMatch;
+                            const displayDateTime = new Date(`${year}-${month}-${day}T${hour || '00'}:${minute || '00'}:00+08:00`);
+
+                            // 如果時間不一致，需要重新計算
+                            if (Math.abs(storedDate.getTime() - displayDateTime.getTime()) > 60000) { // 1分鐘誤差容許
+                                needsRecalculation = true;
+                                console.log('📅 [日期驗證] 檢測到時間不一致，需要重新計算');
+                            }
+                        }
+                    } catch (error) {
+                        needsRecalculation = true;
+                        console.log('📅 [日期驗證] 解析錯誤，需要重新計算:', error);
+                    }
+                }
+
+                if (!taskDate || needsRecalculation) {
+                    // 重新基於顯示文字計算正確的 ISO 格式
+                    taskDate = displayText;
                     if (taskDate && taskDate !== '2025/09/14') {
                         // 嘗試解析顯示格式並轉換成 ISO 格式（台灣時區）
                         try {
-                            const dateMatch = taskDate.match(/(\d{4})\/(\d{2})\/(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+                            // 先嘗試解析 24 小時制格式 (13:39)
+                            let dateMatch = taskDate.match(/(\d{4})\/(\d{2})\/(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
                             if (dateMatch) {
                                 const [, year, month, day, hour, minute] = dateMatch;
                                 taskDate = `${year}-${month}-${day}T${hour || '00'}:${minute || '00'}:00+08:00`;
+                                console.log('📅 [日期重計算] 重新計算結果:', taskDate);
+                            } else {
+                                // 如果 24 小時制解析失敗，嘗試解析 12 小時制格式 (下午 01:39)
+                                dateMatch = taskDate.match(/(\d{4})\/(\d{2})\/(\d{2})(?:\s+(上午|下午)\s+(\d{1,2}):(\d{2}))?/);
+                                if (dateMatch) {
+                                    const [, year, month, day, period, hour, minute] = dateMatch;
+                                    let hour24 = parseInt(hour);
+                                    if (period === '下午' && hour24 !== 12) {
+                                        hour24 += 12;
+                                    } else if (period === '上午' && hour24 === 12) {
+                                        hour24 = 0;
+                                    }
+                                    const hour24Str = String(hour24).padStart(2, '0');
+                                    taskDate = `${year}-${month}-${day}T${hour24Str}:${minute}:00+08:00`;
+                                    console.log('📅 [日期重計算] 12小時制重新計算結果:', taskDate);
+                                }
                             }
                         } catch (error) {
                             console.warn('日期格式轉換失敗:', error);
                         }
+                    } else {
+                        // 如果是默認日期或無日期，設為 null
+                        taskDate = null;
                     }
                 }
 
@@ -2032,6 +2158,7 @@
                 };
 
                 console.log('🔄 [儲存任務] 準備儲存任務資料:', taskData);
+                console.log('📅 [最終日期檢查] 最終 taskDate 值:', taskDate);
 
                 // 發送儲存請求
                 const response = await fetch('/api/save-task', {
@@ -2057,6 +2184,9 @@
                     if (taskGoogleCalendar === '是') {
                         try {
                             console.log('📅 [Google日曆] 開始建立日曆事件...');
+                            console.log('📅 [Google日曆] 傳送的任務日期:', taskDate);
+                            console.log('📅 [Google日曆] 原始元素文字:', taskDateElement.textContent);
+                            console.log('📅 [Google日曆] data-full-datetime 屬性:', taskDateElement.getAttribute('data-full-datetime'));
                             await createGoogleCalendarEvent(taskTitle, taskNote, taskDate, taskReminder);
                         } catch (calendarError) {
                             console.error('❌ [Google日曆] 建立事件失敗:', calendarError);

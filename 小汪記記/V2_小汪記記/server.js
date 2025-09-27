@@ -4800,6 +4800,7 @@ app.post('/api/save-task', async (req, res) => {
 
         console.log(`🔍 [儲存資料] 準備存入 (TEXT欄位特殊處理):`, updateData);
         console.log(`🔍 [TAG專門處理] TAG原始值: "${tag}" -> 處理後: "${updateData.tag}"`);
+        console.log(`📅 [日期專門處理] 日期原始值: "${date}" -> 處理後: "${updateData.scheduled_date}"`);
 
         // 智能查找策略：優先用文字內容匹配最新記錄
         console.log(`🔍 [智能查找] 查找用戶 ${userId} 的訊息："${safeTitle}"`);
