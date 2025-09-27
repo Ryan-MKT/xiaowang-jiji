@@ -4672,7 +4672,8 @@ app.get('/api/get-task', async (req, res) => {
             note: taskData.note,
             scheduled_date: taskData.scheduled_date,
             reminder_minutes: taskData.reminder_minutes,
-            repeat_pattern: taskData.repeat_pattern
+            repeat_pattern: taskData.repeat_pattern,
+            google_calendar_enabled: taskData.google_calendar_enabled
           }, userId);
 
           res.json({
@@ -4684,7 +4685,8 @@ app.get('/api/get-task', async (req, res) => {
               note: taskData.note,
               date: taskData.scheduled_date,
               reminder: taskData.reminder_minutes,
-              repeat: taskData.repeat_pattern
+              repeat: taskData.repeat_pattern,
+              googleCalendar: taskData.google_calendar_enabled || false
             }
           });
         } else {
@@ -4697,7 +4699,8 @@ app.get('/api/get-task', async (req, res) => {
               note: null,
               date: null,
               reminder: null,
-              repeat: null
+              repeat: null,
+              googleCalendar: false
             }
           }, userId);
         }
@@ -4715,7 +4718,8 @@ app.get('/api/get-task', async (req, res) => {
           note: null,
           date: null,
           reminder: null,
-          repeat: null
+          repeat: null,
+          googleCalendar: false
         }
       });
     }
@@ -4771,6 +4775,7 @@ app.post('/api/save-task', async (req, res) => {
       userTasks[taskIndex].scheduled_date = date || null;
       userTasks[taskIndex].reminder_minutes = reminder || null;
       userTasks[taskIndex].repeat_pattern = repeat || null;
+      userTasks[taskIndex].google_calendar_enabled = googleCalendar === true || googleCalendar === 'true';
 
       userTaskStacks.set(userId, userTasks);
       console.log(`✅ [儲存任務] 記憶體任務已更新`);
@@ -4795,12 +4800,14 @@ app.post('/api/save-task', async (req, res) => {
           tag: processTextField(safeTag), // 特別處理 TEXT 屬性的 TAG 欄位
           scheduled_date: date || null,
           reminder_minutes: reminder ? parseInt(reminder.replace(/[^\d]/g, '')) : null,
-          repeat_pattern: repeat || null
+          repeat_pattern: repeat || null,
+          google_calendar_enabled: googleCalendar === true || googleCalendar === 'true'
         };
 
         console.log(`🔍 [儲存資料] 準備存入 (TEXT欄位特殊處理):`, updateData);
         console.log(`🔍 [TAG專門處理] TAG原始值: "${tag}" -> 處理後: "${updateData.tag}"`);
         console.log(`📅 [日期專門處理] 日期原始值: "${date}" -> 處理後: "${updateData.scheduled_date}"`);
+        console.log(`📅 [Google日曆] Google日曆原始值: "${googleCalendar}" -> 處理後: "${updateData.google_calendar_enabled}"`);
 
         // 智能查找策略：優先用文字內容匹配最新記錄
         console.log(`🔍 [智能查找] 查找用戶 ${userId} 的訊息："${safeTitle}"`);
