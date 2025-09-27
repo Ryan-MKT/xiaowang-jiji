@@ -4673,7 +4673,8 @@ app.get('/api/get-task', async (req, res) => {
             scheduled_date: taskData.scheduled_date,
             reminder_minutes: taskData.reminder_minutes,
             repeat_pattern: taskData.repeat_pattern,
-            google_calendar_enabled: taskData.google_calendar_enabled
+            google_calendar_enabled: taskData.google_calendar_enabled,
+            google_calendar_who: taskData.google_calendar_who
           }, userId);
 
           res.json({
@@ -4686,7 +4687,8 @@ app.get('/api/get-task', async (req, res) => {
               date: taskData.scheduled_date,
               reminder: taskData.reminder_minutes,
               repeat: taskData.repeat_pattern,
-              googleCalendar: taskData.google_calendar_enabled || false
+              googleCalendar: taskData.google_calendar_enabled || false,
+              guestEmail: taskData.google_calendar_who || null
             }
           });
         } else {
@@ -4700,7 +4702,8 @@ app.get('/api/get-task', async (req, res) => {
               date: null,
               reminder: null,
               repeat: null,
-              googleCalendar: false
+              googleCalendar: false,
+              guestEmail: null
             }
           }, userId);
         }
@@ -4741,16 +4744,17 @@ app.post('/api/save-task', async (req, res) => {
     const userId = req.headers['x-user-id'];
 
     // 直接使用請求體並確保 UTF-8 編碼
-    const { taskId, title, note, tag, date, reminder, repeat, googleCalendar } = req.body;
+    const { taskId, title, note, tag, date, reminder, repeat, googleCalendar, guestEmail } = req.body;
 
     // 確保中文字符正確處理
     const safeTag = tag ? Buffer.from(tag, 'utf8').toString('utf8') : null;
     const safeTitle = title ? Buffer.from(title, 'utf8').toString('utf8') : title;
     const safeNote = note ? Buffer.from(note, 'utf8').toString('utf8') : note;
+    const safeGuestEmail = guestEmail ? Buffer.from(guestEmail, 'utf8').toString('utf8').trim() : null;
 
     // 檢查接收到的原始資料和處理後資料
-    console.log(`🔍 [接收資料] 原始輸入:`, { taskId, title, note, tag, date, reminder, repeat, googleCalendar });
-    console.log(`🔍 [UTF-8處理] 處理後:`, { taskId, safeTitle, safeNote, safeTag, date, reminder, repeat, googleCalendar });
+    console.log(`🔍 [接收資料] 原始輸入:`, { taskId, title, note, tag, date, reminder, repeat, googleCalendar, guestEmail });
+    console.log(`🔍 [UTF-8處理] 處理後:`, { taskId, safeTitle, safeNote, safeTag, date, reminder, repeat, googleCalendar, safeGuestEmail });
 
     if (!userId) {
       return res.status(400).json({ error: 'Missing user ID' });
@@ -4776,6 +4780,7 @@ app.post('/api/save-task', async (req, res) => {
       userTasks[taskIndex].reminder_minutes = reminder || null;
       userTasks[taskIndex].repeat_pattern = repeat || null;
       userTasks[taskIndex].google_calendar_enabled = googleCalendar === true || googleCalendar === 'true';
+      userTasks[taskIndex].google_calendar_who = safeGuestEmail || null;
 
       userTaskStacks.set(userId, userTasks);
       console.log(`✅ [儲存任務] 記憶體任務已更新`);
@@ -4801,13 +4806,15 @@ app.post('/api/save-task', async (req, res) => {
           scheduled_date: date || null,
           reminder_minutes: reminder ? parseInt(reminder.replace(/[^\d]/g, '')) : null,
           repeat_pattern: repeat || null,
-          google_calendar_enabled: googleCalendar === true || googleCalendar === 'true'
+          google_calendar_enabled: googleCalendar === true || googleCalendar === 'true',
+          google_calendar_who: processTextField(safeGuestEmail)
         };
 
         console.log(`🔍 [儲存資料] 準備存入 (TEXT欄位特殊處理):`, updateData);
         console.log(`🔍 [TAG專門處理] TAG原始值: "${tag}" -> 處理後: "${updateData.tag}"`);
         console.log(`📅 [日期專門處理] 日期原始值: "${date}" -> 處理後: "${updateData.scheduled_date}"`);
         console.log(`📅 [Google日曆] Google日曆原始值: "${googleCalendar}" -> 處理後: "${updateData.google_calendar_enabled}"`);
+        console.log(`👥 [訪客郵件] 訪客郵件原始值: "${guestEmail}" -> 處理後: "${updateData.google_calendar_who}"`);
 
         // 智能查找策略：優先用文字內容匹配最新記錄
         console.log(`🔍 [智能查找] 查找用戶 ${userId} 的訊息："${safeTitle}"`);

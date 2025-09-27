@@ -588,7 +588,7 @@
         }
 
         .date-dropdown.show {
-            max-height: 300px;
+            max-height: 450px;
             border-left: 3px solid #007AFF;
         }
 
@@ -689,6 +689,60 @@
 
         .google-calendar-arrow {
             font-size: 12px;
+            color: #999;
+        }
+
+        /* Google 邀請對象欄位樣式 */
+        .google-guest-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            margin-top: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .google-guest-icon {
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .google-guest-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+            gap: 12px;
+        }
+
+        .google-guest-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+            min-width: 50px;
+        }
+
+        .google-guest-input-container {
+            flex: 1;
+        }
+
+        .google-guest-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #333;
+            background-color: #fff;
+            transition: border-color 0.2s ease;
+        }
+
+        .google-guest-input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+        }
+
+        .google-guest-input::placeholder {
             color: #999;
         }
 
@@ -1127,6 +1181,21 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 邀請對象輸入 -->
+                        <div class="google-guest-item" id="googleGuestSection" style="display: none;">
+                            <div class="google-guest-icon">👥</div>
+                            <div class="google-guest-content">
+                                <span class="google-guest-label">跟誰?</span>
+                                <div class="google-guest-input-container">
+                                    <input type="email"
+                                           id="googleGuestEmail"
+                                           class="google-guest-input"
+                                           placeholder="輸入 Gmail 地址"
+                                           autocomplete="email">
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 確認按鈕 -->
@@ -1445,9 +1514,30 @@
                                 currentTaskData.googleCalendar = data.googleCalendar;
                                 document.getElementById('taskGoogleCalendar').textContent = data.googleCalendar ? '是' : '否';
                                 console.log('📅 [任務載入] 載入Google日曆設定:', data.googleCalendar);
+
+                                // 根據Google日曆設定顯示或隱藏訪客郵件欄位
+                                const guestSection = document.getElementById('googleGuestSection');
+                                if (guestSection) {
+                                    guestSection.style.display = data.googleCalendar ? 'flex' : 'none';
+                                }
                             } else {
                                 currentTaskData.googleCalendar = false;
                                 document.getElementById('taskGoogleCalendar').textContent = '否';
+
+                                // 隱藏訪客郵件欄位
+                                const guestSection = document.getElementById('googleGuestSection');
+                                if (guestSection) {
+                                    guestSection.style.display = 'none';
+                                }
+                            }
+
+                            // 載入訪客郵件地址
+                            if (data.guestEmail && data.guestEmail.trim()) {
+                                const guestEmailInput = document.getElementById('googleGuestEmail');
+                                if (guestEmailInput) {
+                                    guestEmailInput.value = data.guestEmail;
+                                    console.log('👥 [任務載入] 載入訪客郵件:', data.guestEmail);
+                                }
                             }
                         }
                     } else {
@@ -1905,12 +1995,18 @@
         // 切換Google日曆選項
         function toggleGoogleCalendar() {
             const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
+            const googleGuestSection = document.getElementById('googleGuestSection');
             const currentValue = taskGoogleCalendarElement.textContent;
 
             if (currentValue === '否') {
                 taskGoogleCalendarElement.textContent = '是';
+                // 顯示邀請對象輸入欄位
+                googleGuestSection.style.display = 'flex';
             } else {
                 taskGoogleCalendarElement.textContent = '否';
+                // 隱藏邀請對象輸入欄位並清空內容
+                googleGuestSection.style.display = 'none';
+                document.getElementById('googleGuestEmail').value = '';
             }
         }
 
@@ -1942,6 +2038,13 @@
                             // 已經授權，直接設定為「是」
                             console.log('✅ [Google授權] 已授權，直接啟用Google日曆');
                             taskGoogleCalendarElement.textContent = '是';
+
+                            // 顯示訪客郵件欄位
+                            const googleGuestSection = document.getElementById('googleGuestSection');
+                            if (googleGuestSection) {
+                                googleGuestSection.style.display = 'flex';
+                            }
+
                             await showAlert('Google日曆', '✅ 已啟用！');
                         } else {
                             // 尚未授權，開始授權流程
@@ -1956,9 +2059,32 @@
                     console.error('❌ [Google授權] 處理失敗:', error);
                     await showAlert('Google日曆', '設定失敗，請稍後重試');
                     taskGoogleCalendarElement.textContent = '否';
+
+                    // 隱藏訪客郵件欄位
+                    const googleGuestSection = document.getElementById('googleGuestSection');
+                    if (googleGuestSection) {
+                        googleGuestSection.style.display = 'none';
+                        // 清空輸入框內容
+                        const guestEmailInput = document.getElementById('googleGuestEmail');
+                        if (guestEmailInput) {
+                            guestEmailInput.value = '';
+                        }
+                    }
                 }
             } else {
                 taskGoogleCalendarElement.textContent = calendarValue;
+
+                // 隱藏訪客郵件欄位
+                const googleGuestSection = document.getElementById('googleGuestSection');
+                if (googleGuestSection) {
+                    googleGuestSection.style.display = 'none';
+                    // 清空輸入框內容
+                    const guestEmailInput = document.getElementById('googleGuestEmail');
+                    if (guestEmailInput) {
+                        guestEmailInput.value = '';
+                    }
+                }
+
                 await showAlert('Google日曆', '已關閉同步功能');
             }
         }
@@ -2145,6 +2271,10 @@
                     }
                 }
 
+                // 獲取訪客郵件地址
+                const guestEmailInput = document.getElementById('googleGuestEmail');
+                const guestEmail = guestEmailInput ? guestEmailInput.value.trim() : '';
+
                 // 準備儲存資料
                 const taskData = {
                     taskId: currentTaskId,
@@ -2154,7 +2284,8 @@
                     date: taskDate,
                     reminder: taskReminder !== '否' ? taskReminder : null,
                     repeat: taskRepeat !== '不重複' ? taskRepeat : null,
-                    googleCalendar: taskGoogleCalendar === '是'
+                    googleCalendar: taskGoogleCalendar === '是',
+                    guestEmail: guestEmail
                 };
 
                 console.log('🔄 [儲存任務] 準備儲存任務資料:', taskData);
@@ -2746,6 +2877,12 @@
                 const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
                 if (taskGoogleCalendarElement) {
                     taskGoogleCalendarElement.textContent = '是';
+
+                    // 顯示訪客郵件欄位
+                    const googleGuestSection = document.getElementById('googleGuestSection');
+                    if (googleGuestSection) {
+                        googleGuestSection.style.display = 'flex';
+                    }
                 }
 
                 // 清除URL參數
