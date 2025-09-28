@@ -148,10 +148,148 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
 
   console.log(`📋 [FLEX MESSAGE] 實際顯示 ${displayTasks.length} 個任務`);
 
-  // 創建任務清單內容，每個任務之間加上分隔線
+  // 創建任務清單內容，針對標籤模式添加分組邏輯
   const taskContents = [];
 
-  displayTasks.forEach((task, index) => {
+  if (activeTab === 'tags') {
+    // 標籤模式：按標籤分組顯示
+    const { parseTasksByTags } = require('./task-flex-message');
+    const { tagGroups, untaggedTasks } = parseTasksByTags(displayTasks);
+
+    // 顯示各標籤組
+    tagGroups.forEach(group => {
+      // 添加標籤標題
+      taskContents.push({
+        type: 'text',
+        text: group.tagName,
+        weight: 'bold',
+        size: 'md',
+        color: '#333333',
+        margin: 'lg'
+      });
+
+      // 添加該標籤組的所有任務到一個框架中
+      const groupTaskContents = [];
+      group.tasks.forEach((task, taskIndex) => {
+        const isCompleted = task.completed || false;
+
+        groupTaskContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'text',
+              text: isCompleted ? '🅥' : '○',
+              size: 'lg',
+              color: '#000000',
+              flex: 0,
+              align: 'center'
+            },
+            {
+              type: 'text',
+              text: task.text,
+              size: 'sm',
+              color: isCompleted ? '#999999' : '#333333',
+              flex: 1,
+              wrap: true,
+              decoration: isCompleted ? 'line-through' : 'none',
+              action: {
+                type: 'uri',
+                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+              }
+            }
+          ]
+        });
+
+        // 任務之間添加分隔線（除了最後一個）
+        if (taskIndex < group.tasks.length - 1) {
+          groupTaskContents.push({
+            type: 'separator',
+            margin: 'sm'
+          });
+        }
+      });
+
+      // 添加帶框架的標籤組
+      taskContents.push({
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        margin: 'md',
+        paddingAll: 'md',
+        backgroundColor: '#F8F8F8',
+        cornerRadius: '8px',
+        contents: groupTaskContents
+      });
+    });
+
+    // 顯示無標籤任務
+    if (untaggedTasks.length > 0) {
+      taskContents.push({
+        type: 'text',
+        text: '無標籤',
+        weight: 'bold',
+        size: 'md',
+        color: '#333333',
+        margin: 'lg'
+      });
+
+      const untaggedContents = [];
+      untaggedTasks.forEach((task, taskIndex) => {
+        const isCompleted = task.completed || false;
+
+        untaggedContents.push({
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'text',
+              text: isCompleted ? '🅥' : '○',
+              size: 'lg',
+              color: '#000000',
+              flex: 0,
+              align: 'center'
+            },
+            {
+              type: 'text',
+              text: task.text,
+              size: 'sm',
+              color: isCompleted ? '#999999' : '#333333',
+              flex: 1,
+              wrap: true,
+              decoration: isCompleted ? 'line-through' : 'none',
+              action: {
+                type: 'uri',
+                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+              }
+            }
+          ]
+        });
+
+        if (taskIndex < untaggedTasks.length - 1) {
+          untaggedContents.push({
+            type: 'separator',
+            margin: 'sm'
+          });
+        }
+      });
+
+      taskContents.push({
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        margin: 'md',
+        paddingAll: 'md',
+        backgroundColor: '#F8F8F8',
+        cornerRadius: '8px',
+        contents: untaggedContents
+      });
+    }
+  } else {
+    // 一般模式：原本的顯示方式
+    displayTasks.forEach((task, index) => {
     const isCompleted = task.completed || false;
 
     // 調試：檢查每個任務的備註資料
@@ -267,6 +405,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       });
     }
   });
+  }
 
   // 生成帶日期的標題
   const titleData = generateDateTitle(displayedTotal);
@@ -1031,13 +1170,58 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
   // 創建主要內容
   const contents = [];
 
-  // 標題
+  // 標題 - 修改為 (一般)(標籤) 切換樣式，100%像圖2
   contents.push({
-    type: 'text',
-    text: '標籤視圖',
-    weight: 'bold',
-    size: 'lg',
-    color: '#333333'
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'none',
+    margin: 'md',
+    contents: [
+      {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#E8E8E8',
+        cornerRadius: '20px 0px 0px 20px',
+        paddingAll: 'sm',
+        action: {
+          type: 'postback',
+          label: '一般',
+          data: 'switch_tab_general'
+        },
+        contents: [
+          {
+            type: 'text',
+            text: '一般',
+            align: 'center',
+            color: '#666666',
+            size: 'sm'
+          }
+        ],
+        flex: 1
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#00C851',
+        cornerRadius: '0px 20px 20px 0px',
+        paddingAll: 'sm',
+        action: {
+          type: 'postback',
+          label: '標籤',
+          data: 'switch_tab_tags'
+        },
+        contents: [
+          {
+            type: 'text',
+            text: '標籤',
+            align: 'center',
+            color: '#FFFFFF',
+            size: 'sm'
+          }
+        ],
+        flex: 1
+      }
+    ]
   });
 
   contents.push({
@@ -1048,7 +1232,8 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
       weekday: 'short'
     })}`,
     size: 'sm',
-    color: '#666666'
+    color: '#666666',
+    margin: 'md'
   });
 
   // 為每個標籤組創建區塊
@@ -1071,110 +1256,150 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
       }
     }
 
+    // 標籤標題 - 移除數量顯示，只顯示標籤名稱
     contents.push({
-      type: 'box',
-      layout: 'horizontal',
-      spacing: 'sm',
-      margin: 'md',
-      action: {
-        type: 'postback',
-        label: `查看${group.tagName}標籤`,
-        data: `view_tag_tasks|${group.tagName}`
-      },
-      contents: [
-        {
-          type: 'text',
-          text: `${tagIcon} ${group.tagName}`,
-          weight: 'bold',
-          color: tagColor,
-          flex: 1
-        },
-        {
-          type: 'text',
-          text: `${group.taskCount}項`,
-          size: 'sm',
-          color: '#999999',
-          align: 'end'
-        }
-      ]
+      type: 'text',
+      text: group.tagName,
+      weight: 'bold',
+      size: 'md',
+      color: '#333333',
+      margin: 'md'
     });
 
-    // 任務預覽（顯示前3個任務）
-    const previewTasks = group.tasks.slice(0, 3);
-    previewTasks.forEach(task => {
-      contents.push({
+    // 創建標籤組邊框容器
+    const tagGroupContents = [];
+
+    // 任務預覽（顯示所有任務，改為 ○ 格式）
+    group.tasks.forEach(task => {
+      tagGroupContents.push({
         type: 'box',
         layout: 'horizontal',
         spacing: 'sm',
         margin: 'xs',
-        paddingStart: 'lg',
         contents: [
           {
             type: 'text',
-            text: '•',
-            color: '#CCCCCC',
+            text: '○',
+            color: '#666666',
             flex: 0
           },
           {
             type: 'text',
-            text: task.text.length > 25 ? task.text.substring(0, 25) + '...' : task.text,
+            text: task.text,
             size: 'sm',
-            color: '#666666',
+            color: '#333333',
             flex: 1,
-            wrap: false
+            wrap: true
           }
         ]
       });
     });
 
-    // 如果有更多任務，顯示省略號
-    if (group.taskCount > 3) {
-      contents.push({
-        type: 'text',
-        text: `... 還有 ${group.taskCount - 3} 項任務`,
-        size: 'xs',
-        color: '#999999',
-        align: 'center',
-        margin: 'sm'
-      });
-    }
+    // 添加帶邊框的標籤組 (移除不支援的 borderWidth 和 borderColor)
+    contents.push({
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      margin: 'md',
+      paddingAll: 'md',
+      backgroundColor: '#F8F8F8',
+      cornerRadius: '8px',
+      contents: tagGroupContents
+    });
+
   });
 
   // 如果有無標籤任務
   if (untaggedTasks.length > 0) {
+    // 無標籤標題
     contents.push({
-      type: 'separator',
+      type: 'text',
+      text: '無標籤',
+      weight: 'bold',
+      size: 'md',
+      color: '#333333',
       margin: 'md'
     });
 
+    // 創建無標籤任務邊框容器
+    const untaggedContents = [];
+
+    untaggedTasks.forEach(task => {
+      untaggedContents.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        margin: 'xs',
+        contents: [
+          {
+            type: 'text',
+            text: '○',
+            color: '#666666',
+            flex: 0
+          },
+          {
+            type: 'text',
+            text: task.text,
+            size: 'sm',
+            color: '#333333',
+            flex: 1,
+            wrap: true
+          }
+        ]
+      });
+    });
+
+    // 添加帶邊框的無標籤組
     contents.push({
       type: 'box',
-      layout: 'horizontal',
+      layout: 'vertical',
       spacing: 'sm',
       margin: 'md',
-      action: {
-        type: 'postback',
-        label: '查看無標籤任務',
-        data: 'view_tag_tasks|無標籤'
-      },
-      contents: [
-        {
-          type: 'text',
-          text: '📝 無標籤',
-          weight: 'bold',
-          color: '#999999',
-          flex: 1
-        },
-        {
-          type: 'text',
-          text: `${untaggedTasks.length}項`,
-          size: 'sm',
-          color: '#999999',
-          align: 'end'
-        }
-      ]
+      paddingAll: 'md',
+      backgroundColor: '#FFFFFF',
+      borderWidth: '1px',
+      borderColor: '#E0E0E0',
+      cornerRadius: '8px',
+      contents: untaggedContents
     });
   }
+
+  // 添加底部按鈕
+  contents.push({
+    type: 'separator',
+    margin: 'xl'
+  });
+
+  contents.push({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'lg',
+    contents: [
+      {
+        type: 'button',
+        style: 'secondary',
+        height: 'sm',
+        action: {
+          type: 'uri',
+          label: '常用',
+          uri: `${process.env.LIFF_BASE_URL || 'https://liff.line.me/2008077335-rZlgE4bX'}/liff-app.html?view=collections`
+        },
+        flex: 1
+      },
+      {
+        type: 'button',
+        style: 'secondary',
+        height: 'sm',
+        action: {
+          type: 'uri',
+          label: '卡片',
+          uri: `${process.env.LIFF_BASE_URL || 'https://liff.line.me/2008077335-rZlgE4bX'}/liff-app.html?view=cards`
+        },
+        flex: 1
+      }
+    ]
+  });
 
   return {
     type: 'flex',

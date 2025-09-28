@@ -1948,11 +1948,24 @@ async function handlePostback(event) {
 
       const userTags = await getUserTags(userId);
 
-      // 生成標籤分組視圖
-      const { createTagGroupedFlexMessage } = getTaskFlexModule();
-      const tagFlexMessage = createTagGroupedFlexMessage(userTasks, userTags);
+      // 將任務按標籤分組重新排序
+      const { parseTasksByTags } = getTaskFlexModule();
+      const { tagGroups, untaggedTasks } = parseTasksByTags(userTasks);
 
-      console.log(`🏷️ [標籤視圖] 生成了基於標籤分組的 Flex Message`);
+      // 重新組織任務順序：先顯示各標籤組的任務，最後顯示無標籤任務
+      let reorderedTasks = [];
+      tagGroups.forEach(group => {
+        reorderedTasks = reorderedTasks.concat(group.tasks);
+      });
+      reorderedTasks = reorderedTasks.concat(untaggedTasks);
+
+      console.log(`🏷️ [標籤視圖] 按標籤重新排序，共 ${reorderedTasks.length} 個任務`);
+
+      // 使用和一般視圖完全相同的UI，只是改為'tags'模式以顯示正確的按鈕狀態
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const tagFlexMessage = createTaskStackFlexMessage(reorderedTasks, userTags, 'tags');
+
+      console.log(`🏷️ [標籤視圖] 生成了與一般視圖相同格式的 Flex Message`);
 
       if (client) {
         return client.replyMessage(event.replyToken, tagFlexMessage);
