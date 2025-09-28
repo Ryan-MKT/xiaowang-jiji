@@ -2,30 +2,50 @@
 
 // 生成帶日期的標題函數
 function generateDateTitle(taskCount) {
-  // 生成標題
-  if (taskCount === 0) {
-    return `今天 0 件事`;
-  } else {
-    return `今天 ${taskCount} 件事`;
-  }
+  // 獲取台灣當前日期和星期
+  const now = new Date();
+  const taipeiDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+  const month = taipeiDate.getMonth() + 1;
+  const day = taipeiDate.getDate();
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekday = weekdays[taipeiDate.getDay()];
+
+  return {
+    dateText: `${month}/${day}`,
+    weekdayText: ` (${weekday})`
+  };
 }
 
 function generateTomorrowTitle(taskCount) {
-  // 生成明天標題
-  if (taskCount === 0) {
-    return `明天 0 件事`;
-  } else {
-    return `明天 ${taskCount} 件事`;
-  }
+  // 獲取台灣明天日期和星期
+  const now = new Date();
+  const taipeiDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+  taipeiDate.setDate(taipeiDate.getDate() + 1);
+  const month = taipeiDate.getMonth() + 1;
+  const day = taipeiDate.getDate();
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekday = weekdays[taipeiDate.getDay()];
+
+  return {
+    dateText: `${month}/${day}`,
+    weekdayText: ` (${weekday})`
+  };
 }
 
 function generateDayAfterTomorrowTitle(taskCount) {
-  // 生成後天標題
-  if (taskCount === 0) {
-    return `後天 0 件事`;
-  } else {
-    return `後天 ${taskCount} 件事`;
-  }
+  // 獲取台灣後天日期和星期
+  const now = new Date();
+  const taipeiDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+  taipeiDate.setDate(taipeiDate.getDate() + 2);
+  const month = taipeiDate.getMonth() + 1;
+  const day = taipeiDate.getDate();
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekday = weekdays[taipeiDate.getDay()];
+
+  return {
+    dateText: `${month}/${day}`,
+    weekdayText: ` (${weekday})`
+  };
 }
 
 // 單一任務 Flex Message
@@ -138,7 +158,8 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
     });
 
     // 添加任務項目 - 支援備註顯示
-    const taskBoxContents = [
+    // 建立任務文字和時間的水平佈局容器
+    const taskAndTimeBox = [
       {
         type: 'text',
         text: task.text,
@@ -155,29 +176,39 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
       }
     ];
 
-    // 如果有預定時間，在任務下方顯示
+    // 如果有預定時間，在任務同行右邊顯示
     if (task.scheduledDate) {
       console.log(`⏰ [FLEX 時間] 任務 ${task.id} 顯示預定時間: ${task.scheduledDate}`);
       // 將時間格式轉換為較易閱讀的格式
       const date = new Date(task.scheduledDate);
       const formattedTime = date.toLocaleString('zh-TW', {
         timeZone: 'Asia/Taipei',
-        month: 'numeric',
-        day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
         hour12: false
       });
-      taskBoxContents.push({
+      taskAndTimeBox.push({
         type: 'text',
-        text: `⏰ ${formattedTime}`,
+        text: formattedTime,
         size: 'xs',
         color: '#0084ff',
-        flex: 1,
-        wrap: true,
-        margin: 'xs'
+        flex: 0,
+        wrap: false,
+        align: 'end',
+        margin: 'sm'
       });
     }
+
+    // 建立任務主要內容區塊（包含任務文字/時間的水平佈局）
+    const taskBoxContents = [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        alignItems: 'center',
+        contents: taskAndTimeBox
+      }
+    ];
 
     // 如果有備註，在任務下方顯示
     if (task.note && task.note.trim()) {
@@ -236,12 +267,13 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
   });
 
   // 生成帶日期的標題
-  const titleText = generateDateTitle(displayedTotal);
+  const titleData = generateDateTitle(displayedTotal);
+  const altText = titleData.dateText + titleData.weekdayText;
 
   // Linus 風格：資料結構簡單，直接附加 Quick Reply
   const flexMessage = {
     type: 'flex',
-    altText: titleText,
+    altText: altText,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -252,12 +284,30 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         backgroundColor: '#CD853F',
         contents: [
           {
-            type: 'text',
-            text: titleText,
-            color: '#FFFFFF',
-            size: 'md',
-            weight: 'bold',
-            align: 'center'
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: titleData.dateText,
+                color: '#FFFFFF',
+                size: 'md',
+                weight: 'bold',
+                align: 'center',
+                flex: 0
+              },
+              {
+                type: 'text',
+                text: titleData.weekdayText,
+                color: '#FFFFFF',
+                size: 'sm',
+                weight: 'bold',
+                align: 'center',
+                flex: 0
+              }
+            ],
+            justifyContent: 'center',
+            alignItems: 'center'
           }
         ]
       },
@@ -898,11 +948,12 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
   );
 
   // 生成帶日期的標題
-  const titleText = generateDateTitle(displayedTotal);
+  const titleData = generateDateTitle(displayedTotal);
+  const altText = titleData.dateText + titleData.weekdayText;
 
   return {
     type: 'flex',
-    altText: titleText,
+    altText: altText,
     contents: {
       type: 'bubble',
       size: 'kilo',
@@ -913,12 +964,30 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         backgroundColor: '#CD853F',
         contents: [
           {
-            type: 'text',
-            text: titleText,
-            color: '#FFFFFF',
-            size: 'md',
-            weight: 'bold',
-            align: 'center'
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: titleData.dateText,
+                color: '#FFFFFF',
+                size: 'md',
+                weight: 'bold',
+                align: 'center',
+                flex: 0
+              },
+              {
+                type: 'text',
+                text: titleData.weekdayText,
+                color: '#FFFFFF',
+                size: 'sm',
+                weight: 'bold',
+                align: 'center',
+                flex: 0
+              }
+            ],
+            justifyContent: 'center',
+            alignItems: 'center'
           }
         ]
       },
