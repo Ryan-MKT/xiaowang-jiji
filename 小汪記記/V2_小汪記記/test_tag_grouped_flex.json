@@ -1,0 +1,265 @@
+{
+  "type": "flex",
+  "altText": "標籤視圖 - 3個標籤分類",
+  "contents": {
+    "type": "bubble",
+    "body": {
+      "type": "box",
+      "layout": "vertical",
+      "contents": [
+        {
+          "type": "text",
+          "text": "標籤視圖",
+          "weight": "bold",
+          "size": "lg",
+          "color": "#333333"
+        },
+        {
+          "type": "text",
+          "text": "9/28（週日）",
+          "size": "sm",
+          "color": "#666666"
+        },
+        {
+          "type": "separator",
+          "margin": "md"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "md",
+          "action": {
+            "type": "postback",
+            "label": "查看工作標籤",
+            "data": "view_tag_tasks|工作"
+          },
+          "contents": [
+            {
+              "type": "text",
+              "text": "💼 工作",
+              "weight": "bold",
+              "color": "#FF6B6B",
+              "flex": 1
+            },
+            {
+              "type": "text",
+              "text": "2項",
+              "size": "sm",
+              "color": "#999999",
+              "align": "end"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "xs",
+          "paddingStart": "lg",
+          "contents": [
+            {
+              "type": "text",
+              "text": "•",
+              "color": "#CCCCCC",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "開會",
+              "size": "sm",
+              "color": "#666666",
+              "flex": 1,
+              "wrap": false
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "xs",
+          "paddingStart": "lg",
+          "contents": [
+            {
+              "type": "text",
+              "text": "•",
+              "color": "#CCCCCC",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "加班",
+              "size": "sm",
+              "color": "#666666",
+              "flex": 1,
+              "wrap": false
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "margin": "md"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "md",
+          "action": {
+            "type": "postback",
+            "label": "查看生活標籤",
+            "data": "view_tag_tasks|生活"
+          },
+          "contents": [
+            {
+              "type": "text",
+              "text": "🏠 生活",
+              "weight": "bold",
+              "color": "#4ECDC4",
+              "flex": 1
+            },
+            {
+              "type": "text",
+              "text": "2項",
+              "size": "sm",
+              "color": "#999999",
+              "align": "end"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "xs",
+          "paddingStart": "lg",
+          "contents": [
+            {
+              "type": "text",
+              "text": "•",
+              "color": "#CCCCCC",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "出去玩",
+              "size": "sm",
+              "color": "#666666",
+              "flex": 1,
+              "wrap": false
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "xs",
+          "paddingStart": "lg",
+          "contents": [
+            {
+              "type": "text",
+              "text": "•",
+              "color": "#CCCCCC",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "買垃圾袋",
+              "size": "sm",
+              "color": "#666666",
+              "flex": 1,
+              "wrap": false
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "margin": "md"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "md",
+          "action": {
+            "type": "postback",
+            "label": "查看娛樂標籤",
+            "data": "view_tag_tasks|娛樂"
+          },
+          "contents": [
+            {
+              "type": "text",
+              "text": "🎮 娛樂",
+              "weight": "bold",
+              "color": "#45B7D1",
+              "flex": 1
+            },
+            {
+              "type": "text",
+              "text": "1項",
+              "size": "sm",
+              "color": "#999999",
+              "align": "end"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "xs",
+          "paddingStart": "lg",
+          "contents": [
+            {
+              "type": "text",
+              "text": "•",
+              "color": "#CCCCCC",
+              "flex": 0
+            },
+            {
+              "type": "text",
+              "text": "遊樂園",
+              "size": "sm",
+              "color": "#666666",
+              "flex": 1,
+              "wrap": false
+            }
+          ]
+        },
+        {
+          "type": "separator",
+          "margin": "md"
+        },
+        {
+          "type": "box",
+          "layout": "horizontal",
+          "spacing": "sm",
+          "margin": "md",
+          "action": {
+            "type": "postback",
+            "label": "查看無標籤任務",
+            "data": "view_tag_tasks|無標籤"
+          },
+          "contents": [
+            {
+              "type": "text",
+              "text": "📝 無標籤",
+              "weight": "bold",
+              "color": "#999999",
+              "flex": 1
+            },
+            {
+              "type": "text",
+              "text": "2項",
+              "size": "sm",
+              "color": "#999999",
+              "align": "end"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

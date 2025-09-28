@@ -1,0 +1,1 @@
+{"events":[{"type":"message","message":{"type":"text","id":"test_message_123","text":"測試任務"},"source":{"type":"user","userId":"test_user_123"},"replyToken":"test_reply_token_fix"}]}

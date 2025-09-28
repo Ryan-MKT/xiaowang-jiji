@@ -661,9 +661,9 @@ function createQuickActionCard() {
 }
 
 
-// 解析任務中的標籤，並按標籤分組
+// 解析任務中的標籤，並按標籤分組 - 使用 dev_messages.tag 欄位
 function parseTasksByTags(tasks) {
-  console.log('🏷️ [標籤解析] 開始解析任務標籤');
+  console.log('🏷️ [標籤解析] 開始解析任務標籤 - 使用 dev_messages.tag 欄位');
 
   const tagGroups = new Map();
   const untaggedTasks = [];
@@ -674,28 +674,24 @@ function parseTasksByTags(tasks) {
   }
 
   tasks.forEach((task, index) => {
-    // 解析標籤格式: (標籤名稱)任務內容
-    const tagMatch = task.text.match(/^\(([^)]+)\)(.*)$/);
+    // 使用 dev_messages 表的 tag 欄位
+    const tagName = task.tag && task.tag.trim() !== '' && task.tag !== '無' ? task.tag.trim() : null;
+    console.log(`🔍 [標籤解析] 任務 "${task.text}" 的標籤: "${tagName || '無標籤'}"`);
 
-    if (tagMatch) {
-      const tagName = tagMatch[1].trim();
-      const taskContent = tagMatch[2].trim();
-
+    if (tagName) {
       if (!tagGroups.has(tagName)) {
         tagGroups.set(tagName, []);
       }
 
-      // 創建新的任務對象，移除標籤前綴
-      const cleanTask = {
+      // 創建新的任務對象，保留原本的任務資料
+      const taggedTask = {
         ...task,
-        text: taskContent,
-        originalText: task.text,
         tagName: tagName,
         index: index + 1
       };
 
-      tagGroups.get(tagName).push(cleanTask);
-      console.log(`📋 [標籤解析] 任務"${taskContent}"歸類到標籤"${tagName}"`);
+      tagGroups.get(tagName).push(taggedTask);
+      console.log(`📋 [標籤解析] 任務"${task.text}"歸類到標籤"${tagName}"`);
     } else {
       untaggedTasks.push({
         ...task,
@@ -1025,6 +1021,175 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
   };
 }
 
+// 創建基於標籤分組的 FLEX Message - 顯示各標籤及其任務
+function createTagGroupedFlexMessage(tasks, userTags = null) {
+  console.log('🏷️ [標籤分組] 開始生成標籤分組訊息');
+
+  // 解析任務標籤
+  const { tagGroups, untaggedTasks } = parseTasksByTags(tasks);
+
+  // 創建主要內容
+  const contents = [];
+
+  // 標題
+  contents.push({
+    type: 'text',
+    text: '標籤視圖',
+    weight: 'bold',
+    size: 'lg',
+    color: '#333333'
+  });
+
+  contents.push({
+    type: 'text',
+    text: `${new Date().toLocaleDateString('zh-TW', {
+      month: 'numeric',
+      day: 'numeric',
+      weekday: 'short'
+    })}`,
+    size: 'sm',
+    color: '#666666'
+  });
+
+  // 為每個標籤組創建區塊
+  tagGroups.forEach(group => {
+    // 分隔線
+    contents.push({
+      type: 'separator',
+      margin: 'md'
+    });
+
+    // 標籤標題
+    let tagIcon = '🏷️';
+    let tagColor = '#4169E1';
+
+    if (userTags && Array.isArray(userTags)) {
+      const userTag = userTags.find(tag => tag.name === group.tagName);
+      if (userTag) {
+        tagIcon = userTag.icon || '🏷️';
+        tagColor = userTag.color || '#4169E1';
+      }
+    }
+
+    contents.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'md',
+      action: {
+        type: 'postback',
+        label: `查看${group.tagName}標籤`,
+        data: `view_tag_tasks|${group.tagName}`
+      },
+      contents: [
+        {
+          type: 'text',
+          text: `${tagIcon} ${group.tagName}`,
+          weight: 'bold',
+          color: tagColor,
+          flex: 1
+        },
+        {
+          type: 'text',
+          text: `${group.taskCount}項`,
+          size: 'sm',
+          color: '#999999',
+          align: 'end'
+        }
+      ]
+    });
+
+    // 任務預覽（顯示前3個任務）
+    const previewTasks = group.tasks.slice(0, 3);
+    previewTasks.forEach(task => {
+      contents.push({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        margin: 'xs',
+        paddingStart: 'lg',
+        contents: [
+          {
+            type: 'text',
+            text: '•',
+            color: '#CCCCCC',
+            flex: 0
+          },
+          {
+            type: 'text',
+            text: task.text.length > 25 ? task.text.substring(0, 25) + '...' : task.text,
+            size: 'sm',
+            color: '#666666',
+            flex: 1,
+            wrap: false
+          }
+        ]
+      });
+    });
+
+    // 如果有更多任務，顯示省略號
+    if (group.taskCount > 3) {
+      contents.push({
+        type: 'text',
+        text: `... 還有 ${group.taskCount - 3} 項任務`,
+        size: 'xs',
+        color: '#999999',
+        align: 'center',
+        margin: 'sm'
+      });
+    }
+  });
+
+  // 如果有無標籤任務
+  if (untaggedTasks.length > 0) {
+    contents.push({
+      type: 'separator',
+      margin: 'md'
+    });
+
+    contents.push({
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'sm',
+      margin: 'md',
+      action: {
+        type: 'postback',
+        label: '查看無標籤任務',
+        data: 'view_tag_tasks|無標籤'
+      },
+      contents: [
+        {
+          type: 'text',
+          text: '📝 無標籤',
+          weight: 'bold',
+          color: '#999999',
+          flex: 1
+        },
+        {
+          type: 'text',
+          text: `${untaggedTasks.length}項`,
+          size: 'sm',
+          color: '#999999',
+          align: 'end'
+        }
+      ]
+    });
+  }
+
+  return {
+    type: 'flex',
+    altText: `標籤視圖 - ${tagGroups.length}個標籤分類`,
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: contents
+      }
+    }
+  };
+}
+
 // 創建動態標籤 Carousel FLEX Message
 function createDynamicTagCarousel(tasks, userTags = null, completedCount = 0, favoriteCount = 0) {
   console.log('🎠 [動態標籤CAROUSEL] 開始生成動態標籤輪播訊息');
@@ -1248,6 +1413,8 @@ module.exports = {
   createMainTaskList,
   parseTasksByTags,
   createTagBubble,
+  createTagGroupedFlexMessage,
+  createDynamicTagCarousel,
   createCollectionsBubble,
   generateTomorrowTitle,
   generateDayAfterTomorrowTitle,

@@ -1901,14 +1901,15 @@ async function handlePostback(event) {
     console.log(`🔄 用戶 ${userId} 切換到一般視圖`);
 
     try {
-      // 獲取用戶任務資料
-      let userTasks = userTaskStacks.get(userId) || [];
+      // 使用記憶體中的任務堆疊（用戶真正的活躍任務）
+      const userTasks = userTaskStacks.get(userId) || [];
+      console.log(`🔍 [一般視圖] 從記憶體載入 ${userTasks.length} 個活躍任務`);
+
       const userTags = await getUserTags(userId);
 
       // 生成一般視圖的任務清單（顯示今天的任務）
       const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const todayTasks = filterTodayTasks(userTasks);
-      const generalFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'general');
+      const generalFlexMessage = createTaskStackFlexMessage(userTasks, userTags, 'general');
 
       if (client) {
         return client.replyMessage(event.replyToken, generalFlexMessage);
@@ -1937,14 +1938,21 @@ async function handlePostback(event) {
     console.log(`🏷️ 用戶 ${userId} 切換到標籤視圖`);
 
     try {
-      // 獲取用戶任務資料
-      let userTasks = userTaskStacks.get(userId) || [];
+      // 使用記憶體中的任務堆疊（用戶真正的活躍任務）
+      const userTasks = userTaskStacks.get(userId) || [];
+      console.log(`🔍 [標籤視圖] 從記憶體載入 ${userTasks.length} 個活躍任務`);
+
+      userTasks.forEach(task => {
+        console.log(`  - "${task.text}" 標籤: "${task.tag || '無標籤'}"`);
+      });
+
       const userTags = await getUserTags(userId);
 
-      // 生成標籤視圖的任務清單（使用相同的 Flex Message，只是 tab 顯示為 tags）
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const todayTasks = filterTodayTasks(userTasks);
-      const tagFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'tags');
+      // 生成標籤分組視圖
+      const { createTagGroupedFlexMessage } = getTaskFlexModule();
+      const tagFlexMessage = createTagGroupedFlexMessage(userTasks, userTags);
+
+      console.log(`🏷️ [標籤視圖] 生成了基於標籤分組的 Flex Message`);
 
       if (client) {
         return client.replyMessage(event.replyToken, tagFlexMessage);
@@ -1958,6 +1966,226 @@ async function handlePostback(event) {
       const errorMessage = {
         type: 'text',
         text: '😅 切換視圖時發生錯誤，請重試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 處理標籤任務查看事件
+  if (postbackData.startsWith('view_tag_tasks|')) {
+    const tagName = postbackData.split('|')[1];
+    console.log(`🏷️ 用戶 ${userId} 查看標籤"${tagName}"的任務`);
+
+    try {
+      // 使用記憶體中的任務堆疊（用戶真正的活躍任務）
+      const userTasks = userTaskStacks.get(userId) || [];
+      console.log(`🔍 [標籤任務查看] 從記憶體載入 ${userTasks.length} 個活躍任務`);
+
+      const userTags = await getUserTags(userId);
+
+      // 根據標籤篩選任務
+      let filteredTasks = [];
+
+      if (tagName === '無標籤') {
+        // 顯示無標籤的任務
+        filteredTasks = userTasks.filter(task =>
+          !task.tag || task.tag.trim() === '' || task.tag === '無'
+        );
+      } else {
+        // 顯示特定標籤的任務
+        filteredTasks = userTasks.filter(task =>
+          task.tag && task.tag.trim() === tagName
+        );
+      }
+
+      console.log(`🔍 [標籤篩選] 標籤"${tagName}"共有 ${filteredTasks.length} 個任務`);
+
+      // 如果沒有符合的任務
+      if (filteredTasks.length === 0) {
+        const noTasksMessage = {
+          type: 'flex',
+          altText: `${tagName}標籤沒有任務`,
+          contents: {
+            type: 'bubble',
+            size: 'kilo',
+            body: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'text',
+                  text: '🏷️ 標籤檢視',
+                  weight: 'bold',
+                  size: 'lg',
+                  color: '#333333'
+                },
+                {
+                  type: 'text',
+                  text: `標籤：${tagName}`,
+                  size: 'md',
+                  color: '#666666',
+                  margin: 'md'
+                },
+                {
+                  type: 'separator',
+                  margin: 'md'
+                },
+                {
+                  type: 'text',
+                  text: '📝 此標籤目前沒有任務',
+                  size: 'sm',
+                  color: '#999999',
+                  align: 'center',
+                  margin: 'lg'
+                },
+                {
+                  type: 'button',
+                  action: {
+                    type: 'postback',
+                    label: '返回標籤視圖',
+                    data: 'switch_tab_tags'
+                  },
+                  style: 'secondary',
+                  margin: 'lg'
+                }
+              ]
+            }
+          }
+        };
+
+        if (client) {
+          return client.replyMessage(event.replyToken, noTasksMessage);
+        } else {
+          console.log('測試模式：空標籤訊息', JSON.stringify(noTasksMessage, null, 2));
+          return Promise.resolve(null);
+        }
+      }
+
+      // 生成該標籤的任務清單
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+
+      // 創建標籤專用的 flex message
+      const tagTasksMessage = {
+        type: 'flex',
+        altText: `${tagName}標籤 - ${filteredTasks.length}個任務`,
+        contents: {
+          type: 'bubble',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'text',
+                text: '🏷️ 標籤檢視',
+                weight: 'bold',
+                size: 'lg',
+                color: '#333333'
+              },
+              {
+                type: 'box',
+                layout: 'horizontal',
+                spacing: 'sm',
+                margin: 'md',
+                contents: [
+                  {
+                    type: 'text',
+                    text: `${userTags.find(tag => tag.name === tagName)?.icon || '🏷️'} ${tagName}`,
+                    weight: 'bold',
+                    color: userTags.find(tag => tag.name === tagName)?.color || '#4169E1',
+                    flex: 1
+                  },
+                  {
+                    type: 'text',
+                    text: `${filteredTasks.length}項`,
+                    size: 'sm',
+                    color: '#999999',
+                    align: 'end'
+                  }
+                ]
+              },
+              {
+                type: 'separator',
+                margin: 'md'
+              }
+            ]
+          }
+        }
+      };
+
+      // 添加任務列表
+      filteredTasks.forEach((task, index) => {
+        const taskBox = {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          margin: index === 0 ? 'md' : 'sm',
+          contents: [
+            {
+              type: 'text',
+              text: task.completed ? '✅' : '⭕',
+              flex: 0
+            },
+            {
+              type: 'text',
+              text: task.text,
+              size: 'sm',
+              color: task.completed ? '#999999' : '#333333',
+              flex: 1,
+              wrap: true,
+              decoration: task.completed ? 'line-through' : 'none'
+            }
+          ]
+        };
+
+        // 如果任務未完成，添加點擊完成的動作
+        if (!task.completed) {
+          taskBox.action = {
+            type: 'postback',
+            label: `完成${task.text}`,
+            data: `complete_task_${task.id}`
+          };
+        }
+
+        tagTasksMessage.contents.body.contents.push(taskBox);
+      });
+
+      // 添加返回按鈕
+      tagTasksMessage.contents.body.contents.push(
+        {
+          type: 'separator',
+          margin: 'lg'
+        },
+        {
+          type: 'button',
+          action: {
+            type: 'postback',
+            label: '返回標籤視圖',
+            data: 'switch_tab_tags'
+          },
+          style: 'secondary',
+          margin: 'md'
+        }
+      );
+
+      if (client) {
+        return client.replyMessage(event.replyToken, tagTasksMessage);
+      } else {
+        console.log('測試模式：標籤任務列表', JSON.stringify(tagTasksMessage, null, 2));
+        return Promise.resolve(null);
+      }
+
+    } catch (error) {
+      console.error('❌ [標籤任務查看] 生成錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '😅 查看標籤任務時發生錯誤，請重試'
       };
 
       if (client) {
@@ -3293,7 +3521,8 @@ async function handleEvent(event) {
       text: parsedTask.text,
       originalText: userMessage,
       scheduledDate: parsedTask.scheduledDate,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      tag: '無標籤' // 預設標籤
     };
 
     // 如果是 URL，取得預覽資訊
@@ -3402,13 +3631,13 @@ async function handleEvent(event) {
     // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
     console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
     
-    // 🗓️ 過濾今天的任務來顯示在 Flex Message 中
-    const todayTasks = filterTodayTasks(userTasks);
+    // 🗓️ 使用記憶體中的任務堆疊來顯示 Flex Message（確保與標籤視圖同步）
+    console.log(`🔍 [新建任務] 使用記憶體中的 ${userTasks.length} 個活躍任務`);
 
-    // 創建包含今天任務的 Flex Message
+    // 創建包含活躍任務的 Flex Message
     const userTags = await getUserTags(userId);
     const { createTaskStackFlexMessage } = getTaskFlexModule();
-    const flexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+    const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
@@ -4941,6 +5170,28 @@ app.post('/api/save-task', async (req, res) => {
         if (textUpdate && textUpdate.length > 0) {
           console.log(`✅ [儲存任務] 文字匹配更新成功，實際ID: ${textUpdate[0].id}`);
           console.log(`🎯 [TAG確認] 更新後的TAG值: "${textUpdate[0].tag}"`);
+
+          // 同步更新記憶體中的任務
+          console.log(`🔄 [記憶體同步] 開始同步記憶體中的任務標籤`);
+          const userTasks = userTaskStacks.get(userId) || [];
+          let memoryUpdated = false;
+
+          for (let i = 0; i < userTasks.length; i++) {
+            if (userTasks[i].text === safeTitle || userTasks[i].id == taskId) {
+              console.log(`🎯 [記憶體同步] 找到匹配任務: "${userTasks[i].text}"`);
+              userTasks[i].tag = safeTag;
+              memoryUpdated = true;
+              console.log(`✅ [記憶體同步] 已更新記憶體中任務的標籤為: "${safeTag}"`);
+              break;
+            }
+          }
+
+          if (memoryUpdated) {
+            userTaskStacks.set(userId, userTasks);
+            console.log(`✅ [記憶體同步] 記憶體任務堆疊已更新`);
+          } else {
+            console.log(`⚠️ [記憶體同步] 在記憶體中未找到對應任務`);
+          }
         } else {
           // 方法2：如果文字匹配失敗，嘗試數字ID匹配
           console.log(`🔄 [備用方法] 嘗試數字ID匹配`);
@@ -4958,6 +5209,28 @@ app.post('/api/save-task', async (req, res) => {
           if (directUpdate && directUpdate.length > 0) {
             console.log(`✅ [儲存任務] ID匹配更新成功`);
             console.log(`🎯 [TAG確認] 更新後的TAG值: "${directUpdate[0].tag}"`);
+
+            // 同步更新記憶體中的任務
+            console.log(`🔄 [記憶體同步] 開始同步記憶體中的任務標籤 (ID匹配)`);
+            const userTasks = userTaskStacks.get(userId) || [];
+            let memoryUpdated = false;
+
+            for (let i = 0; i < userTasks.length; i++) {
+              if (userTasks[i].text === safeTitle || userTasks[i].id == taskId) {
+                console.log(`🎯 [記憶體同步] 找到匹配任務: "${userTasks[i].text}"`);
+                userTasks[i].tag = safeTag;
+                memoryUpdated = true;
+                console.log(`✅ [記憶體同步] 已更新記憶體中任務的標籤為: "${safeTag}"`);
+                break;
+              }
+            }
+
+            if (memoryUpdated) {
+              userTaskStacks.set(userId, userTasks);
+              console.log(`✅ [記憶體同步] 記憶體任務堆疊已更新`);
+            } else {
+              console.log(`⚠️ [記憶體同步] 在記憶體中未找到對應任務`);
+            }
           } else {
             console.log(`⚠️ [儲存任務] 所有匹配方法都失敗，請檢查數據庫記錄`);
           }
