@@ -860,6 +860,55 @@ function filterDayAfterTomorrowTasks(allTasks) {
   return dayAfterTomorrowTasks;
 }
 
+// 通用日期過濾函數：過濾指定天數偏移的任務
+function filterTasksByDaysOffset(allTasks, daysOffset) {
+  const dayName = ['今天', '明天', '後天', '第3天', '第4天', '第5天', '第6天'][daysOffset] || `第${daysOffset}天`;
+  console.log(`📅 [${dayName}過濾] 開始過濾，總任務數: ${allTasks.length}`);
+
+  // 獲取台灣指定天數後的日期字符串 (YYYY-MM-DD)
+  const now = new Date();
+  const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const targetDate = new Date(taiwanNow.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+  const targetDateString = targetDate.toISOString().split('T')[0];
+
+  console.log(`📅 [${dayName}過濾] ${dayName}日期: ${targetDateString}`);
+
+  const filteredTasks = allTasks.filter(task => {
+    // 檢查任務是否有預定時間
+    if (task.scheduledDate) {
+      // 解析任務的預定日期
+      const taskDate = new Date(task.scheduledDate);
+      const taskDateString = taskDate.toISOString().split('T')[0];
+
+      if (taskDateString === targetDateString) {
+        console.log(`📅 [${dayName}過濾] "${task.text}": ${taskDateString} ✅${dayName}`);
+        return true;
+      } else {
+        console.log(`📅 [${dayName}過濾] "${task.text}": ${taskDateString} ❌非${dayName} (原始: ${task.scheduledDate})`);
+        return false;
+      }
+    } else {
+      // 沒有預定時間的任務，只在今天顯示
+      if (daysOffset === 0) {
+        console.log(`📅 [${dayName}過濾] "${task.text}": 無時間 ✅${dayName}`);
+        return true;
+      } else {
+        return false;
+      }
+    }
+  });
+
+  console.log(`📅 [${dayName}過濾] 過濾結果：總任務數 ${allTasks.length} → ${dayName}任務數 ${filteredTasks.length}`);
+
+  if (filteredTasks.length > 0) {
+    console.log(`📅 [${dayName}過濾] ${dayName}的任務: ${filteredTasks.map(t => t.text).join(', ')}`);
+  } else {
+    console.log(`📅 [${dayName}過濾] ${dayName}的任務: 無`);
+  }
+
+  return filteredTasks;
+}
+
 // 用戶收藏任務儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{id: string, name: string, description: string, category: string, used_count: number, created_at: string}>>
 const userFavoriteTasks = new Map();
@@ -1762,97 +1811,80 @@ async function handlePostback(event) {
     }
   }
 
-  // 處理展開常用任務多頁檢視 - 今天、明天、後天任務
+  // 處理展開常用任務多頁檢視 - 7天任務頁面
   if (postbackData === 'expand_frequent_tasks_pages') {
-    console.log(`🎨 用戶 ${userId} 點擊展開3個任務頁面（今天、明天、後天）`);
+    console.log(`🎨 用戶 ${userId} 點擊展開7天任務頁面`);
 
     try {
       // 獲取用戶任務資料
       let userTasks = userTaskStacks.get(userId) || [];
       const userTags = await getUserTags(userId);
 
-      // 分別過濾今天、明天、後天的任務
-      const todayTasks = filterTodayTasks(userTasks);
-      const tomorrowTasks = filterTomorrowTasks(userTasks);
-      const dayAfterTomorrowTasks = filterDayAfterTomorrowTasks(userTasks);
-
       // 使用task-flex-message.js的函數生成各頁面
-      const { createTaskStackFlexMessage, generateTomorrowTitle, generateDayAfterTomorrowTitle, generateQuickReply } = getTaskFlexModule();
+      const { createTaskStackFlexMessage, generateDateTitle, generateQuickReply } = getTaskFlexModule();
 
-      // 第1頁：今天的任務
-      const todayFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+      // 生成7天的任務數據和Flex Messages
+      const sevenDaysBubbles = [];
+      const taskCounts = [];
 
-      // 第2頁：明天的任務
-      const tomorrowFlexMessage = createTaskStackFlexMessage(tomorrowTasks, userTags);
-      // 修改明天頁面的標題
-      const tomorrowTitle = generateTomorrowTitle(tomorrowTasks.length);
-      tomorrowFlexMessage.contents.header.contents[0].contents[0].text = tomorrowTitle.dateText;
-      tomorrowFlexMessage.contents.header.contents[0].contents[1].text = tomorrowTitle.weekdayText;
-      tomorrowFlexMessage.altText = tomorrowTitle.dateText + tomorrowTitle.weekdayText;
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        // 過濾指定天的任務
+        const dayTasks = filterTasksByDaysOffset(userTasks, dayOffset);
+        taskCounts.push(dayTasks.length);
 
-      // 第3頁：後天的任務
-      const dayAfterTomorrowFlexMessage = createTaskStackFlexMessage(dayAfterTomorrowTasks, userTags);
-      // 修改後天頁面的標題
-      const dayAfterTomorrowTitle = generateDayAfterTomorrowTitle(dayAfterTomorrowTasks.length);
-      dayAfterTomorrowFlexMessage.contents.header.contents[0].contents[0].text = dayAfterTomorrowTitle.dateText;
-      dayAfterTomorrowFlexMessage.contents.header.contents[0].contents[1].text = dayAfterTomorrowTitle.weekdayText;
-      dayAfterTomorrowFlexMessage.altText = dayAfterTomorrowTitle.dateText + dayAfterTomorrowTitle.weekdayText;
+        // 生成該天的Flex Message
+        const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags);
 
-      // 生成3個BUBBLE的carousel FLEX MESSAGE
-      const threePagesFlexMessage = {
+        // 修改該天頁面的標題
+        const dayTitle = generateDateTitle(dayOffset);
+        dayFlexMessage.contents.header.contents[0].contents[0].text = dayTitle.dateText;
+        dayFlexMessage.contents.header.contents[0].contents[1].text = dayTitle.weekdayText;
+        dayFlexMessage.altText = dayTitle.dateText + dayTitle.weekdayText;
+
+        // 添加到carousel中
+        sevenDaysBubbles.push({
+          type: 'bubble',
+          header: dayFlexMessage.contents.header,
+          body: dayFlexMessage.contents.body
+        });
+      }
+
+      // 生成7個BUBBLE的carousel FLEX MESSAGE
+      const sevenDaysFlexMessage = {
         type: 'flex',
-        altText: '今天、明天、後天任務',
+        altText: '未來7天任務',
         contents: {
           type: 'carousel',
-          contents: [
-            // 第1頁：今天的任務（移除size屬性以符合carousel格式）
-            {
-              type: 'bubble',
-              header: todayFlexMessage.contents.header,
-              body: todayFlexMessage.contents.body
-            },
-            // 第2頁：明天的任務
-            {
-              type: 'bubble',
-              header: tomorrowFlexMessage.contents.header,
-              body: tomorrowFlexMessage.contents.body
-            },
-            // 第3頁：後天的任務
-            {
-              type: 'bubble',
-              header: dayAfterTomorrowFlexMessage.contents.header,
-              body: dayAfterTomorrowFlexMessage.contents.body
-            }
-          ]
+          contents: sevenDaysBubbles
         }
       };
 
       // 添加 Quick Reply 按鈕 - 確保4個固定按鈕永遠顯示
       const quickReply = generateQuickReply(userTags);
       if (quickReply && quickReply.items && quickReply.items.length > 0) {
-        threePagesFlexMessage.quickReply = quickReply;
-        console.log('🎯 [3頁任務] 附加 Quick Reply 按鈕，確保永遠顯示');
+        sevenDaysFlexMessage.quickReply = quickReply;
+        console.log('🎯 [7天任務] 附加 Quick Reply 按鈕，確保永遠顯示');
       }
 
-      console.log(`📨 [3頁任務] 準備發送3頁任務頁面`);
-      console.log(`📊 [3頁任務] 今天: ${todayTasks.length}件, 明天: ${tomorrowTasks.length}件, 後天: ${dayAfterTomorrowTasks.length}件`);
+      console.log(`📨 [7天任務] 準備發送7天任務頁面`);
+      console.log(`📊 [7天任務] 任務數量: ${taskCounts.map((count, i) => `第${i}天: ${count}件`).join(', ')}`);
 
       // 調試：輸出完整的JSON結構
-      console.log('🔍 [3頁任務 DEBUG] 完整JSON:', JSON.stringify(threePagesFlexMessage, null, 2));
+      console.log('🔍 [7天任務 DEBUG] 完整JSON:', JSON.stringify(sevenDaysFlexMessage, null, 2));
 
       if (client) {
-        return client.replyMessage(event.replyToken, threePagesFlexMessage);
+        return client.replyMessage(event.replyToken, sevenDaysFlexMessage);
       } else {
-        console.log('測試模式：3頁任務 FLEX MESSAGE', JSON.stringify(threePagesFlexMessage, null, 2));
+        console.log('測試模式：7天任務 FLEX MESSAGE', JSON.stringify(sevenDaysFlexMessage, null, 2));
         return Promise.resolve(null);
       }
 
     } catch (error) {
-      console.error('❌ [3頁任務] 展開任務頁面失敗:', error);
+      console.error('❌ [7天任務] 展開任務頁面失敗:', error);
 
       const errorMessage = {
         type: 'text',
-        text: '⚠️ 展開任務頁面失敗，請稍後再試'
+        text: '⚠️ 展開7天任務頁面失敗，請稍後再試'
       };
 
       if (client) {

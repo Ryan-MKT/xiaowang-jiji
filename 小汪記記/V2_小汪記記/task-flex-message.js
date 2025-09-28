@@ -48,6 +48,22 @@ function generateDayAfterTomorrowTitle(taskCount) {
   };
 }
 
+function generateDateTitle(daysOffset) {
+  // 通用函數：生成從今天開始偏移指定天數的日期標題
+  const now = new Date();
+  const taipeiDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+  taipeiDate.setDate(taipeiDate.getDate() + daysOffset);
+  const month = taipeiDate.getMonth() + 1;
+  const day = taipeiDate.getDate();
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekday = weekdays[taipeiDate.getDay()];
+
+  return {
+    dateText: `${month}/${day}`,
+    weekdayText: ` (${weekday})`
+  };
+}
+
 // 單一任務 Flex Message
 function createTaskFlexMessage(taskText) {
   const timestamp = new Date().toLocaleString('zh-TW', {
@@ -1227,5 +1243,6 @@ module.exports = {
   createTagBubble,
   createCollectionsBubble,
   generateTomorrowTitle,
-  generateDayAfterTomorrowTitle
+  generateDayAfterTomorrowTitle,
+  generateDateTitle
 };
