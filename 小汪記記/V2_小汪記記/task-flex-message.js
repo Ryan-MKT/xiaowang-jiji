@@ -173,6 +173,45 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       group.tasks.forEach((task, taskIndex) => {
         const isCompleted = task.completed || false;
 
+        // 建立任務文字和時間的水平佈局容器
+        const taskAndTimeBox = [
+          {
+            type: 'text',
+            text: task.text,
+            size: 'sm',
+            color: isCompleted ? '#999999' : '#333333',
+            flex: 1,
+            wrap: true,
+            decoration: isCompleted ? 'line-through' : 'none',
+            action: {
+              type: 'uri',
+              uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+            }
+          }
+        ];
+
+        // 如果有預定時間，在任務同行右邊顯示
+        if (task.scheduled_date || task.scheduledDate) {
+          const timeField = task.scheduled_date || task.scheduledDate;
+          console.log(`⏰ [FLEX 標籤時間] 任務 ${task.id} 顯示預定時間: ${timeField}`);
+          // 將時間格式轉換為較易閱讀的格式
+          const date = new Date(timeField);
+          const formattedTime = date.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: false
+          });
+          taskAndTimeBox.push({
+            type: 'text',
+            text: formattedTime,
+            size: 'xs',
+            color: isCompleted ? '#CCCCCC' : '#666666',
+            flex: 0,
+            align: 'end'
+          });
+        }
+
         groupTaskContents.push({
           type: 'box',
           layout: 'horizontal',
@@ -187,17 +226,11 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
               align: 'center'
             },
             {
-              type: 'text',
-              text: task.text,
-              size: 'sm',
-              color: isCompleted ? '#999999' : '#333333',
-              flex: 1,
-              wrap: true,
-              decoration: isCompleted ? 'line-through' : 'none',
-              action: {
-                type: 'uri',
-                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
-              }
+              type: 'box',
+              layout: 'horizontal',
+              spacing: 'sm',
+              contents: taskAndTimeBox,
+              flex: 1
             }
           ]
         });
@@ -239,6 +272,45 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       untaggedTasks.forEach((task, taskIndex) => {
         const isCompleted = task.completed || false;
 
+        // 建立任務文字和時間的水平佈局容器
+        const untaggedTaskAndTimeBox = [
+          {
+            type: 'text',
+            text: task.text,
+            size: 'sm',
+            color: isCompleted ? '#999999' : '#333333',
+            flex: 1,
+            wrap: true,
+            decoration: isCompleted ? 'line-through' : 'none',
+            action: {
+              type: 'uri',
+              uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+            }
+          }
+        ];
+
+        // 如果有預定時間，在任務同行右邊顯示
+        if (task.scheduled_date || task.scheduledDate) {
+          const timeField = task.scheduled_date || task.scheduledDate;
+          console.log(`⏰ [FLEX 無標籤時間] 任務 ${task.id} 顯示預定時間: ${timeField}`);
+          // 將時間格式轉換為較易閱讀的格式
+          const date = new Date(timeField);
+          const formattedTime = date.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: false
+          });
+          untaggedTaskAndTimeBox.push({
+            type: 'text',
+            text: formattedTime,
+            size: 'xs',
+            color: isCompleted ? '#CCCCCC' : '#666666',
+            flex: 0,
+            align: 'end'
+          });
+        }
+
         untaggedContents.push({
           type: 'box',
           layout: 'horizontal',
@@ -253,17 +325,11 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
               align: 'center'
             },
             {
-              type: 'text',
-              text: task.text,
-              size: 'sm',
-              color: isCompleted ? '#999999' : '#333333',
-              flex: 1,
-              wrap: true,
-              decoration: isCompleted ? 'line-through' : 'none',
-              action: {
-                type: 'uri',
-                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
-              }
+              type: 'box',
+              layout: 'horizontal',
+              spacing: 'sm',
+              contents: untaggedTaskAndTimeBox,
+              flex: 1
             }
           ]
         });
@@ -319,10 +385,11 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
     ];
 
     // 如果有預定時間，在任務同行右邊顯示
-    if (task.scheduledDate) {
-      console.log(`⏰ [FLEX 時間] 任務 ${task.id} 顯示預定時間: ${task.scheduledDate}`);
+    if (task.scheduled_date || task.scheduledDate) {
+      const timeField = task.scheduled_date || task.scheduledDate;
+      console.log(`⏰ [FLEX 時間] 任務 ${task.id} 顯示預定時間: ${timeField}`);
       // 將時間格式轉換為較易閱讀的格式
-      const date = new Date(task.scheduledDate);
+      const date = new Date(timeField);
       const formattedTime = date.toLocaleString('zh-TW', {
         timeZone: 'Asia/Taipei',
         hour: 'numeric',

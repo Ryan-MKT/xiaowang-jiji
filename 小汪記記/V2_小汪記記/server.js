@@ -1136,7 +1136,7 @@ function createFavoritesCarousel(favorites) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = 3002;
 console.log('🚀 小汪記記 with LINE Login starting...');
 
 // 初始化 OpenAI
@@ -2880,55 +2880,8 @@ async function handleEvent(event) {
       });
     }
   } else {
-    // 非連結類型：儲存到 DEV_MESSAGES 並繼續原有邏輯
-    console.log('📝 [非連結] 一般訊息，儲存到 DEV_MESSAGES');
-
-    if (supabase) {
-      try {
-        const tablePrefix = process.env.TABLE_PREFIX || '';
-        const tableName = tablePrefix + 'messages';
-
-        // 檢測是否為標籤選擇或任務包含標籤資訊
-        let detectedTag = null;
-
-        // 檢查用戶是否正在等待標籤選擇
-        const tagSelectionState = userTagSelectionStates.get(userId);
-        if (tagSelectionState && tagSelectionState.waitingForTag) {
-          detectedTag = cleanedMessage; // 用戶回覆的就是標籤
-        }
-        // 檢查任務文字是否包含標籤格式 (標籤)任務內容
-        else if (cleanedMessage.match(/^\((.+?)\)/)) {
-          const tagMatch = cleanedMessage.match(/^\((.+?)\)/);
-          detectedTag = tagMatch[1];
-        }
-
-        const { data, error } = await supabase
-          .from(tableName)
-          .insert([
-            {
-              user_id: userId,
-              message_text: cleanedMessage,
-              // message_type: isVoiceMessage ? 'voice' : 'text', // 暫時註解掉
-              tag: detectedTag,
-              created_at: new Date().toISOString()
-            }
-          ]);
-
-        if (error) {
-          console.error('Supabase 儲存錯誤:', error);
-        } else {
-          console.log('✅ 訊息已儲存到 Supabase:', {
-            userId,
-            userMessage: cleanedMessage,
-            tag: detectedTag || '無標籤'
-          }, userId);
-        }
-      } catch (err) {
-        console.error('資料庫連線錯誤:', err);
-      }
-    } else {
-      console.log('📝 訊息記錄 (資料庫未連接):', userId, '-', cleanedMessage);
-    }
+    // 非連結類型：繼續原有邏輯，稍後在AI解析完成後儲存到資料庫
+    console.log('📝 [非連結] 一般訊息，將在AI解析後儲存到 DEV_MESSAGES');
 
     // 非連結訊息繼續原有的處理邏輯（任務堆疊、問句判斷等）
     // 注意：不要 return，讓程式繼續執行後面的邏輯
@@ -3531,9 +3484,9 @@ async function handleEvent(event) {
     // 新增任務到堆疊
     const newTask = {
       id: Date.now(),
-      text: parsedTask.text,
+      text: userMessage, // 儲存完整原始訊息到 text 欄位
       originalText: userMessage,
-      scheduledDate: parsedTask.scheduledDate,
+      scheduledDate: parsedTask.scheduledDate, // AI 解析的時間
       timestamp: new Date().toISOString(),
       tag: '無標籤' // 預設標籤
     };
@@ -3640,7 +3593,57 @@ async function handleEvent(event) {
         console.error('❌ [自動Google日曆] 自動建立Google日曆事件失敗:', calendarError);
       }
     }
-    
+
+    // 💾 儲存完整的任務資料到資料庫（包含原始訊息和AI解析的時間）
+    if (supabase) {
+      try {
+        const tablePrefix = process.env.TABLE_PREFIX || '';
+        const tableName = tablePrefix + 'messages';
+
+        // 檢測是否為標籤選擇或任務包含標籤資訊
+        let detectedTag = null;
+
+        // 檢查用戶是否正在等待標籤選擇
+        const tagSelectionState = userTagSelectionStates.get(userId);
+        if (tagSelectionState && tagSelectionState.waitingForTag) {
+          detectedTag = userMessage; // 用戶回覆的就是標籤
+        }
+        // 檢查任務文字是否包含標籤格式 (標籤)任務內容
+        else if (userMessage.match(/^\((.+?)\)/)) {
+          const tagMatch = userMessage.match(/^\((.+?)\)/);
+          detectedTag = tagMatch[1];
+        }
+
+        const { data, error } = await supabase
+          .from(tableName)
+          .insert([
+            {
+              user_id: userId,
+              message_text: parsedTask.text, // 儲存AI解析的任務文字（去除時間）
+              scheduled_date: parsedTask.scheduledDate, // AI解析的時間
+              tag: detectedTag,
+              created_at: new Date().toISOString()
+            }
+          ]);
+
+        if (error) {
+          console.error('❌ [資料庫儲存] Supabase 儲存錯誤:', error);
+        } else {
+          console.log('✅ [資料庫儲存] 任務已儲存到資料庫:', {
+            userId,
+            原始訊息: userMessage,
+            message_text: parsedTask.text,
+            scheduled_date: parsedTask.scheduledDate,
+            標籤: detectedTag || '無標籤'
+          });
+        }
+      } catch (err) {
+        console.error('❌ [資料庫儲存] 資料庫連線錯誤:', err);
+      }
+    } else {
+      console.log('⚠️ [資料庫儲存] 資料庫未連接，無法儲存任務');
+    }
+
     // 🔄 同步到 localStorage - 讓 FLEX MESSAGE 與全部記錄頁面保持同步
     console.log('🔄 [任務同步] 同步任務到 localStorage 以保持與全部記錄頁面一致');
     
