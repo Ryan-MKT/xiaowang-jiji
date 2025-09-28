@@ -4921,10 +4921,22 @@ app.post('/api/save-task', async (req, res) => {
               },
             };
 
+            // 如果有訪客郵件地址，添加到attendees
+            if (safeGuestEmail && safeGuestEmail.trim()) {
+              event.attendees = [
+                {
+                  email: safeGuestEmail.trim(),
+                  responseStatus: 'needsAction'
+                }
+              ];
+              console.log(`👥 [Google日曆] 添加訪客邀請: ${safeGuestEmail.trim()}`);
+            }
+
             // 建立事件
             const result = await calendar.events.insert({
               calendarId: 'primary',
               resource: event,
+              sendUpdates: 'all'  // 發送邀請給所有attendees
             });
 
             console.log('✅ [Google日曆] 事件建立成功:', result.data.id);
@@ -6046,7 +6058,7 @@ app.get('/api/google-calendar/auth-status', async (req, res) => {
 // 建立Google Calendar事件
 app.post('/api/google-calendar/create-event', async (req, res) => {
   try {
-    const { taskTitle, taskNote, scheduledDate, reminderMinutes } = req.body;
+    const { taskTitle, taskNote, scheduledDate, reminderMinutes, guestEmail } = req.body;
     const userId = req.headers['x-user-id'];
 
     if (!userId) {
@@ -6127,16 +6139,29 @@ app.post('/api/google-calendar/create-event', async (req, res) => {
       },
     };
 
+    // 如果有訪客郵件地址，添加到attendees
+    if (guestEmail && guestEmail.trim()) {
+      event.attendees = [
+        {
+          email: guestEmail.trim(),
+          responseStatus: 'needsAction'
+        }
+      ];
+      console.log(`👥 [建立事件] 添加訪客邀請: ${guestEmail.trim()}`);
+    }
+
     console.log('📅 [建立事件] 準備建立事件:', {
       summary: event.summary,
       start: event.start.dateTime,
-      end: event.end.dateTime
+      end: event.end.dateTime,
+      attendees: event.attendees?.length || 0
     });
 
     // 建立事件
     const result = await calendar.events.insert({
       calendarId: 'primary',
       resource: event,
+      sendUpdates: 'all'  // 發送邀請給所有attendees
     });
 
     console.log('✅ [建立事件] Google日曆事件建立成功:', result.data.id);
