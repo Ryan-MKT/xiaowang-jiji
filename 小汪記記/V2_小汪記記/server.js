@@ -1663,17 +1663,27 @@ async function handlePostback(event) {
           return Promise.resolve(null);
         }
       } else {
-        // 使用帶有「➜」按鈕的常用任務 FLEX MESSAGE
-        const frequentTasksFlexMessage = generateFrequentTasksFlexMessageInline(result.data);
+        // 生成純任務文字，直接從資料庫原封不動顯示
+        let taskListText = '';
 
-        console.log(`📨 [常用任務] 準備發送帶有「➜」按鈕的 FLEX MESSAGE`);
+        result.data.forEach((task, index) => {
+          if (index > 0) taskListText += '\n\n';
+          taskListText += task.task_text;
+        });
+
+        const simpleMessage = {
+          type: 'text',
+          text: taskListText
+        };
+
+        console.log(`📨 [常用任務] 準備發送簡單文字訊息`);
 
         if (client) {
-          const result = await client.replyMessage(event.replyToken, frequentTasksFlexMessage);
-          console.log(`✅ [常用任務] 成功發送 FLEX MESSAGE`, result);
+          const result = await client.replyMessage(event.replyToken, simpleMessage);
+          console.log(`✅ [常用任務] 成功發送文字訊息`, result);
           return result;
         } else {
-          console.log('測試模式：常用任務 FLEX MESSAGE', JSON.stringify(frequentTasksFlexMessage, null, 2));
+          console.log('測試模式：常用任務文字訊息', simpleMessage.text);
           return Promise.resolve(null);
         }
       }
