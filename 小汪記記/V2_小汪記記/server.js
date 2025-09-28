@@ -1786,15 +1786,17 @@ async function handlePostback(event) {
       const tomorrowFlexMessage = createTaskStackFlexMessage(tomorrowTasks, userTags);
       // 修改明天頁面的標題
       const tomorrowTitle = generateTomorrowTitle(tomorrowTasks.length);
-      tomorrowFlexMessage.contents.header.contents[0].text = tomorrowTitle;
-      tomorrowFlexMessage.altText = tomorrowTitle;
+      tomorrowFlexMessage.contents.header.contents[0].contents[0].text = tomorrowTitle.dateText;
+      tomorrowFlexMessage.contents.header.contents[0].contents[1].text = tomorrowTitle.weekdayText;
+      tomorrowFlexMessage.altText = tomorrowTitle.dateText + tomorrowTitle.weekdayText;
 
       // 第3頁：後天的任務
       const dayAfterTomorrowFlexMessage = createTaskStackFlexMessage(dayAfterTomorrowTasks, userTags);
       // 修改後天頁面的標題
       const dayAfterTomorrowTitle = generateDayAfterTomorrowTitle(dayAfterTomorrowTasks.length);
-      dayAfterTomorrowFlexMessage.contents.header.contents[0].text = dayAfterTomorrowTitle;
-      dayAfterTomorrowFlexMessage.altText = dayAfterTomorrowTitle;
+      dayAfterTomorrowFlexMessage.contents.header.contents[0].contents[0].text = dayAfterTomorrowTitle.dateText;
+      dayAfterTomorrowFlexMessage.contents.header.contents[0].contents[1].text = dayAfterTomorrowTitle.weekdayText;
+      dayAfterTomorrowFlexMessage.altText = dayAfterTomorrowTitle.dateText + dayAfterTomorrowTitle.weekdayText;
 
       // 生成3個BUBBLE的carousel FLEX MESSAGE
       const threePagesFlexMessage = {
@@ -1807,22 +1809,19 @@ async function handlePostback(event) {
             {
               type: 'bubble',
               header: todayFlexMessage.contents.header,
-              body: todayFlexMessage.contents.body,
-              footer: todayFlexMessage.contents.footer
+              body: todayFlexMessage.contents.body
             },
             // 第2頁：明天的任務
             {
               type: 'bubble',
               header: tomorrowFlexMessage.contents.header,
-              body: tomorrowFlexMessage.contents.body,
-              footer: tomorrowFlexMessage.contents.footer
+              body: tomorrowFlexMessage.contents.body
             },
             // 第3頁：後天的任務
             {
               type: 'bubble',
               header: dayAfterTomorrowFlexMessage.contents.header,
-              body: dayAfterTomorrowFlexMessage.contents.body,
-              footer: dayAfterTomorrowFlexMessage.contents.footer
+              body: dayAfterTomorrowFlexMessage.contents.body
             }
           ]
         }
@@ -1837,6 +1836,9 @@ async function handlePostback(event) {
 
       console.log(`📨 [3頁任務] 準備發送3頁任務頁面`);
       console.log(`📊 [3頁任務] 今天: ${todayTasks.length}件, 明天: ${tomorrowTasks.length}件, 後天: ${dayAfterTomorrowTasks.length}件`);
+
+      // 調試：輸出完整的JSON結構
+      console.log('🔍 [3頁任務 DEBUG] 完整JSON:', JSON.stringify(threePagesFlexMessage, null, 2));
 
       if (client) {
         return client.replyMessage(event.replyToken, threePagesFlexMessage);
