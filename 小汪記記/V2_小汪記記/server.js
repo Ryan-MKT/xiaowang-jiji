@@ -3494,8 +3494,8 @@ async function handleEvent(event) {
     // 新增任務到堆疊
     const newTask = {
       id: Date.now(),
-      text: userMessage, // 儲存完整原始訊息到 text 欄位
-      originalText: userMessage,
+      text: parsedTask.text, // 儲存AI解析的任務文字（去除時間），與資料庫message_text一致
+      originalText: userMessage, // 保留完整原始訊息到 originalText 欄位
       scheduledDate: parsedTask.scheduledDate, // AI 解析的時間
       timestamp: new Date().toISOString(),
       tag: '無標籤' // 預設標籤
