@@ -1896,6 +1896,79 @@ async function handlePostback(event) {
     }
   }
 
+  // 處理 Tab 切換事件
+  if (postbackData === 'switch_tab_general') {
+    console.log(`🔄 用戶 ${userId} 切換到一般視圖`);
+
+    try {
+      // 獲取用戶任務資料
+      let userTasks = userTaskStacks.get(userId) || [];
+      const userTags = await getUserTags(userId);
+
+      // 生成一般視圖的任務清單（顯示今天的任務）
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+      const generalFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'general');
+
+      if (client) {
+        return client.replyMessage(event.replyToken, generalFlexMessage);
+      } else {
+        console.log('測試模式：一般視圖', JSON.stringify(generalFlexMessage, null, 2));
+        return Promise.resolve(null);
+      }
+    } catch (error) {
+      console.error('❌ [Tab切換] 一般視圖生成錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '😅 切換視圖時發生錯誤，請重試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  if (postbackData === 'switch_tab_tags') {
+    console.log(`🏷️ 用戶 ${userId} 切換到標籤視圖`);
+
+    try {
+      // 獲取用戶任務資料
+      let userTasks = userTaskStacks.get(userId) || [];
+      const userTags = await getUserTags(userId);
+
+      // 生成標籤視圖的任務清單（使用相同的 Flex Message，只是 tab 顯示為 tags）
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+      const tagFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'tags');
+
+      if (client) {
+        return client.replyMessage(event.replyToken, tagFlexMessage);
+      } else {
+        console.log('測試模式：標籤視圖', JSON.stringify(tagFlexMessage, null, 2));
+        return Promise.resolve(null);
+      }
+    } catch (error) {
+      console.error('❌ [Tab切換] 標籤視圖生成錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '😅 切換視圖時發生錯誤，請重試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
   return Promise.resolve(null);
 }
 

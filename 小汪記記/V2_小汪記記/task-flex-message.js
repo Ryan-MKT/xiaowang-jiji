@@ -5,10 +5,13 @@ function generateDateTitle(taskCount) {
   // 獲取台灣當前日期和星期
   const now = new Date();
   const taipeiDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+
   const month = taipeiDate.getMonth() + 1;
   const day = taipeiDate.getDate();
   const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
   const weekday = weekdays[taipeiDate.getDay()];
+
+  console.log(`📅 [日期生成] 當前台灣時間: ${month}/${day} (${weekday})`);
 
   return {
     dateText: `${month}/${day}`,
@@ -48,21 +51,6 @@ function generateDayAfterTomorrowTitle(taskCount) {
   };
 }
 
-function generateDateTitle(daysOffset) {
-  // 通用函數：生成從今天開始偏移指定天數的日期標題
-  const now = new Date();
-  const taipeiDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
-  taipeiDate.setDate(taipeiDate.getDate() + daysOffset);
-  const month = taipeiDate.getMonth() + 1;
-  const day = taipeiDate.getDate();
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-  const weekday = weekdays[taipeiDate.getDay()];
-
-  return {
-    dateText: `${month}/${day}`,
-    weekdayText: ` (${weekday})`
-  };
-}
 
 // 單一任務 Flex Message
 function createTaskFlexMessage(taskText) {
@@ -143,8 +131,8 @@ function createTaskFlexMessage(taskText) {
   };
 }
 
-// 任務堆疊 Flex Message - 支援動態標籤 Quick Reply
-function createTaskStackFlexMessage(tasks, userTags = null) {
+// 任務堆疊 Flex Message - 支援動態標籤 Quick Reply 和 Tab Segment
+function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general') {
   console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-23:50-STATS-CARD-LATEST');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
@@ -221,8 +209,7 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
         type: 'box',
         layout: 'horizontal',
         spacing: 'sm',
-        alignItems: 'center',
-        contents: taskAndTimeBox
+          contents: taskAndTimeBox
       }
     ];
 
@@ -247,7 +234,6 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
       layout: 'horizontal',
       spacing: 'sm',
       paddingAll: 'md',
-      alignItems: 'flex-start',
       contents: [
         {
           type: 'text',
@@ -293,46 +279,30 @@ function createTaskStackFlexMessage(tasks, userTags = null) {
     contents: {
       type: 'bubble',
       size: 'kilo',
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        backgroundColor: '#CD853F',
-        contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            contents: [
-              {
-                type: 'text',
-                text: titleData.dateText,
-                color: '#FFFFFF',
-                size: 'md',
-                weight: 'bold',
-                align: 'center',
-                flex: 0
-              },
-              {
-                type: 'text',
-                text: titleData.weekdayText,
-                color: '#FFFFFF',
-                size: 'sm',
-                weight: 'bold',
-                align: 'center',
-                flex: 0
-              }
-            ],
-            justifyContent: 'center',
-            alignItems: 'center'
-          }
-        ]
-      },
       body: {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
         backgroundColor: '#FFFFFF',
-        contents: taskContents.concat([
+        contents: [
+          createTabSegment(activeTab),
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'md',
+            contents: [
+              {
+                type: 'text',
+                text: titleData.dateText + titleData.weekdayText,
+                size: 'lg',
+                weight: 'bold',
+                color: '#333333',
+                align: 'center',
+                flex: 1
+              }
+            ]
+          }
+        ].concat(taskContents).concat([
           {
             type: 'separator',
             margin: 'md',
@@ -423,8 +393,7 @@ function createTaskStatsCard(completedCount, favoriteCount) {
             type: 'box',
             layout: 'vertical',
             flex: 1,
-            alignItems: 'center',
-            spacing: 'xs',
+                  spacing: 'xs',
             contents: [
               {
                 type: 'text',
@@ -458,8 +427,7 @@ function createTaskStatsCard(completedCount, favoriteCount) {
             type: 'box',
             layout: 'vertical',
             flex: 1,
-            alignItems: 'center',
-            spacing: 'xs',
+                  spacing: 'xs',
             contents: [
               {
                 type: 'text',
@@ -488,6 +456,81 @@ function createTaskStatsCard(completedCount, favoriteCount) {
         ]
       }
     }
+  };
+}
+
+// 創建 Tab Segment 組件
+function createTabSegment(activeTab = 'general') {
+  console.log(`🔄 [Tab Segment] 生成 tab segment，當前活躍: ${activeTab}`);
+
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    margin: 'sm',
+    contents: [
+      {
+        type: 'filler'
+      },
+      {
+        type: 'box',
+        layout: 'horizontal',
+        backgroundColor: '#E8E8E8',
+        cornerRadius: '8px',
+        paddingAll: 'xs',
+        flex: 2,
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            ...(activeTab === 'general' ? { backgroundColor: '#CD853F' } : {}),
+            cornerRadius: '6px',
+            paddingAll: 'xs',
+            flex: 1,
+            action: {
+              type: 'postback',
+              label: '切換到一般視圖',
+              data: 'switch_tab_general'
+            },
+            contents: [
+              {
+                type: 'text',
+                text: '一般',
+                size: 'sm',
+                weight: activeTab === 'general' ? 'bold' : 'regular',
+                color: activeTab === 'general' ? '#FFFFFF' : '#666666',
+                align: 'center'
+              }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            ...(activeTab === 'tags' ? { backgroundColor: '#CD853F' } : {}),
+            cornerRadius: '6px',
+            paddingAll: 'xs',
+            flex: 1,
+            action: {
+              type: 'postback',
+              label: '切換到標籤視圖',
+              data: 'switch_tab_tags'
+            },
+            contents: [
+              {
+                type: 'text',
+                text: '標籤',
+                size: 'sm',
+                weight: activeTab === 'tags' ? 'bold' : 'regular',
+                color: activeTab === 'tags' ? '#FFFFFF' : '#666666',
+                align: 'center'
+              }
+            ]
+          }
+        ]
+      },
+      {
+        type: 'filler'
+      }
+    ]
   };
 }
 
@@ -735,7 +778,6 @@ function createTagBubble(tagName, tasks, userTags = null) {
       layout: 'horizontal',
       spacing: 'sm',
       paddingAll: 'md',
-      alignItems: 'flex-start',
       contents: [
         {
           type: 'box',
@@ -875,8 +917,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         layout: 'horizontal',
         spacing: 'sm',
         paddingAll: 'md',
-        alignItems: 'flex-start',
-        contents: [
+          contents: [
           {
             type: 'text',
             text: isCompleted ? '🅥' : '○',
@@ -973,40 +1014,6 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
     contents: {
       type: 'bubble',
       size: 'kilo',
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        backgroundColor: '#CD853F',
-        contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            contents: [
-              {
-                type: 'text',
-                text: titleData.dateText,
-                color: '#FFFFFF',
-                size: 'md',
-                weight: 'bold',
-                align: 'center',
-                flex: 0
-              },
-              {
-                type: 'text',
-                text: titleData.weekdayText,
-                color: '#FFFFFF',
-                size: 'sm',
-                weight: 'bold',
-                align: 'center',
-                flex: 0
-              }
-            ],
-            justifyContent: 'center',
-            alignItems: 'center'
-          }
-        ]
-      },
       body: {
         type: 'box',
         layout: 'vertical',
@@ -1027,8 +1034,8 @@ function createDynamicTagCarousel(tasks, userTags = null, completedCount = 0, fa
 
   const bubbles = [];
 
-  // 第1個bubble: 主任務清單 (包含所有任務)
-  const mainBubble = createTaskStackFlexMessage(tasks, userTags);
+  // 第1個bubble: 主任務清單 (包含所有任務) - 標籤視圖
+  const mainBubble = createTaskStackFlexMessage(tasks, userTags, 'tags');
   bubbles.push(mainBubble.contents);
 
   // 為每個標籤創建專屬 BUBBLE 頁面
@@ -1235,9 +1242,9 @@ module.exports = {
   createTaskStackFlexMessage,
   createTaskStatsCard,
   generateQuickReply,
+  createTabSegment,
   createQuickActionCard,
   create3BubbleCarousel,
-  createDynamicTagCarousel,
   createMainTaskList,
   parseTasksByTags,
   createTagBubble,
