@@ -3399,7 +3399,12 @@ async function handleEvent(event) {
 
     if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== '你的OpenAI_API_Key') {
       try {
-        console.log('🤖 [AI解析] 正在解析任務時間資訊...');
+        console.log('🤖 [AI解析] 正在解析任務時間資訊和標籤...');
+
+        // 獲取用戶可用的標籤
+        const userTags = await getUserTags(userId);
+        const tagNames = userTags ? userTags.map(tag => tag.name).join('、') : '';
+        console.log(`🏷️ [AI標籤] 用戶可用標籤: ${tagNames || '無'}`);
         const currentDate = new Date();
         const taiwanDate = new Date(currentDate.getTime() + 8 * 60 * 60 * 1000); // 台灣時間
         const today = taiwanDate.toISOString().split('T')[0];
@@ -3410,47 +3415,55 @@ async function handleEvent(event) {
           messages: [
             {
               role: "system",
-              content: `你是時間解析助手。今天是 ${today} (星期${todayWeekday})。
-請解析用戶訊息中的任務內容和時間資訊。
+              content: `你是任務解析助手。今天是 ${today} (星期${todayWeekday})。
+請解析用戶訊息中的任務內容、時間資訊和標籤。
+
+用戶可用標籤：${tagNames || '無'}
 
 重要規則：
-1. 提取任務的核心動作（去除時間相關詞彙和Google日曆關鍵字）
+1. 提取任務的核心動作（去除時間相關詞彙、Google日曆關鍵字、標籤提示詞）
 2. 只有在用戶明確提到時間時才解析時間，轉換為台灣時區格式 YYYY-MM-DDTHH:mm:00+08:00
 3. 如果用戶沒有明確提到任何時間詞彙，scheduledDate 必須設為 null
 4. 明確的時間詞彙包括：今天、明天、後天、幾點、幾時、上午、下午、晚上、特定日期、24小時制時間格式（如：18:00、14:30、09:15等）
 5. 如果只有時間沒有日期，使用今天的日期
-6. 在提取任務內容時，去除"記到GOOGLE日曆"、"記到Google日曆"等相關詞彙
+6. 在提取任務內容時，去除"記到GOOGLE日曆"、"記到Google日曆"、"打標籤"等相關詞彙
+7. 自動檢測標籤：如果訊息中明確提到"打標籤'標籤名'"或"打標籤\"標籤名\""格式，且該標籤名存在於用戶可用標籤中，則自動設定該標籤
+8. 標籤必須完全匹配用戶可用標籤清單中的名稱
 
 回覆格式（必須是有效JSON）：
 {
   "task": "任務核心內容",
-  "scheduledDate": "2025-09-26T18:00:00+08:00" 或 null
+  "scheduledDate": "2025-09-26T18:00:00+08:00" 或 null,
+  "tag": "偵測到的標籤名稱" 或 null
 }
 
 範例：
 輸入："我今天晚上6點回家"
-輸出：{"task": "回家", "scheduledDate": "${today}T18:00:00+08:00"}
+輸出：{"task": "回家", "scheduledDate": "${today}T18:00:00+08:00", "tag": null}
 
 輸入："18:00 睡覺 記到GOOGLE日曆"
-輸出：{"task": "睡覺", "scheduledDate": "${today}T18:00:00+08:00"}
+輸出：{"task": "睡覺", "scheduledDate": "${today}T18:00:00+08:00", "tag": null}
+
+輸入："18:00 回家吃飯 打標籤'走路'"
+輸出：{"task": "回家吃飯", "scheduledDate": "${today}T18:00:00+08:00", "tag": "走路"}
 
 輸入："14:30 開會"
-輸出：{"task": "開會", "scheduledDate": "${today}T14:30:00+08:00"}
+輸出：{"task": "開會", "scheduledDate": "${today}T14:30:00+08:00", "tag": null}
 
-輸入："明天下午2點開會"
-輸出：{"task": "開會", "scheduledDate": "${new Date(taiwanDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T14:00:00+08:00"}
+輸入："明天下午2點開會 打標籤\"工作\""
+輸出：{"task": "開會", "scheduledDate": "${new Date(taiwanDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T14:00:00+08:00", "tag": "工作"}
 
 輸入："買牛奶"
-輸出：{"task": "買牛奶", "scheduledDate": null}
+輸出：{"task": "買牛奶", "scheduledDate": null, "tag": null}
 
 輸入："吃飯"
-輸出：{"task": "吃飯", "scheduledDate": null}
+輸出：{"task": "吃飯", "scheduledDate": null, "tag": null}
 
-輸入："去運動"
-輸出：{"task": "去運動", "scheduledDate": null}
+輸入："去運動 打標籤'健身'"
+輸出：{"task": "去運動", "scheduledDate": null, "tag": "健身"}
 
 輸入："睡覺"
-輸出：{"task": "睡覺", "scheduledDate": null}
+輸出：{"task": "睡覺", "scheduledDate": null, "tag": null}
 
 特別注意：不要為沒有明確時間的日常活動添加時間！`
             },
@@ -3471,10 +3484,12 @@ async function handleEvent(event) {
           if (parsedResult.task && typeof parsedResult.task === 'string') {
             parsedTask.text = parsedResult.task;
             parsedTask.scheduledDate = parsedResult.scheduledDate;
+            parsedTask.tag = parsedResult.tag; // 加入AI識別的標籤
             console.log('✅ [AI解析] 成功解析:', {
               原始訊息: userMessage,
               解析任務: parsedTask.text,
-              預定時間: parsedTask.scheduledDate
+              預定時間: parsedTask.scheduledDate,
+              AI識別標籤: parsedTask.tag
             });
           }
         } catch (parseError) {
@@ -3498,7 +3513,7 @@ async function handleEvent(event) {
       originalText: userMessage, // 保留完整原始訊息到 originalText 欄位
       scheduledDate: parsedTask.scheduledDate, // AI 解析的時間
       timestamp: new Date().toISOString(),
-      tag: '無標籤' // 預設標籤
+      tag: parsedTask.tag || '無標籤' // 使用AI識別的標籤，若無則為預設
     };
 
     // 如果是 URL，取得預覽資訊
@@ -3610,18 +3625,21 @@ async function handleEvent(event) {
         const tablePrefix = process.env.TABLE_PREFIX || '';
         const tableName = tablePrefix + 'messages';
 
-        // 檢測是否為標籤選擇或任務包含標籤資訊
-        let detectedTag = null;
+        // 檢測標籤：優先使用AI識別的標籤，若無則使用手動檢測
+        let detectedTag = parsedTask.tag; // 優先使用AI識別的標籤
 
-        // 檢查用戶是否正在等待標籤選擇
-        const tagSelectionState = userTagSelectionStates.get(userId);
-        if (tagSelectionState && tagSelectionState.waitingForTag) {
-          detectedTag = userMessage; // 用戶回覆的就是標籤
-        }
-        // 檢查任務文字是否包含標籤格式 (標籤)任務內容
-        else if (userMessage.match(/^\((.+?)\)/)) {
-          const tagMatch = userMessage.match(/^\((.+?)\)/);
-          detectedTag = tagMatch[1];
+        // 如果AI沒有識別到標籤，才使用手動檢測邏輯
+        if (!detectedTag) {
+          // 檢查用戶是否正在等待標籤選擇
+          const tagSelectionState = userTagSelectionStates.get(userId);
+          if (tagSelectionState && tagSelectionState.waitingForTag) {
+            detectedTag = userMessage; // 用戶回覆的就是標籤
+          }
+          // 檢查任務文字是否包含標籤格式 (標籤)任務內容
+          else if (userMessage.match(/^\((.+?)\)/)) {
+            const tagMatch = userMessage.match(/^\((.+?)\)/);
+            detectedTag = tagMatch[1];
+          }
         }
 
         const { data, error } = await supabase
