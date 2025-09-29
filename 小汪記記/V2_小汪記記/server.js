@@ -959,6 +959,71 @@ function filterTasksByDaysOffset(allTasks, daysOffset) {
   return filteredTasks;
 }
 
+// 生成近7天FLEX MESSAGE列表的通用函數
+async function generateSevenDaysFlexMessage(userId, userTasks, userTags, tabMode) {
+  try {
+    console.log(`📅 [7天列表] 為用戶 ${userId} 生成${tabMode}模式的7天列表`);
+
+    // 使用task-flex-message.js的函數生成各頁面
+    const { createTaskStackFlexMessage, generateDateTitle, generateQuickReply } = getTaskFlexModule();
+
+    // 生成7天的任務數據和Flex Messages
+    const sevenDaysBubbles = [];
+    const taskCounts = [];
+
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      // 過濾指定天的任務
+      const dayTasks = filterTasksByDaysOffset(userTasks, dayOffset);
+      taskCounts.push(dayTasks.length);
+
+      // 生成該天的Flex Message
+      const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags, tabMode, dayOffset);
+
+      // 修改該天頁面的標題
+      const dayTitle = generateDateTitle(dayOffset);
+      if (dayFlexMessage && dayFlexMessage.contents && dayFlexMessage.contents.header) {
+        dayFlexMessage.contents.header.contents[0].contents[0].text = dayTitle.dateText;
+        dayFlexMessage.contents.header.contents[0].contents[1].text = dayTitle.weekdayText;
+        dayFlexMessage.altText = dayTitle.dateText + dayTitle.weekdayText;
+      }
+
+      // 添加到carousel中
+      if (dayFlexMessage && dayFlexMessage.contents) {
+        sevenDaysBubbles.push({
+          type: 'bubble',
+          header: dayFlexMessage.contents.header,
+          body: dayFlexMessage.contents.body
+        });
+      }
+    }
+
+    // 生成7個BUBBLE的carousel FLEX MESSAGE
+    const sevenDaysFlexMessage = {
+      type: 'flex',
+      altText: '未來7天任務',
+      contents: {
+        type: 'carousel',
+        contents: sevenDaysBubbles
+      }
+    };
+
+    // 添加 Quick Reply 按鈕 - 確保4個固定按鈕永遠顯示
+    const quickReply = generateQuickReply(userTags);
+    if (quickReply && quickReply.items && quickReply.items.length > 0) {
+      sevenDaysFlexMessage.quickReply = quickReply;
+      console.log('🎯 [7天列表] 附加 Quick Reply 按鈕，確保永遠顯示');
+    }
+
+    console.log(`📨 [7天列表] 準備發送7天任務頁面 (${tabMode}模式)`);
+    console.log(`📊 [7天列表] 任務數量: ${taskCounts.map((count, i) => `第${i}天: ${count}件`).join(', ')}`);
+
+    return sevenDaysFlexMessage;
+  } catch (error) {
+    console.error('❌ [7天列表] 生成錯誤:', error);
+    return null;
+  }
+}
+
 // 用戶收藏任務儲存（記憶體版本）
 // 資料結構: Map<userId, Array<{id: string, name: string, description: string, category: string, used_count: number, created_at: string}>>
 const userFavoriteTasks = new Map();
@@ -3744,11 +3809,41 @@ async function handleEvent(event) {
     const hasTagFunction = userMessage.includes('打標籤');
     const viewMode = hasTagFunction ? 'tags' : 'general';
 
-    if (hasTagFunction) {
-      console.log(`🏷️ [自動切換] 偵測到「打標籤」功能，自動切換到標籤版 FLEX MESSAGE`);
+    // 📅 檢測任務是否為非今天的任務
+    let isNonTodayTask = false;
+    if (parsedTask.scheduledDate) {
+      // 獲取台灣今天的日期字符串 (YYYY-MM-DD)
+      const now = new Date();
+      const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+      const todayDateString = taiwanNow.toISOString().split('T')[0];
+
+      // 解析任務的日期
+      let taskDateString;
+      if (parsedTask.scheduledDate.includes('+08:00')) {
+        taskDateString = parsedTask.scheduledDate.split('T')[0];
+      } else {
+        const taskDate = new Date(parsedTask.scheduledDate);
+        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+      }
+
+      isNonTodayTask = taskDateString !== todayDateString;
+      console.log(`📅 [日期檢測] 任務日期: ${taskDateString}, 今天: ${todayDateString}, 是否非今天: ${isNonTodayTask}`);
     }
 
-    const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+    let flexMessage;
+
+    if (isNonTodayTask) {
+      // 🌟 非今天任務 - 自動跳出近7天列表
+      console.log(`🌟 [非今天任務] 偵測到非今天任務，自動跳出近7天${viewMode}列表`);
+      flexMessage = await generateSevenDaysFlexMessage(userId, userTasks, userTags, viewMode);
+    } else {
+      // 📋 今天任務 - 使用一般單日FLEX MESSAGE
+      if (hasTagFunction) {
+        console.log(`🏷️ [自動切換] 偵測到「打標籤」功能，自動切換到標籤版 FLEX MESSAGE`);
+      }
+      flexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+    }
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
