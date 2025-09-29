@@ -518,43 +518,70 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
             type: 'box',
             layout: 'horizontal',
             spacing: 'md',
-            margin: 'xs',
+            margin: 'md',
             contents: [
               {
-                type: 'text',
-                text: '常用',
-                size: 'sm',
-                color: '#666666',
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#E8E8E8',
+                cornerRadius: '8px',
+                paddingTop: 'xs',
+                paddingBottom: 'xs',
+                paddingStart: 'md',
+                paddingEnd: 'md',
                 flex: 0,
                 action: {
                   type: 'postback',
                   label: '常用任務',
                   data: 'frequent_tasks'
-                }
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '常用',
+                    size: 'sm',
+                    color: '#666666',
+                    align: 'center'
+                  }
+                ]
               },
               {
-                type: 'text',
-                text: '卡片',
-                size: 'sm',
-                color: '#666666',
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#E8E8E8',
+                cornerRadius: '8px',
+                paddingTop: 'xs',
+                paddingBottom: 'xs',
+                paddingStart: 'md',
+                paddingEnd: 'md',
                 flex: 0,
+                margin: 'md',
                 action: {
                   type: 'postback',
                   label: '卡片',
                   data: 'card_collection'
-                }
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '卡片',
+                    size: 'sm',
+                    color: '#666666',
+                    align: 'center'
+                  }
+                ]
               },
               {
                 type: 'text',
-                text: '➡︎',
+                text: '近7天 »',
                 size: 'sm',
                 color: '#000000',
                 align: 'end',
-                weight: 'bold',
+                weight: 'regular',
                 flex: 1,
                 action: {
                   type: 'postback',
-                  label: '展開更多頁面',
+                  label: '近7天',
                   data: 'expand_frequent_tasks_pages'
                 }
               }
@@ -1678,7 +1705,10 @@ function createCollectionsBubble() {
                 align: 'center',
                 weight: 'bold',
                 flex: 1,
-                paddingAll: 'md',
+                paddingTop: 'xs',
+                paddingBottom: 'xs',
+                paddingStart: 'md',
+                paddingEnd: 'md',
                 backgroundColor: '#ff6b6b',
                 cornerRadius: '8px',
                 action: {

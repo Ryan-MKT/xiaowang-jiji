@@ -1657,7 +1657,7 @@ async function handlePostback(event) {
         };
 
         if (client) {
-          return client.replyMessage(event.replyToken, emptyMessage);
+          return replyWithQuickReply(client, event.replyToken, emptyMessage, userId);
         } else {
           console.log('測試模式：無常用任務訊息', emptyMessage);
           return Promise.resolve(null);
@@ -1679,9 +1679,7 @@ async function handlePostback(event) {
         console.log(`📨 [常用任務] 準備發送簡單文字訊息`);
 
         if (client) {
-          const result = await client.replyMessage(event.replyToken, simpleMessage);
-          console.log(`✅ [常用任務] 成功發送文字訊息`, result);
-          return result;
+          return replyWithQuickReply(client, event.replyToken, simpleMessage, userId);
         } else {
           console.log('測試模式：常用任務文字訊息', simpleMessage.text);
           return Promise.resolve(null);
