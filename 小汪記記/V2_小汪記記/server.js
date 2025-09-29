@@ -767,31 +767,53 @@ function filterTodayTasks(allTasks) {
       return isToday;
     }
 
-    // 如果沒有預定時間且文字中也沒有日期，視為今天的任務
-    if (!task.scheduledDate) {
-      console.log(`📅 [日期過濾] "${task.text}": 無時間 ✅今天`);
-      return true;
+    // 📋 新邏輯：優先檢查 scheduled_date，如果沒有則檢查 created_at
+
+    // 1. 優先檢查 scheduled_date (task.scheduled_date)
+    if (task.scheduled_date) {
+      const scheduledDateStr = task.scheduled_date;
+      let taskDateString;
+
+      if (scheduledDateStr.includes('+')) {
+        // 如果已經包含時區信息，直接提取日期部分
+        taskDateString = scheduledDateStr.split('T')[0];
+      } else {
+        // 如果沒有時區信息，當作 UTC 處理並轉換為台灣時間
+        const taskDate = new Date(scheduledDateStr);
+        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+      }
+
+      const isToday = taskDateString === todayDateString;
+      console.log(`📅 [日期過濾] "${task.text}": scheduled_date=${taskDateString} ${isToday ? '✅今天' : '❌非今天'} (原始: ${scheduledDateStr})`);
+      return isToday;
     }
 
-    // 正確解析台灣時區的日期
-    // task.scheduledDate 格式: "2025-09-28T00:00:00+08:00"
-    const taskDateStr = task.scheduledDate;
+    // 2. 如果沒有 scheduled_date，檢查 created_at (task.timestamp)
+    if (task.timestamp) {
+      const createdDateStr = task.timestamp;
+      let taskDateString;
 
-    // 從 ISO 字符串中提取日期部分
-    let taskDateString;
-    if (taskDateStr.includes('+08:00')) {
-      // 如果已經包含台灣時區，直接提取日期部分
-      taskDateString = taskDateStr.split('T')[0];
-    } else {
-      // 如果沒有時區信息，當作 UTC 處理
-      const taskDate = new Date(taskDateStr);
-      const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
-      taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+      if (createdDateStr.includes('+') || createdDateStr.includes('Z')) {
+        // 如果已經包含時區信息，轉換為台灣時間後取日期部分
+        const taskDate = new Date(createdDateStr);
+        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+      } else {
+        // 如果沒有時區信息，當作 UTC 處理並轉換為台灣時間
+        const taskDate = new Date(createdDateStr);
+        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+      }
+
+      const isToday = taskDateString === todayDateString;
+      console.log(`📅 [日期過濾] "${task.text}": created_at=${taskDateString} ${isToday ? '✅今天' : '❌非今天'} (原始: ${createdDateStr})`);
+      return isToday;
     }
 
-    const isToday = taskDateString === todayDateString;
-    console.log(`📅 [日期過濾] "${task.text}": ${taskDateString} ${isToday ? '✅今天' : '❌非今天'} (原始: ${taskDateStr})`);
-    return isToday;
+    // 3. 如果都沒有時間信息，視為今天的任務（向後兼容）
+    console.log(`📅 [日期過濾] "${task.text}": 無時間資訊 ✅今天`);
+    return true;
   });
 
   console.log(`📅 [日期過濾] 過濾結果：總任務數 ${allTasks.length} → 今天任務數 ${todayTasks.length}`);
@@ -894,57 +916,57 @@ function filterTasksByDaysOffset(allTasks, daysOffset) {
   console.log(`📅 [${dayName}過濾] ${dayName}日期: ${targetDateString}`);
 
   const filteredTasks = allTasks.filter(task => {
-    // 先檢查任務文字中是否包含日期資訊（例如 "9/30", "10/1" 等）
-    const taskText = task.text || '';
-    const datePattern = /(\d{1,2})\/(\d{1,2})/;
-    const dateMatch = taskText.match(datePattern);
+    // 📋 新邏輯：優先檢查 scheduled_date，如果沒有則檢查 created_at (和 filterTodayTasks 相同邏輯)
 
-    if (dateMatch) {
-      // 解析任務文字中的日期
-      const month = parseInt(dateMatch[1]);
-      const day = parseInt(dateMatch[2]);
-      const currentYear = taiwanNow.getFullYear();
-
-      // 創建任務日期
-      const taskDate = new Date(currentYear, month - 1, day);
-      const taskDateString = taskDate.toISOString().split('T')[0];
-
-      const isTargetDay = taskDateString === targetDateString;
-      console.log(`📅 [${dayName}過濾] "${task.text}": 包含日期 ${month}/${day} (${taskDateString}) ${isTargetDay ? `✅${dayName}` : `❌非${dayName}`}`);
-      return isTargetDay;
-    }
-
-    // 檢查任務是否有預定時間
-    if (task.scheduledDate) {
-      // 正確解析台灣時區的日期（和 filterTodayTasks 相同邏輯）
-      const taskDateStr = task.scheduledDate;
+    // 1. 優先檢查 scheduled_date (task.scheduled_date)
+    if (task.scheduled_date) {
+      const scheduledDateStr = task.scheduled_date;
       let taskDateString;
-      if (taskDateStr.includes('+08:00')) {
-        // 如果已經包含台灣時區，直接提取日期部分
-        taskDateString = taskDateStr.split('T')[0];
+
+      if (scheduledDateStr.includes('+')) {
+        // 如果已經包含時區信息，直接提取日期部分
+        taskDateString = scheduledDateStr.split('T')[0];
       } else {
-        // 如果沒有時區信息，當作 UTC 處理
-        const taskDate = new Date(taskDateStr);
+        // 如果沒有時區信息，當作 UTC 處理並轉換為台灣時間
+        const taskDate = new Date(scheduledDateStr);
         const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
         taskDateString = taiwanTaskDate.toISOString().split('T')[0];
       }
 
-      if (taskDateString === targetDateString) {
-        console.log(`📅 [${dayName}過濾] "${task.text}": ${taskDateString} ✅${dayName}`);
-        return true;
+      const isTargetDay = taskDateString === targetDateString;
+      console.log(`📅 [${dayName}過濾] "${task.text}": scheduled_date=${taskDateString} ${isTargetDay ? `✅${dayName}` : `❌非${dayName}`} (原始: ${scheduledDateStr})`);
+      return isTargetDay;
+    }
+
+    // 2. 如果沒有 scheduled_date，檢查 created_at (task.timestamp)
+    if (task.timestamp) {
+      const createdDateStr = task.timestamp;
+      let taskDateString;
+
+      if (createdDateStr.includes('+') || createdDateStr.includes('Z')) {
+        // 如果已經包含時區信息，轉換為台灣時間後取日期部分
+        const taskDate = new Date(createdDateStr);
+        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
       } else {
-        console.log(`📅 [${dayName}過濾] "${task.text}": ${taskDateString} ❌非${dayName} (原始: ${task.scheduledDate})`);
-        return false;
+        // 如果沒有時區信息，當作 UTC 處理並轉換為台灣時間
+        const taskDate = new Date(createdDateStr);
+        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
       }
+
+      const isTargetDay = taskDateString === targetDateString;
+      console.log(`📅 [${dayName}過濾] "${task.text}": created_at=${taskDateString} ${isTargetDay ? `✅${dayName}` : `❌非${dayName}`} (原始: ${createdDateStr})`);
+      return isTargetDay;
+    }
+
+    // 3. 如果都沒有時間信息，只在今天顯示（向後兼容）
+    if (daysOffset === 0) {
+      console.log(`📅 [${dayName}過濾] "${task.text}": 無時間資訊 ✅${dayName}`);
+      return true;
     } else {
-      // 沒有預定時間且文字中也沒有日期的任務，只在今天顯示
-      if (daysOffset === 0) {
-        console.log(`📅 [${dayName}過濾] "${task.text}": 無時間 ✅${dayName}`);
-        return true;
-      } else {
-        console.log(`📅 [${dayName}過濾] "${task.text}": 無時間 ❌非${dayName}`);
-        return false;
-      }
+      console.log(`📅 [${dayName}過濾] "${task.text}": 無時間資訊 ❌非${dayName}`);
+      return false;
     }
   });
 
@@ -961,6 +983,15 @@ function filterTasksByDaysOffset(allTasks, daysOffset) {
 
 // 生成近7天FLEX MESSAGE列表的通用函數
 async function generateSevenDaysFlexMessage(userId, userTasks, userTags, tabMode) {
+  // 📋 重要修正：確保使用完整的任務資料（包含時間欄位）
+  if (!userTasks || userTasks.length === 0 || !userTasks[0].scheduled_date === undefined && !userTasks[0].timestamp) {
+    console.log('⚠️ [7天列表] 任務資料不完整，嘗試從數據庫載入完整資料');
+    const fullUserTasks = await getUserFullTasksFromDatabase(userId);
+    if (fullUserTasks && fullUserTasks.length > 0) {
+      userTasks = fullUserTasks;
+      console.log(`✅ [7天列表] 成功載入 ${userTasks.length} 個完整任務`);
+    }
+  }
   try {
     console.log(`📅 [7天列表] 為用戶 ${userId} 生成${tabMode}模式的7天列表`);
 
@@ -1388,8 +1419,31 @@ async function handlePostback(event) {
       const completedTask = userTasks[taskIndex];
       userTasks[taskIndex].completed = true;
       userTaskStacks.set(userId, userTasks);
-      
+
       console.log(`✅ 任務已完成: ${completedTask.text}`);
+
+      // 同時從數據庫刪除已完成的任務
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const tableName = tablePrefix + 'messages';
+
+          const { data, error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', taskId)
+            .eq('user_id', userId)
+            .select();
+
+          if (error) {
+            console.error('❌ [任務完成] 數據庫刪除失敗:', error);
+          } else {
+            console.log(`✅ [任務完成] 數據庫已刪除已完成任務`);
+          }
+        } catch (dbError) {
+          console.error('❌ [任務完成] 數據庫操作異常:', dbError);
+        }
+      }
       
       // 發送恭喜訊息
       const congratsMessage = {
@@ -1941,8 +1995,13 @@ async function handlePostback(event) {
     console.log(`🎨 用戶 ${userId} 點擊展開7天任務頁面 (${tabMode} 模式)`);
 
     try {
-      // 獲取用戶任務資料
-      let userTasks = userTaskStacks.get(userId) || [];
+      // 📋 重要修正：獲取用戶完整任務資料（包含時間欄位）
+      let userTasks = await getUserFullTasksFromDatabase(userId);
+      if (!userTasks || userTasks.length === 0) {
+        // 如果數據庫查詢失敗，回退到記憶體中的任務
+        userTasks = userTaskStacks.get(userId) || [];
+        console.log('⚠️ [7天任務] 數據庫查詢失敗，使用記憶體任務作為備選');
+      }
       const userTags = await getUserTags(userId);
 
       // 使用task-flex-message.js的函數生成各頁面
@@ -6901,8 +6960,160 @@ app.post('/api/get-user-tags', async (req, res) => {
   }
 });
 
+// 從數據庫載入所有任務到記憶體
+async function loadTasksFromDatabase() {
+  if (!supabase) {
+    console.log('⚠️ [啟動載入] Supabase 未初始化，跳過任務載入');
+    return;
+  }
+
+  try {
+    const tablePrefix = process.env.TABLE_PREFIX || '';
+    const tableName = tablePrefix + 'messages';
+
+    console.log('🔄 [啟動載入] 開始從數據庫載入所有任務...');
+
+    // 查詢最新任務記錄（限制數量以避免載入過多資料）
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);  // 限制最多20筆記錄以避免FLEX MESSAGE過大
+
+    if (error) {
+      console.error('❌ [啟動載入] 數據庫查詢失敗:', error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      console.log('📝 [啟動載入] 數據庫中沒有任務記錄');
+      return;
+    }
+
+    // 按用戶分組任務
+    const userTasksMap = new Map();
+
+    data.forEach(record => {
+      const userId = record.user_id;
+
+      // 將數據庫記錄轉換為任務格式
+      const task = {
+        id: record.id,
+        text: record.message_text || 'unknown task',
+        note: record.note || null,
+        tag: record.tag || null,
+        scheduled_date: record.scheduled_date || null,
+        reminder_minutes: record.reminder_minutes || null,
+        repeat_pattern: record.repeat_pattern || null,
+        google_calendar_enabled: record.google_calendar_enabled || false,
+        google_calendar_who: record.google_calendar_who || null,
+        completed: false,  // 從數據庫載入的都是未完成任務
+        timestamp: record.created_at
+      };
+
+      if (!userTasksMap.has(userId)) {
+        userTasksMap.set(userId, []);
+      }
+      userTasksMap.get(userId).push(task);
+    });
+
+    // 將任務載入到記憶體
+    let totalTasks = 0;
+    let totalUsers = 0;
+
+    userTasksMap.forEach((tasks, userId) => {
+      userTaskStacks.set(userId, tasks);
+      totalTasks += tasks.length;
+      totalUsers++;
+    });
+
+    console.log(`✅ [啟動載入] 成功載入 ${totalUsers} 位用戶的 ${totalTasks} 個任務到記憶體`);
+
+  } catch (error) {
+    console.error('❌ [啟動載入] 載入任務時發生異常:', error);
+  }
+}
+
+// 📋 載入特定用戶的完整任務資料（包含所有資料庫欄位）
+async function getUserFullTasksFromDatabase(userId) {
+  if (!supabase) {
+    console.log('⚠️ [用戶任務載入] Supabase 未初始化');
+    return null;
+  }
+
+  try {
+    const tablePrefix = process.env.TABLE_PREFIX || '';
+    const tableName = tablePrefix + 'messages';
+
+    console.log(`🔄 [用戶任務載入] 開始載入用戶 ${userId} 的完整任務資料...`);
+
+    // 查詢該用戶的所有任務（限制數量以避免載入過多資料）
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);  // 限制最多50筆記錄
+
+    if (error) {
+      console.error('❌ [用戶任務載入] 數據庫查詢失敗:', error);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      console.log(`📝 [用戶任務載入] 用戶 ${userId} 沒有任務記錄`);
+      return [];
+    }
+
+    // 將數據庫記錄轉換為任務格式
+    const tasks = data.map(record => ({
+      id: record.id,
+      text: record.message_text || 'unknown task',
+      note: record.note || null,
+      tag: record.tag || null,
+      scheduled_date: record.scheduled_date || null,
+      reminder_minutes: record.reminder_minutes || null,
+      repeat_pattern: record.repeat_pattern || null,
+      google_calendar_enabled: record.google_calendar_enabled || false,
+      google_calendar_who: record.google_calendar_who || null,
+      completed: false,  // 從數據庫載入的都是未完成任務
+      timestamp: record.created_at
+    }));
+
+    // 📋 加入詳細調試資訊
+    const taskIds = tasks.map(t => t.id).sort((a, b) => b - a);
+    const minId = Math.min(...taskIds);
+    const maxId = Math.max(...taskIds);
+
+    console.log(`✅ [用戶任務載入] 成功載入用戶 ${userId} 的 ${tasks.length} 個完整任務`);
+    console.log(`📊 [任務ID範圍] 最小ID: ${minId}, 最大ID: ${maxId}`);
+    console.log(`📝 [載入的任務ID] ${taskIds.slice(0, 10).join(', ')}${taskIds.length > 10 ? '...' : ''}`);
+
+    // 🔍 特別檢查 ID 1566-1568 是否存在
+    const targetIds = [1566, 1567, 1568];
+    const foundTargetIds = taskIds.filter(id => targetIds.includes(id));
+    if (foundTargetIds.length > 0) {
+      console.log(`🎯 [目標ID檢查] 找到目標ID: ${foundTargetIds.join(', ')}`);
+    } else {
+      console.log(`❌ [目標ID檢查] 未找到 ID 1566-1568，可能原因:`);
+      console.log(`   - 這些任務的 user_id 不是 ${userId}`);
+      console.log(`   - 這些任務不在最新的50個任務中`);
+      console.log(`   - 這些任務已被刪除或不存在`);
+    }
+
+    return tasks;
+
+  } catch (error) {
+    console.error('❌ [用戶任務載入] 載入錯誤:', error);
+    return null;
+  }
+}
+
 // 啟動伺服器
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🤖 LINE Bot server running on port ${PORT} with Open Graph API`);
   console.log(`📅 Started at: ${new Date().toISOString()}`);
+
+  // 啟動時載入數據庫任務到記憶體
+  await loadTasksFromDatabase();
 });// 強制重啟 西元2025年09月18日 (星期四) 13時03分19秒    
