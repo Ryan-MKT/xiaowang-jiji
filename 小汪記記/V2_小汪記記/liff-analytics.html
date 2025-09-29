@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小汪記記 - 數據分析</title>
+
+    <!-- LINE LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="/global-sidebar.js"></script>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            margin-bottom: 20px;
+        }
+
+        .stats-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 4px 16px rgba(31, 38, 135, 0.2);
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        .badge-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+
+        .progress-custom {
+            height: 8px;
+            border-radius: 10px;
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .progress-bar-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 10px;
+        }
+
+        /* 圓點日曆樣式 */
+        .day-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 1px;
+            transition: all 0.2s ease;
+        }
+
+        .day-dot.empty {
+            background-color: #e9ecef;
+        }
+
+        .day-dot.has-tasks {
+            background-color: #667eea;
+        }
+
+        .day-dot.today {
+            background-color: #dc3545;
+            transform: scale(1.2);
+        }
+
+        .day-dot:hover {
+            transform: scale(1.3);
+        }
+
+        /* 彩色統計卡片樣式 */
+        .stat-card-pink {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            color: white;
+        }
+
+        .stat-card-yellow {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            color: #2d3436;
+        }
+
+        .stat-card-blue {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+        }
+
+        .stat-card-purple {
+            background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+            color: white;
+        }
+
+        .stat-card-green {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            color: white;
+        }
+
+        .stat-icon-bg {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-icon-bg-yellow {
+            width: 60px;
+            height: 60px;
+            background: rgba(45, 52, 54, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* 專案完成度圓形進度條樣式 */
+        .project-completion-card {
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .project-completion-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .circular-progress {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+        }
+
+        .circular-progress-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .circular-progress-bg {
+            fill: none;
+            stroke: #e9ecef;
+            stroke-width: 8;
+        }
+
+        .circular-progress-fill {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314;
+            stroke-dashoffset: 314;
+            transition: stroke-dashoffset 1.5s ease-in-out;
+        }
+
+        .circular-progress-green {
+            stroke: #28a745;
+        }
+
+        .circular-progress-blue {
+            stroke: #007bff;
+        }
+
+        .circular-progress-orange {
+            stroke: #fd7e14;
+        }
+
+        .circular-progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .circular-progress-text .percentage {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .circular-progress-text small {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .project-name {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 標題卡片 -->
+        <div class="card header-card">
+            <div class="card-body text-center py-4">
+                <h1 class="mb-2">
+                    <i class="bi bi-graph-up stat-icon"></i>
+                    數據分析
+                </h1>
+                <p class="text-muted mb-0">深入了解您的任務使用情況</p>
+            </div>
+        </div>
+
+        <!-- 已記錄天數卡片 -->
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-check me-2"></i>
+                        已記錄天數
+                    </h5>
+                    <span class="badge-custom" id="recordedDays">- 天</span>
+                </div>
+                <div class="row align-items-center">
+                    <div class="col-8">
+                        <!-- 日曆圓點顯示 -->
+                        <div id="dayDots" class="d-flex flex-wrap gap-1">
+                            <!-- 動態生成圓點 -->
+                        </div>
+                        <small class="text-muted mt-2 d-block">最近30天的記錄情況</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        <h2 class="mb-0 text-primary" id="recordedDaysNumber">-</h2>
+                        <small class="text-muted">天</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新增統計卡片 -->
+        <div class="row g-3 mb-4">
+            <!-- 每周平均任務量 -->
+            <div class="col-6">
+                <div class="card stats-card stat-card-pink">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-0 text-white" id="weeklyAverageNumber">-</h2>
+                                <small class="text-white-50">每周平均任務量</small>
+                            </div>
+                            <div class="stat-icon-bg">
+                                <i class="bi bi-calendar-week text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 最多任務標籤 -->
+            <div class="col-6">
+                <div class="card stats-card stat-card-yellow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-0 text-dark" id="mostUsedTagName">-</h5>
+                                <small class="text-dark opacity-75">最多任務標籤</small>
+                            </div>
+                            <div class="stat-icon-bg-yellow">
+                                <i class="bi bi-tag text-dark"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新增完成率統計卡片 -->
+        <div class="row g-3 mb-4">
+            <!-- 每周完成任務率 -->
+            <div class="col-4">
+                <div class="card stats-card stat-card-blue">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-0 text-white" id="weeklyCompletionRate">-</h2>
+                                <small class="text-white-50">每周完成任務率</small>
+                            </div>
+                            <div class="stat-icon-bg">
+                                <i class="bi bi-calendar-week text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 每月完成任務率 -->
+            <div class="col-4">
+                <div class="card stats-card stat-card-purple">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-0 text-white" id="monthlyCompletionRate">-</h2>
+                                <small class="text-white-50">每月完成任務率</small>
+                            </div>
+                            <div class="stat-icon-bg">
+                                <i class="bi bi-calendar-month text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 最多完成標籤類型 -->
+            <div class="col-4">
+                <div class="card stats-card stat-card-green">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-0 text-white" id="mostCompletedTagType">-</h5>
+                                <small class="text-white-50">最多完成標籤類型</small>
+                            </div>
+                            <div class="stat-icon-bg">
+                                <i class="bi bi-award text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 專案完成度卡片 -->
+        <div class="card stats-card">
+            <div class="card-body">
+                <h5 class="card-title mb-4">
+                    <i class="bi bi-pie-chart-fill me-2"></i>
+                    專案完成度
+                </h5>
+                <div class="row g-4" id="projectCompletionContainer">
+                    <!-- 小飛專案 -->
+                    <div class="col-4">
+                        <div class="project-completion-card text-center">
+                            <div class="circular-progress mb-3" data-project="小飛專案">
+                                <svg class="circular-progress-svg" viewBox="0 0 120 120">
+                                    <circle class="circular-progress-bg" cx="60" cy="60" r="50"></circle>
+                                    <circle class="circular-progress-fill circular-progress-green" cx="60" cy="60" r="50"></circle>
+                                </svg>
+                                <div class="circular-progress-text">
+                                    <span class="percentage" id="flyProject-percentage">0</span>
+                                    <small>%</small>
+                                </div>
+                            </div>
+                            <h6 class="project-name">小飛專案</h6>
+                            <button class="btn btn-sm btn-outline-success">開啟更多</button>
+                        </div>
+                    </div>
+                    <!-- 工作專案 -->
+                    <div class="col-4">
+                        <div class="project-completion-card text-center">
+                            <div class="circular-progress mb-3" data-project="工作專案">
+                                <svg class="circular-progress-svg" viewBox="0 0 120 120">
+                                    <circle class="circular-progress-bg" cx="60" cy="60" r="50"></circle>
+                                    <circle class="circular-progress-fill circular-progress-blue" cx="60" cy="60" r="50"></circle>
+                                </svg>
+                                <div class="circular-progress-text">
+                                    <span class="percentage" id="workProject-percentage">0</span>
+                                    <small>%</small>
+                                </div>
+                            </div>
+                            <h6 class="project-name">工作專案</h6>
+                            <button class="btn btn-sm btn-outline-primary">開啟更多</button>
+                        </div>
+                    </div>
+                    <!-- 打卡專案 -->
+                    <div class="col-4">
+                        <div class="project-completion-card text-center">
+                            <div class="circular-progress mb-3" data-project="打卡專案">
+                                <svg class="circular-progress-svg" viewBox="0 0 120 120">
+                                    <circle class="circular-progress-bg" cx="60" cy="60" r="50"></circle>
+                                    <circle class="circular-progress-fill circular-progress-orange" cx="60" cy="60" r="50"></circle>
+                                </svg>
+                                <div class="circular-progress-text">
+                                    <span class="percentage" id="checkinProject-percentage">0</span>
+                                    <small>%</small>
+                                </div>
+                            </div>
+                            <h6 class="project-name">打卡專案</h6>
+                            <button class="btn btn-sm btn-outline-warning">開啟更多</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 總覽統計 -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-list-task stat-icon d-block mb-2"></i>
+                        <h3 class="mb-1" id="totalTasks">-</h3>
+                        <small class="text-muted">總任務數</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check-circle stat-icon d-block mb-2"></i>
+                        <h3 class="mb-1" id="completedTasks">-</h3>
+                        <small class="text-muted">已完成</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-tags stat-icon d-block mb-2"></i>
+                        <h3 class="mb-1" id="totalTags">-</h3>
+                        <small class="text-muted">標籤數量</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-calendar-week stat-icon d-block mb-2"></i>
+                        <h3 class="mb-1" id="weeklyAvg">-</h3>
+                        <small class="text-muted">週平均</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- 每日完成任務列表 -->
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-bar-chart me-2"></i>
+                        每日完成任務列表
+                    </h5>
+                    <select id="completionPeriodSelect" class="form-select form-select-sm" style="width: auto;">
+                        <option value="7">7天內</option>
+                        <option value="14">14天內</option>
+                        <option value="30" selected>30天內</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="dailyCompletionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收藏卡分析 -->
+        <div class="card stats-card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-heart-fill me-2"></i>
+                    收藏卡分析
+                </h5>
+                <div id="favoriteAnalysis">
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">分析中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用習慣洞察 -->
+        <div class="card stats-card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    使用習慣洞察
+                </h5>
+                <div id="insights">
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">分析中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let liffInitialized = false;
+        let userId = null;
+
+        // 初始化 LIFF
+        async function initializeLiff() {
+            try {
+                console.log('🚀 [LIFF分析] 開始初始化 LIFF...');
+                await liff.init({ liffId: '2008077335-rZlgE4bX' });
+
+                if (!liff.isLoggedIn()) {
+                    console.log('🔑 [LIFF分析] 用戶未登入，重新導向登入頁面');
+                    liff.login();
+                    return;
+                }
+
+                const profile = await liff.getProfile();
+                userId = profile.userId;
+                console.log('✅ [LIFF分析] LIFF 初始化成功，用戶ID:', userId);
+
+                liffInitialized = true;
+                await loadAnalyticsData();
+
+            } catch (error) {
+                console.error('❌ [LIFF分析] LIFF 初始化失敗:', error);
+                document.body.innerHTML = `
+                    <div class="container">
+                        <div class="alert alert-danger mt-5">
+                            <h4>初始化失敗</h4>
+                            <p>無法連接到 LINE 服務，請稍後再試。</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // 載入分析數據
+        async function loadAnalyticsData() {
+            try {
+                console.log('📊 [分析數據] 開始載入分析數據...');
+
+                // 獲取任務數據
+                const tasksResponse = await fetch('/api/get-user-tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId: userId })
+                });
+
+                if (!tasksResponse.ok) {
+                    throw new Error('無法獲取任務數據');
+                }
+
+                const tasksData = await tasksResponse.json();
+                console.log('📋 [分析數據] 任務數據載入成功:', tasksData);
+
+                // 獲取標籤數據
+                const tagsResponse = await fetch('/api/get-user-tags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userId: userId })
+                });
+
+                const tagsData = tagsResponse.ok ? await tagsResponse.json() : { tags: [] };
+                console.log('🏷️ [分析數據] 標籤數據載入成功:', tagsData);
+
+                // 分析數據並更新UI
+                await analyzeAndDisplayData(tasksData.tasks || [], tagsData.tags || []);
+
+            } catch (error) {
+                console.error('❌ [分析數據] 載入失敗:', error);
+                document.getElementById('insights').innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        資料載入失敗，請重新整理頁面
+                    </div>
+                `;
+            }
+        }
+
+        // 分析數據並顯示
+        async function analyzeAndDisplayData(tasks, tags) {
+            console.log('🔍 [數據分析] 開始分析數據...');
+
+            // 保存任務資料到全域變數供篩選使用
+            allTasksData = tasks;
+
+            // 基本統計
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(task => task.completed).length;
+            const totalTags = tags.length;
+
+            // 更新統計數字
+            document.getElementById('totalTasks').textContent = totalTasks;
+            document.getElementById('completedTasks').textContent = completedTasks;
+            document.getElementById('totalTags').textContent = totalTags;
+
+            // 計算週平均
+            const weeklyAvg = Math.round(totalTasks / 7);
+            document.getElementById('weeklyAvg').textContent = weeklyAvg;
+
+            // 生成圓點日曆和計算已記錄天數
+            generateRecordedDaysCalendar(tasks);
+
+            // 計算新增的統計數據
+            calculateWeeklyAverageTaskVolume(tasks);
+            findMostUsedTaskTag(tasks);
+
+            // 計算專案完成度
+            calculateProjectCompletions(tasks);
+
+            // 計算新增的完成率統計數據
+            calculateWeeklyCompletionRate(tasks);
+            calculateMonthlyCompletionRate(tasks);
+            findMostCompletedTagType(tasks);
+
+            // 生成圖表
+            generateDailyCompletionChart(tasks, 30); // 預設30天
+            generateFavoriteAnalysis(tasks, tags);
+            generateInsights(tasks, tags);
+
+            console.log('✅ [數據分析] 分析完成');
+        }
+
+// 全域變數存儲圖表實例
+        let dailyCompletionChartInstance = null;
+
+        // 生成每日完成任務長條圖
+        function generateDailyCompletionChart(tasks, days = 30) {
+            const ctx = document.getElementById('dailyCompletionChart').getContext('2d');
+
+            // 如果已經有圖表實例，先銷毀它
+            if (dailyCompletionChartInstance) {
+                dailyCompletionChartInstance.destroy();
+            }
+
+            console.log(`📊 [每日完成圖表] 生成近${days}天的每日完成任務圖表...`);
+
+            // 計算指定天數內的每日完成任務數量
+            const dailyData = [];
+            const labels = [];
+            const completedTasks = tasks.filter(task => task.completed);
+
+            for (let i = days - 1; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateString = date.toISOString().split('T')[0];
+
+                // 計算當天完成的任務數量
+                const completedOnDate = completedTasks.filter(task => {
+                    if (task.completed_at) {
+                        const completionDate = new Date(task.completed_at);
+                        return completionDate.toISOString().split('T')[0] === dateString;
+                    }
+                    return false;
+                }).length;
+
+                // 生成標籤（顯示星期）
+                const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+                const weekday = weekdays[date.getDay()];
+                const label = date.getDate() + '日';
+
+                dailyData.push(completedOnDate);
+                labels.push(weekday);
+            }
+
+            dailyCompletionChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '完成任務數',
+                        data: dailyData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgb(54, 162, 235)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            console.log(`✅ [每日完成圖表] 圖表生成完成，共${days}天數據`);
+        }
+
+        // 生成收藏卡分析
+        function generateFavoriteAnalysis(tasks, tags) {
+            console.log('💖 [收藏分析] 開始分析收藏卡使用情況...');
+
+            const favoriteContainer = document.getElementById('favoriteAnalysis');
+
+            // 統計各種收藏相關數據
+            const favoriteStats = {
+                totalFavorites: 0,
+                favoritesByTag: {},
+                favoritesByCompletion: {
+                    completed: 0,
+                    pending: 0
+                },
+                mostFavoriteTag: null
+            };
+
+            // 分析任務中的收藏情況（假設有is_favorite字段或特殊標記）
+            tasks.forEach(task => {
+                // 如果任務有收藏標記（這裡假設收藏的任務可能有特殊屬性或標籤包含"收藏"）
+                const isFavorite = task.is_favorite ||
+                                 (task.tag && task.tag.includes('收藏')) ||
+                                 (task.content && task.content.includes('⭐')) ||
+                                 (task.content && task.content.includes('💖'));
+
+                if (isFavorite) {
+                    favoriteStats.totalFavorites++;
+
+                    // 按標籤統計收藏
+                    if (task.tag && task.tag !== '無標籤') {
+                        favoriteStats.favoritesByTag[task.tag] =
+                            (favoriteStats.favoritesByTag[task.tag] || 0) + 1;
+                    }
+
+                    // 按完成狀態統計
+                    if (task.completed) {
+                        favoriteStats.favoritesByCompletion.completed++;
+                    } else {
+                        favoriteStats.favoritesByCompletion.pending++;
+                    }
+                }
+            });
+
+            // 找出最多收藏的標籤
+            const tagEntries = Object.entries(favoriteStats.favoritesByTag);
+            if (tagEntries.length > 0) {
+                favoriteStats.mostFavoriteTag = tagEntries.sort(([,a], [,b]) => b - a)[0];
+            }
+
+            // 生成分析結果HTML
+            let html = '';
+
+            if (favoriteStats.totalFavorites === 0) {
+                html = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-heart text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">還沒有收藏任何任務</p>
+                        <small class="text-muted">在任務內容中加入 ⭐ 或 💖 來標記收藏</small>
+                    </div>
+                `;
+            } else {
+                html = `
+                    <div class="row text-center mb-4">
+                        <div class="col-4">
+                            <h4 class="text-primary mb-1">${favoriteStats.totalFavorites}</h4>
+                            <small class="text-muted">總收藏數</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success mb-1">${favoriteStats.favoritesByCompletion.completed}</h4>
+                            <small class="text-muted">已完成</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning mb-1">${favoriteStats.favoritesByCompletion.pending}</h4>
+                            <small class="text-muted">待完成</small>
+                        </div>
+                    </div>
+                `;
+
+                // 添加最愛標籤信息
+                if (favoriteStats.mostFavoriteTag) {
+                    const [tagName, count] = favoriteStats.mostFavoriteTag;
+                    html += `
+                        <div class="alert alert-info">
+                            <i class="bi bi-award me-2"></i>
+                            <strong>最愛標籤：</strong>${tagName} (${count} 個收藏)
+                        </div>
+                    `;
+                }
+
+                // 收藏完成率
+                const completionRate = Math.round((favoriteStats.favoritesByCompletion.completed / favoriteStats.totalFavorites) * 100);
+                html += `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>收藏任務完成率</span>
+                            <span class="badge-custom">${completionRate}%</span>
+                        </div>
+                        <div class="progress progress-custom">
+                            <div class="progress-bar progress-bar-custom" style="width: ${completionRate}%"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            favoriteContainer.innerHTML = html;
+            console.log(`✅ [收藏分析] 分析完成，總收藏數: ${favoriteStats.totalFavorites}`);
+        }
+
+        // 生成使用習慣洞察
+        function generateInsights(tasks, tags) {
+            const insightsContainer = document.getElementById('insights');
+            const insights = [];
+
+            // 分析最活躍的時間
+            const hourCounts = new Array(24).fill(0);
+            tasks.forEach(task => {
+                const hour = new Date(task.created_at || task.timestamp).getHours();
+                hourCounts[hour]++;
+            });
+
+            const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+            if (peakHour >= 0) {
+                insights.push({
+                    icon: 'clock',
+                    title: '最活躍時間',
+                    content: `您最常在 ${peakHour}:00 - ${peakHour + 1}:00 創建任務`
+                });
+            }
+
+            // 分析最常用的標籤
+            const tagUsage = {};
+            tasks.forEach(task => {
+                if (task.tag && task.tag !== '無標籤') {
+                    tagUsage[task.tag] = (tagUsage[task.tag] || 0) + 1;
+                }
+            });
+
+            const mostUsedTag = Object.entries(tagUsage).sort(([,a], [,b]) => b - a)[0];
+            if (mostUsedTag) {
+                insights.push({
+                    icon: 'tag',
+                    title: '最常使用標籤',
+                    content: `「${mostUsedTag[0]}」標籤被使用了 ${mostUsedTag[1]} 次`
+                });
+            }
+
+            // 分析完成率建議
+            const completionRate = tasks.length > 0 ? (tasks.filter(t => t.completed).length / tasks.length) * 100 : 0;
+            if (completionRate < 50) {
+                insights.push({
+                    icon: 'lightbulb',
+                    title: '完成率建議',
+                    content: '建議將大任務拆分成小任務，提高完成率'
+                });
+            } else if (completionRate > 80) {
+                insights.push({
+                    icon: 'trophy',
+                    title: '優秀表現',
+                    content: '您的任務完成率很高，保持這個好習慣！'
+                });
+            }
+
+            // 生成HTML
+            if (insights.length === 0) {
+                insightsContainer.innerHTML = '<p class="text-muted">需要更多數據來生成洞察</p>';
+                return;
+            }
+
+            let html = '';
+            insights.forEach(insight => {
+                html += `
+                    <div class="mb-3 p-3 rounded" style="background: rgba(102, 126, 234, 0.1);">
+                        <h6 class="mb-2">
+                            <i class="bi bi-${insight.icon} me-2"></i>
+                            ${insight.title}
+                        </h6>
+                        <p class="mb-0 text-muted">${insight.content}</p>
+                    </div>
+                `;
+            });
+
+            insightsContainer.innerHTML = html;
+        }
+
+        // 生成已記錄天數圓點日曆
+        function generateRecordedDaysCalendar(tasks) {
+            console.log('📅 [圓點日曆] 開始生成已記錄天數日曆...');
+
+            // 計算最近30天的任務記錄情況
+            const dayDotsContainer = document.getElementById('dayDots');
+            const today = new Date();
+            const tasksWithDates = new Set();
+
+            // 收集所有有任務的日期
+            tasks.forEach(task => {
+                const taskDate = new Date(task.created_at || task.timestamp);
+                if (!isNaN(taskDate.getTime())) {
+                    const dateString = taskDate.toISOString().split('T')[0];
+                    tasksWithDates.add(dateString);
+                }
+            });
+
+            // 計算已記錄的總天數
+            const recordedDaysCount = tasksWithDates.size;
+
+            // 更新已記錄天數顯示
+            document.getElementById('recordedDays').textContent = `${recordedDaysCount} 天`;
+            document.getElementById('recordedDaysNumber').textContent = recordedDaysCount;
+
+            // 生成最近30天的圓點
+            let dotsHtml = '';
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateString = date.toISOString().split('T')[0];
+                const todayString = today.toISOString().split('T')[0];
+
+                let dotClass = 'day-dot empty';
+                if (tasksWithDates.has(dateString)) {
+                    dotClass = 'day-dot has-tasks';
+                }
+                if (dateString === todayString) {
+                    dotClass += ' today';
+                }
+
+                const dateDisplay = date.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
+                dotsHtml += `<div class="${dotClass}" title="${dateDisplay}"></div>`;
+            }
+
+            dayDotsContainer.innerHTML = dotsHtml;
+
+            console.log(`✅ [圓點日曆] 圓點日曆生成完成，總記錄天數: ${recordedDaysCount}`);
+        }
+
+        // 計算每周平均任務量
+        function calculateWeeklyAverageTaskVolume(tasks) {
+            console.log('📊 [每周平均] 開始計算每周平均任務量...');
+
+            if (tasks.length === 0) {
+                document.getElementById('weeklyAverageNumber').textContent = '0';
+                return;
+            }
+
+            // 計算從第一個任務到現在的週數
+            const taskDates = tasks.map(task => new Date(task.created_at || task.timestamp))
+                .filter(date => !isNaN(date.getTime()))
+                .sort((a, b) => a - b);
+
+            if (taskDates.length === 0) {
+                document.getElementById('weeklyAverageNumber').textContent = '0';
+                return;
+            }
+
+            const firstTaskDate = taskDates[0];
+            const now = new Date();
+            const daysDiff = Math.ceil((now - firstTaskDate) / (1000 * 60 * 60 * 24));
+            const weeksDiff = Math.max(1, Math.ceil(daysDiff / 7)); // 至少1週
+
+            const weeklyAverage = Math.round(tasks.length / weeksDiff);
+
+            document.getElementById('weeklyAverageNumber').textContent = weeklyAverage;
+
+            console.log(`✅ [每周平均] 每周平均任務量: ${weeklyAverage} (總任務: ${tasks.length}, 週數: ${weeksDiff})`);
+        }
+
+        // 找出最多使用的任務標籤
+        function findMostUsedTaskTag(tasks) {
+            console.log('🏷️ [最多標籤] 開始尋找最多使用的任務標籤...');
+
+            const tagUsage = {};
+
+            // 計算每個標籤的使用次數
+            tasks.forEach(task => {
+                if (task.tag && task.tag !== '無標籤' && task.tag.trim() !== '') {
+                    tagUsage[task.tag] = (tagUsage[task.tag] || 0) + 1;
+                }
+            });
+
+            // 找出使用次數最多的標籤
+            const tagEntries = Object.entries(tagUsage);
+
+            if (tagEntries.length === 0) {
+                document.getElementById('mostUsedTagName').textContent = '暫無標籤';
+                console.log('📝 [最多標籤] 沒有找到任何標籤');
+                return;
+            }
+
+            const [mostUsedTag, count] = tagEntries.sort(([,a], [,b]) => b - a)[0];
+
+            document.getElementById('mostUsedTagName').textContent = mostUsedTag;
+
+            console.log(`✅ [最多標籤] 最多使用的標籤: "${mostUsedTag}" (使用 ${count} 次)`);
+        }
+
+        // 計算專案完成度
+        function calculateProjectCompletions(tasks) {
+            console.log('📊 [專案完成度] 開始計算各專案完成度...');
+
+            const projects = {
+                '小飛專案': {
+                    total: 0,
+                    completed: 0,
+                    elementId: 'flyProject-percentage'
+                },
+                '工作專案': {
+                    total: 0,
+                    completed: 0,
+                    elementId: 'workProject-percentage'
+                },
+                '打卡專案': {
+                    total: 0,
+                    completed: 0,
+                    elementId: 'checkinProject-percentage'
+                }
+            };
+
+            // 統計各專案的任務數量和完成數量
+            tasks.forEach(task => {
+                if (task.tag && projects[task.tag]) {
+                    projects[task.tag].total++;
+                    if (task.completed) {
+                        projects[task.tag].completed++;
+                    }
+                }
+            });
+
+            // 計算並更新各專案的完成度
+            Object.keys(projects).forEach(projectName => {
+                const project = projects[projectName];
+                const percentage = project.total > 0 ? Math.round((project.completed / project.total) * 100) : 0;
+
+                // 更新百分比顯示
+                document.getElementById(project.elementId).textContent = percentage;
+
+                // 更新圓形進度條
+                updateCircularProgress(projectName, percentage);
+
+                console.log(`📊 [專案完成度] ${projectName}: ${project.completed}/${project.total} = ${percentage}%`);
+            });
+
+            console.log('✅ [專案完成度] 專案完成度計算完成');
+        }
+
+        // 更新圓形進度條
+        function updateCircularProgress(projectName, percentage) {
+            const progressElement = document.querySelector(`[data-project="${projectName}"] .circular-progress-fill`);
+            if (progressElement) {
+                // 計算圓周 (2 * π * r)，r = 50
+                const circumference = 2 * Math.PI * 50;
+                const offset = circumference - (percentage / 100) * circumference;
+
+                setTimeout(() => {
+                    progressElement.style.strokeDashoffset = offset;
+                }, 500); // 延遲執行動畫效果
+            }
+        }
+
+        // 計算每周完成任務率
+        function calculateWeeklyCompletionRate(tasks) {
+            console.log('📊 [每周完成率] 開始計算每周完成任務率...');
+
+            if (tasks.length === 0) {
+                document.getElementById('weeklyCompletionRate').textContent = '0%';
+                return;
+            }
+
+            // 取得本周開始日期（星期一）
+            const now = new Date();
+            const currentDay = now.getDay();
+            const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay; // 如果是星期天，往前6天；否則往前到星期一
+            const thisMonday = new Date(now);
+            thisMonday.setDate(now.getDate() + mondayOffset);
+            thisMonday.setHours(0, 0, 0, 0);
+
+            // 過濾本周的任務
+            const thisWeekTasks = tasks.filter(task => {
+                const taskDate = new Date(task.created_at || task.timestamp);
+                return taskDate >= thisMonday && taskDate <= now;
+            });
+
+            // 計算本周完成率
+            if (thisWeekTasks.length === 0) {
+                document.getElementById('weeklyCompletionRate').textContent = '0%';
+                return;
+            }
+
+            const completedThisWeek = thisWeekTasks.filter(task => task.completed).length;
+            const weeklyRate = Math.round((completedThisWeek / thisWeekTasks.length) * 100);
+
+            document.getElementById('weeklyCompletionRate').textContent = weeklyRate + '%';
+
+            console.log(`✅ [每周完成率] 本周完成率: ${weeklyRate}% (${completedThisWeek}/${thisWeekTasks.length})`);
+        }
+
+        // 計算每月完成任務率
+        function calculateMonthlyCompletionRate(tasks) {
+            console.log('📊 [每月完成率] 開始計算每月完成任務率...');
+
+            if (tasks.length === 0) {
+                document.getElementById('monthlyCompletionRate').textContent = '0%';
+                return;
+            }
+
+            // 取得本月開始日期
+            const now = new Date();
+            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            // 過濾本月的任務
+            const thisMonthTasks = tasks.filter(task => {
+                const taskDate = new Date(task.created_at || task.timestamp);
+                return taskDate >= thisMonthStart && taskDate <= now;
+            });
+
+            // 計算本月完成率
+            if (thisMonthTasks.length === 0) {
+                document.getElementById('monthlyCompletionRate').textContent = '0%';
+                return;
+            }
+
+            const completedThisMonth = thisMonthTasks.filter(task => task.completed).length;
+            const monthlyRate = Math.round((completedThisMonth / thisMonthTasks.length) * 100);
+
+            document.getElementById('monthlyCompletionRate').textContent = monthlyRate + '%';
+
+            console.log(`✅ [每月完成率] 本月完成率: ${monthlyRate}% (${completedThisMonth}/${thisMonthTasks.length})`);
+        }
+
+        // 找出最多完成的標籤類型
+        function findMostCompletedTagType(tasks) {
+            console.log('🏷️ [最多完成標籤] 開始尋找最多完成的標籤類型...');
+
+            const completedTasks = tasks.filter(task => task.completed);
+
+            if (completedTasks.length === 0) {
+                document.getElementById('mostCompletedTagType').textContent = '暫無完成';
+                console.log('📝 [最多完成標籤] 沒有找到任何已完成的任務');
+                return;
+            }
+
+            const tagCompletionCount = {};
+
+            // 計算每個標籤的完成次數
+            completedTasks.forEach(task => {
+                if (task.tag && task.tag !== '無標籤' && task.tag.trim() !== '') {
+                    tagCompletionCount[task.tag] = (tagCompletionCount[task.tag] || 0) + 1;
+                }
+            });
+
+            // 找出完成次數最多的標籤
+            const tagEntries = Object.entries(tagCompletionCount);
+
+            if (tagEntries.length === 0) {
+                document.getElementById('mostCompletedTagType').textContent = '暫無標籤';
+                console.log('📝 [最多完成標籤] 沒有找到任何有標籤的已完成任務');
+                return;
+            }
+
+            const [mostCompletedTag, completionCount] = tagEntries.sort(([,a], [,b]) => b - a)[0];
+
+            document.getElementById('mostCompletedTagType').textContent = mostCompletedTag;
+
+            console.log(`✅ [最多完成標籤] 最多完成的標籤: "${mostCompletedTag}" (完成 ${completionCount} 次)`);
+        }
+
+        // 存儲任務資料以供篩選使用
+        let allTasksData = [];
+
+        // 頁面載入完成後初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 [LIFF分析] 頁面載入完成，開始初始化');
+
+            // 添加日期篩選器事件監聽
+            document.getElementById('completionPeriodSelect').addEventListener('change', function(e) {
+                const selectedDays = parseInt(e.target.value);
+                console.log(`📊 [篩選器] 用戶選擇了${selectedDays}天的完成任務統計`);
+                generateDailyCompletionChart(allTasksData, selectedDays);
+            });
+
+            initializeLiff();
+        });
+    </script>
+</body>
+</html>

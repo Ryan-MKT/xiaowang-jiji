@@ -4078,6 +4078,32 @@ app.get('/liff/collections', (req, res) => {
   }
 });
 
+// 📊 分析頁面 LIFF 路由
+app.get('/liff-analytics.html', (req, res) => {
+  try {
+    console.log('📊 [分析頁面] 收到頁面請求');
+
+    // 設置 LIFF 相關 Headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
+    let html = fs.readFileSync(path.join(__dirname, 'liff-analytics.html'), 'utf8');
+
+    // 進行 LIFF ID 動態替換
+    const liffId = process.env.LIFF_APP_ID || '2008077335-rZlgE4bX';
+    html = html.replace(/liffId: '[^']*'/, `liffId: '${liffId}'`);
+
+    console.log(`📊 [分析頁面] 使用 LIFF ID: ${liffId}`);
+    console.log(`🔗 [分析頁面] URL 參數:`, req.url);
+
+    res.send(html);
+  } catch (error) {
+    console.error('❌ [分析頁面] 讀取頁面錯誤:', error);
+    res.status(500).send('分析頁面載入失敗');
+  }
+});
+
 // 收藏卡 API 路由
 const collectionsAPI = require('./collections-api');
 
@@ -6772,6 +6798,104 @@ app.post('/api/google-calendar/create-event', async (req, res) => {
 
     res.status(500).json({
       error: '建立Google日曆事件失敗',
+      message: error.message
+    });
+  }
+});
+
+// 📊 獲取用戶任務數據 - 用於分析頁面
+app.post('/api/get-user-tasks', async (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少用戶ID' });
+    }
+
+    console.log(`📊 [分析API] 獲取用戶 ${userId} 的任務數據`);
+
+    // 從記憶體獲取任務
+    const userTasks = userTaskStacks.get(userId) || [];
+
+    // 如果需要更完整的數據，可以從資料庫獲取
+    let databaseTasks = [];
+    if (supabase) {
+      try {
+        const tableName = isProductionEnv ? 'messages' : 'dev_messages';
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          databaseTasks = data.map(record => ({
+            id: record.id,
+            text: record.message_text,
+            tag: record.tag,
+            created_at: record.created_at,
+            scheduledDate: record.scheduled_date,
+            completed: false // 資料庫中沒有completed欄位，預設為false
+          }));
+        }
+      } catch (dbError) {
+        console.log('⚠️ [分析API] 資料庫查詢失敗，使用記憶體數據');
+      }
+    }
+
+    // 合併記憶體和資料庫數據，優先使用記憶體數據
+    const allTasks = userTasks.length > 0 ? userTasks : databaseTasks;
+
+    console.log(`📊 [分析API] 返回 ${allTasks.length} 個任務數據`);
+
+    res.json({
+      success: true,
+      tasks: allTasks
+    });
+
+  } catch (error) {
+    console.error('❌ [分析API] 獲取任務數據失敗:', error);
+    res.status(500).json({
+      error: '獲取任務數據失敗',
+      message: error.message
+    });
+  }
+});
+
+// 🏷️ 獲取用戶標籤數據 - 用於分析頁面
+app.post('/api/get-user-tags', async (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少用戶ID' });
+    }
+
+    console.log(`🏷️ [分析API] 獲取用戶 ${userId} 的標籤數據`);
+
+    try {
+      const userTags = await getUserTags(userId);
+      console.log(`🏷️ [分析API] 返回 ${userTags.length} 個標籤數據`);
+
+      res.json({
+        success: true,
+        tags: userTags
+      });
+
+    } catch (tagError) {
+      console.log('⚠️ [分析API] 標籤查詢失敗，返回空標籤列表');
+      res.json({
+        success: true,
+        tags: []
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ [分析API] 獲取標籤數據失敗:', error);
+    res.status(500).json({
+      error: '獲取標籤數據失敗',
       message: error.message
     });
   }

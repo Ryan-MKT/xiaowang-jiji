@@ -795,9 +795,9 @@ function generateQuickReply(userTags) {
     {
       type: 'action',
       action: {
-        type: 'message',
+        type: 'uri',
         label: '分析',
-        text: '分析'
+        uri: 'https://138b00c20997.ngrok.app/liff-analytics.html'
       }
     },
     {
