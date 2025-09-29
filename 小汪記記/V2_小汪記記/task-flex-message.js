@@ -1,17 +1,20 @@
 // 任務 Flex Message 建構器 - 統計卡片功能版本 2025-09-11-23:50-STATS-CARD-LATEST
 
 // 生成帶日期的標題函數
-function generateDateTitle(taskCount) {
-  // 獲取台灣當前日期和星期
+function generateDateTitle(dayOffset = 0) {
+  // 獲取台灣當前日期和星期，並加上偏移天數
   const now = new Date();
   const taipeiDate = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+
+  // 加上偏移天數
+  taipeiDate.setDate(taipeiDate.getDate() + dayOffset);
 
   const month = taipeiDate.getMonth() + 1;
   const day = taipeiDate.getDate();
   const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
   const weekday = weekdays[taipeiDate.getDay()];
 
-  console.log(`📅 [日期生成] 當前台灣時間: ${month}/${day} (${weekday})`);
+  console.log(`📅 [日期生成] 台灣時間+${dayOffset}天: ${month}/${day} (${weekday})`);
 
   return {
     dateText: `${month}/${day}`,
@@ -132,7 +135,7 @@ function createTaskFlexMessage(taskText) {
 }
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply 和 Tab Segment
-function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general') {
+function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general', dayOffset = 0) {
   console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-23:50-STATS-CARD-LATEST');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
@@ -475,7 +478,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
   }
 
   // 生成帶日期的標題
-  const titleData = generateDateTitle(displayedTotal);
+  const titleData = generateDateTitle(dayOffset);
   const altText = titleData.dateText + titleData.weekdayText;
 
   // Linus 風格：資料結構簡單，直接附加 Quick Reply
@@ -1234,7 +1237,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
   );
 
   // 生成帶日期的標題
-  const titleData = generateDateTitle(displayedTotal);
+  const titleData = generateDateTitle(dayOffset);
   const altText = titleData.dateText + titleData.weekdayText;
 
   return {

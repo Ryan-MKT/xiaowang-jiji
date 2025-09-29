@@ -1841,20 +1841,24 @@ async function handlePostback(event) {
         taskCounts.push(dayTasks.length);
 
         // 生成該天的Flex Message
-        const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags);
+        const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags, 'general', dayOffset);
 
         // 修改該天頁面的標題
         const dayTitle = generateDateTitle(dayOffset);
-        dayFlexMessage.contents.header.contents[0].contents[0].text = dayTitle.dateText;
-        dayFlexMessage.contents.header.contents[0].contents[1].text = dayTitle.weekdayText;
-        dayFlexMessage.altText = dayTitle.dateText + dayTitle.weekdayText;
+        if (dayFlexMessage && dayFlexMessage.contents && dayFlexMessage.contents.header) {
+          dayFlexMessage.contents.header.contents[0].contents[0].text = dayTitle.dateText;
+          dayFlexMessage.contents.header.contents[0].contents[1].text = dayTitle.weekdayText;
+          dayFlexMessage.altText = dayTitle.dateText + dayTitle.weekdayText;
+        }
 
         // 添加到carousel中
-        sevenDaysBubbles.push({
-          type: 'bubble',
-          header: dayFlexMessage.contents.header,
-          body: dayFlexMessage.contents.body
-        });
+        if (dayFlexMessage && dayFlexMessage.contents) {
+          sevenDaysBubbles.push({
+            type: 'bubble',
+            header: dayFlexMessage.contents.header,
+            body: dayFlexMessage.contents.body
+          });
+        }
       }
 
       // 生成7個BUBBLE的carousel FLEX MESSAGE
@@ -1917,7 +1921,8 @@ async function handlePostback(event) {
 
       // 生成一般視圖的任務清單（顯示今天的任務）
       const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const generalFlexMessage = createTaskStackFlexMessage(userTasks, userTags, 'general');
+      const todayTasks = filterTodayTasks(userTasks);
+      const generalFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'general');
 
       if (client) {
         return client.replyMessage(event.replyToken, generalFlexMessage);
@@ -3676,10 +3681,11 @@ async function handleEvent(event) {
     // 🗓️ 使用記憶體中的任務堆疊來顯示 Flex Message（確保與標籤視圖同步）
     console.log(`🔍 [新建任務] 使用記憶體中的 ${userTasks.length} 個活躍任務`);
 
-    // 創建包含活躍任務的 Flex Message
+    // 創建包含活躍任務的 Flex Message（只顯示今天的任務）
     const userTags = await getUserTags(userId);
     const { createTaskStackFlexMessage } = getTaskFlexModule();
-    const flexMessage = createTaskStackFlexMessage(userTasks, userTags);
+    const todayTasks = filterTodayTasks(userTasks);
+    const flexMessage = createTaskStackFlexMessage(todayTasks, userTags);
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
