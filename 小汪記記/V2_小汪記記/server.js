@@ -3739,7 +3739,16 @@ async function handleEvent(event) {
     const userTags = await getUserTags(userId);
     const { createTaskStackFlexMessage } = getTaskFlexModule();
     const todayTasks = filterTodayTasks(userTasks);
-    const flexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+
+    // 🏷️ 檢測是否包含打標籤功能，如果有則自動切換到標籤版視圖
+    const hasTagFunction = userMessage.includes('打標籤');
+    const viewMode = hasTagFunction ? 'tags' : 'general';
+
+    if (hasTagFunction) {
+      console.log(`🏷️ [自動切換] 偵測到「打標籤」功能，自動切換到標籤版 FLEX MESSAGE`);
+    }
+
+    const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
     
     // 📱 回覆 FLEX MESSAGE 時同時包含同步指令
     const syncMessage = `SYNC_TASKS:${JSON.stringify(userTasks)}`;
