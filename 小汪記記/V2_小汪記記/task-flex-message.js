@@ -585,7 +585,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
                 action: {
                   type: 'postback',
                   label: '近7天',
-                  data: 'expand_frequent_tasks_pages'
+                  data: `expand_frequent_tasks_pages_${activeTab}`
                 }
               }
             ]

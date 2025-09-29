@@ -747,7 +747,27 @@ function filterTodayTasks(allTasks) {
   console.log(`📅 [日期過濾] 今天日期: ${todayDateString}`);
 
   const todayTasks = allTasks.filter(task => {
-    // 如果沒有預定時間，視為今天的任務
+    // 檢查任務文字中是否包含日期資訊（例如 "9/30", "10/1" 等）
+    const taskText = task.text || '';
+    const datePattern = /(\d{1,2})\/(\d{1,2})/;
+    const dateMatch = taskText.match(datePattern);
+
+    if (dateMatch) {
+      // 解析任務文字中的日期
+      const month = parseInt(dateMatch[1]);
+      const day = parseInt(dateMatch[2]);
+      const currentYear = taiwanNow.getFullYear();
+
+      // 創建任務日期
+      const taskDate = new Date(currentYear, month - 1, day);
+      const taskDateString = taskDate.toISOString().split('T')[0];
+
+      const isToday = taskDateString === todayDateString;
+      console.log(`📅 [日期過濾] "${task.text}": 包含日期 ${month}/${day} (${taskDateString}) ${isToday ? '✅今天' : '❌非今天'}`);
+      return isToday;
+    }
+
+    // 如果沒有預定時間且文字中也沒有日期，視為今天的任務
     if (!task.scheduledDate) {
       console.log(`📅 [日期過濾] "${task.text}": 無時間 ✅今天`);
       return true;
@@ -874,11 +894,40 @@ function filterTasksByDaysOffset(allTasks, daysOffset) {
   console.log(`📅 [${dayName}過濾] ${dayName}日期: ${targetDateString}`);
 
   const filteredTasks = allTasks.filter(task => {
+    // 先檢查任務文字中是否包含日期資訊（例如 "9/30", "10/1" 等）
+    const taskText = task.text || '';
+    const datePattern = /(\d{1,2})\/(\d{1,2})/;
+    const dateMatch = taskText.match(datePattern);
+
+    if (dateMatch) {
+      // 解析任務文字中的日期
+      const month = parseInt(dateMatch[1]);
+      const day = parseInt(dateMatch[2]);
+      const currentYear = taiwanNow.getFullYear();
+
+      // 創建任務日期
+      const taskDate = new Date(currentYear, month - 1, day);
+      const taskDateString = taskDate.toISOString().split('T')[0];
+
+      const isTargetDay = taskDateString === targetDateString;
+      console.log(`📅 [${dayName}過濾] "${task.text}": 包含日期 ${month}/${day} (${taskDateString}) ${isTargetDay ? `✅${dayName}` : `❌非${dayName}`}`);
+      return isTargetDay;
+    }
+
     // 檢查任務是否有預定時間
     if (task.scheduledDate) {
-      // 解析任務的預定日期
-      const taskDate = new Date(task.scheduledDate);
-      const taskDateString = taskDate.toISOString().split('T')[0];
+      // 正確解析台灣時區的日期（和 filterTodayTasks 相同邏輯）
+      const taskDateStr = task.scheduledDate;
+      let taskDateString;
+      if (taskDateStr.includes('+08:00')) {
+        // 如果已經包含台灣時區，直接提取日期部分
+        taskDateString = taskDateStr.split('T')[0];
+      } else {
+        // 如果沒有時區信息，當作 UTC 處理
+        const taskDate = new Date(taskDateStr);
+        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+      }
 
       if (taskDateString === targetDateString) {
         console.log(`📅 [${dayName}過濾] "${task.text}": ${taskDateString} ✅${dayName}`);
@@ -888,11 +937,12 @@ function filterTasksByDaysOffset(allTasks, daysOffset) {
         return false;
       }
     } else {
-      // 沒有預定時間的任務，只在今天顯示
+      // 沒有預定時間且文字中也沒有日期的任務，只在今天顯示
       if (daysOffset === 0) {
         console.log(`📅 [${dayName}過濾] "${task.text}": 無時間 ✅${dayName}`);
         return true;
       } else {
+        console.log(`📅 [${dayName}過濾] "${task.text}": 無時間 ❌非${dayName}`);
         return false;
       }
     }
@@ -1820,8 +1870,10 @@ async function handlePostback(event) {
   }
 
   // 處理展開常用任務多頁檢視 - 7天任務頁面
-  if (postbackData === 'expand_frequent_tasks_pages') {
-    console.log(`🎨 用戶 ${userId} 點擊展開7天任務頁面`);
+  if (postbackData.startsWith('expand_frequent_tasks_pages')) {
+    // 解析當前的 tab 模式
+    const tabMode = postbackData.includes('_tags') ? 'tags' : 'general';
+    console.log(`🎨 用戶 ${userId} 點擊展開7天任務頁面 (${tabMode} 模式)`);
 
     try {
       // 獲取用戶任務資料
@@ -1841,7 +1893,7 @@ async function handlePostback(event) {
         taskCounts.push(dayTasks.length);
 
         // 生成該天的Flex Message
-        const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags, 'general', dayOffset);
+        const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags, tabMode, dayOffset);
 
         // 修改該天頁面的標題
         const dayTitle = generateDateTitle(dayOffset);
@@ -1952,8 +2004,10 @@ async function handlePostback(event) {
 
     try {
       // 使用記憶體中的任務堆疊（用戶真正的活躍任務）
-      const userTasks = userTaskStacks.get(userId) || [];
-      console.log(`🔍 [標籤視圖] 從記憶體載入 ${userTasks.length} 個活躍任務`);
+      const allUserTasks = userTaskStacks.get(userId) || [];
+      // 篩選只顯示今天的任務
+      const userTasks = filterTodayTasks(allUserTasks);
+      console.log(`🔍 [標籤視圖] 從記憶體載入 ${allUserTasks.length} 個活躍任務，篩選出 ${userTasks.length} 個今天任務`);
 
       userTasks.forEach(task => {
         console.log(`  - "${task.text}" 標籤: "${task.tag || '無標籤'}"`);
