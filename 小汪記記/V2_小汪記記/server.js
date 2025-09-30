@@ -3633,6 +3633,95 @@ async function handleEvent(event) {
     }
   }
   
+  // 檢查是否為刪除任務指令
+  if (userMessage.startsWith('刪除任務_')) {
+    console.log('🗑️ [刪除任務] 偵測到刪除任務指令');
+
+    // 提取任務ID
+    const taskId = userMessage.replace('刪除任務_', '');
+    console.log(`🗑️ [刪除任務] 要刪除的任務ID: ${taskId}`);
+
+    // 從記憶體中找到要刪除的任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskToDelete = userTasks.find(task => task.id == taskId);
+
+    if (taskToDelete) {
+      // 從記憶體中移除任務
+      const taskIndex = userTasks.findIndex(task => task.id == taskId);
+      userTasks.splice(taskIndex, 1);
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [刪除任務] 記憶體任務已移除: ${taskToDelete.text}`);
+
+      // 從數據庫中刪除任務記錄
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const tableName = tablePrefix + 'messages';
+
+          const { data, error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', taskId)
+            .eq('user_id', userId)
+            .select();
+
+          if (error) {
+            console.error('❌ [刪除任務] 數據庫刪除失敗:', error);
+          } else if (data && data.length > 0) {
+            console.log(`✅ [刪除任務] 數據庫記錄已刪除:`, data[0]);
+          } else {
+            console.log(`⚠️ [刪除任務] 在數據庫中未找到匹配的記錄`);
+          }
+        } catch (dbError) {
+          console.error('❌ [刪除任務] 數據庫操作失敗:', dbError);
+        }
+      }
+
+      // 發送確認訊息和更新的任務堆疊
+      const confirmationMessage = {
+        type: 'text',
+        text: `${taskToDelete.text} 已刪除`
+      };
+
+      // 重新生成任務堆疊 Flex Message
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+
+      if (client) {
+        // 發送兩則訊息：確認訊息 + 更新的任務堆疊
+        return client.replyMessage(event.replyToken, [confirmationMessage, updatedFlexMessage])
+          .then(result => {
+            console.log('✅ [刪除任務] 雙訊息發送成功');
+            return result;
+          })
+          .catch(error => {
+            console.error('❌ [刪除任務] 雙訊息發送失敗:', error);
+            throw error;
+          });
+      } else {
+        console.log('測試模式：任務刪除成功');
+        return Promise.resolve(null);
+      }
+    } else {
+      console.log(`⚠️ [刪除任務] 找不到任務 ID: ${taskId}`);
+
+      // 發送錯誤訊息
+      const errorMessage = {
+        type: 'text',
+        text: '找不到要刪除的任務'
+      };
+
+      if (client) {
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
+      } else {
+        console.log('測試模式：任務不存在錯誤');
+        return Promise.resolve(null);
+      }
+    }
+  }
+
   // 判斷是問句還是任務
   const isQuestionMessage = isQuestion(userMessage);
   console.log(`🔍 [訊息分類] 訊息: "${userMessage}" | 判斷結果: ${isQuestionMessage ? '問句' : '任務'}`);
@@ -4092,7 +4181,7 @@ async function handleEvent(event) {
     if (client) {
       // 創建「已記錄」確認訊息
       const { createRecordedConfirmationFlexMessage } = getTaskFlexModule();
-      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage);
+      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage, taskId);
 
       // 為第二則訊息添加 Quick Reply
       const { generateQuickReply } = getTaskFlexModule();
@@ -4122,7 +4211,7 @@ async function handleEvent(event) {
         });
     } else {
       const { createRecordedConfirmationFlexMessage } = getTaskFlexModule();
-      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage);
+      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage, taskId);
       console.log('測試模式：已記錄確認訊息', JSON.stringify(recordedMessage, null, 2));
       console.log('測試模式：任務堆疊 Flex Message', JSON.stringify(flexMessage, null, 2));
       return Promise.resolve(null);

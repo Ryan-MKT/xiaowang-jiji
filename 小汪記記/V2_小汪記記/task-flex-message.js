@@ -1874,12 +1874,12 @@ function createFilterFlexMessage() {
 }
 
 // 創建「已記錄」確認訊息的 Flex Message
-function createRecordedConfirmationFlexMessage(recordedText) {
+function createRecordedConfirmationFlexMessage(recordedText, taskId) {
   console.log('📝 [已記錄訊息] 創建確認訊息:', recordedText);
 
   return {
     type: 'flex',
-    altText: `已記錄 ${recordedText}`,
+    altText: recordedText,
     contents: {
       type: 'bubble',
       size: 'micro',
@@ -1887,40 +1887,37 @@ function createRecordedConfirmationFlexMessage(recordedText) {
         type: 'box',
         layout: 'vertical',
         paddingAll: 'lg',
-        backgroundColor: '#4CAF50',
+        backgroundColor: '#FFFFFF',
         contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            contents: [
-              {
-                type: 'text',
-                text: '✅',
-                size: 'xl',
-                color: '#FFFFFF',
-                flex: 0,
-                margin: 'none'
-              },
-              {
-                type: 'text',
-                text: '已記錄',
-                size: 'lg',
-                color: '#FFFFFF',
-                weight: 'bold',
-                flex: 1,
-                margin: 'sm'
-              }
-            ],
-            spacing: 'sm'
-          },
           {
             type: 'text',
             text: recordedText,
             size: 'md',
-            color: '#FFFFFF',
+            color: '#333333',
             wrap: true,
-            margin: 'md',
             maxLines: 3
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'md',
+            contents: [
+              {
+                type: 'filler'
+              },
+              {
+                type: 'button',
+                style: 'secondary',
+                color: '#E8E8E8',
+                action: {
+                  type: 'message',
+                  label: '刪除',
+                  text: `刪除任務_${taskId}`
+                },
+                flex: 0,
+                height: 'sm'
+              }
+            ]
           }
         ]
       }
