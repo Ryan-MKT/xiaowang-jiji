@@ -1282,7 +1282,7 @@ function createFavoritesCarousel(favorites) {
 }
 
 const app = express();
-const PORT = 3002;
+const PORT = 3003;
 console.log('🚀 小汪記記 with LINE Login starting...');
 
 // 初始化 OpenAI
@@ -6061,17 +6061,23 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
 
     console.log(`🗑️ [刪除任務] 用戶 ${userId} 刪除任務 ID: ${taskId}`);
 
-    // 從記憶體中移除任務
+    // 從記憶體中移除任務（先保存任務資訊再刪除）
     const userTasks = userTaskStacks.get(userId) || [];
     const taskIndex = userTasks.findIndex(task => task.id === taskId);
+    let deletedTask = null;
 
     if (taskIndex !== -1) {
-      const deletedTask = userTasks.splice(taskIndex, 1)[0];
+      deletedTask = userTasks.splice(taskIndex, 1)[0];
       userTaskStacks.set(userId, userTasks);
       console.log(`✅ [刪除任務] 記憶體任務已移除: ${deletedTask.text}`);
     } else {
       console.log(`⚠️ [刪除任務] 在記憶體中未找到任務 ID: ${taskId}`);
     }
+
+    // 檢查是否為今日任務，如果是則發送 LINE Bot 推送訊息
+    let deletedTaskText = null;
+    let deletedTaskDate = null;
+    let dbData = null;
 
     // 從數據庫中刪除任務記錄
     if (supabase) {
@@ -6092,6 +6098,7 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
           return res.status(500).json({ error: 'Database deletion failed' });
         }
 
+        dbData = data;
         if (data && data.length > 0) {
           console.log(`✅ [刪除任務] 數據庫記錄已刪除:`, data[0]);
         } else {
@@ -6103,6 +6110,103 @@ app.delete('/api/delete-task/:taskId', async (req, res) => {
         return res.status(500).json({ error: 'Database operation failed' });
       }
     }
+
+    // 從已刪除的任務或數據庫查詢中取得任務資訊
+    if (deletedTask) {
+      // 從記憶體中取得的任務資訊
+      deletedTaskText = deletedTask.text;
+      deletedTaskDate = deletedTask.date;
+    } else if (dbData && dbData.length > 0) {
+      // 從數據庫查詢結果取得任務資訊
+      deletedTaskText = dbData[0].message_text;
+      // 使用 created_at 來判斷是否為今日任務
+      const createdDate = new Date(dbData[0].created_at);
+      const year = createdDate.getFullYear();
+      const month = String(createdDate.getMonth() + 1).padStart(2, '0');
+      const day = String(createdDate.getDate()).padStart(2, '0');
+      deletedTaskDate = `${year}-${month}-${day}`;
+    }
+
+    // 檢查是否為今日任務
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    console.log(`🔍 [刪除通知] 任務資訊檢查: text="${deletedTaskText}", date="${deletedTaskDate}", today="${todayStr}"`);
+
+    // ⚠️ 從 LIFF 編輯頁刪除時不發送 LINE 推送
+    // 原因：
+    // 1. 用戶已在 LIFF 頁面看到刪除結果
+    // 2. 避免 LINE API 速率限制（429 錯誤）
+    // 3. 減少不必要的 API 調用
+    console.log(`ℹ️ [刪除通知] 從 LIFF 刪除任務，不發送 LINE 推送（避免速率限制）`);
+
+    // 註：如果未來需要從其他途徑（如 webhook）刪除並通知，可以添加參數來控制
+    // 例如：const shouldNotify = req.query.notify === 'true';
+
+    /* 已停用：避免 429 速率限制
+    if (deletedTaskDate === todayStr && deletedTaskText) {
+      console.log(`📱 [刪除通知] 準備發送今日任務刪除通知: ${deletedTaskText}`);
+
+      try {
+        // 引入 LINE Bot SDK
+        const line = require('@line/bot-sdk');
+        const config = {
+          channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+          channelSecret: process.env.LINE_CHANNEL_SECRET,
+        };
+        const client = new line.Client(config);
+
+        // 引入 Flex Message 產生器
+        const { createTaskStackFlexMessage } = require('./task-flex-message.js');
+
+        // 重新產生今日任務列表 Flex Message
+        const userTasks = userTaskStacks.get(userId) || [];
+        const todayTasks = userTasks.filter(task => task.date === todayStr);
+
+        let stackMessage;
+        if (todayTasks.length > 0) {
+          stackMessage = createTaskStackFlexMessage(todayTasks, userId);
+        } else {
+          // 如果沒有今日任務了，發送空列表訊息
+          stackMessage = {
+            "type": "flex",
+            "altText": "今日任務列表",
+            "contents": {
+              "type": "bubble",
+              "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "今日任務列表",
+                    "weight": "bold",
+                    "size": "xl",
+                    "align": "center"
+                  },
+                  {
+                    "type": "text",
+                    "text": "目前沒有任務",
+                    "align": "center",
+                    "color": "#999999",
+                    "margin": "md"
+                  }
+                ]
+              }
+            }
+          };
+        }
+
+        // 發送單一訊息：更新後的任務堆疊
+        await client.pushMessage(userId, stackMessage);
+        console.log(`✅ [刪除通知] 已發送更新的任務列表`);
+
+      } catch (lineError) {
+        console.error('❌ [刪除通知] LINE Bot 推送失敗:', lineError);
+        // 不影響刪除操作的成功，只是推送失敗
+      }
+    }
+    */
 
     res.json({
       success: true,
