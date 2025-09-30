@@ -135,14 +135,22 @@ function createTaskFlexMessage(taskText) {
 }
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply 和 Tab Segment
-function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general', dayOffset = 0) {
+function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general', dayOffset = 0, filterStatus = 'all') {
   console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-23:50-STATS-CARD-LATEST');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
+  console.log('🎯 [FLEX 篩選] 當前篩選狀態:', filterStatus);
 
-  // 顯示所有任務，讓 LINE 的大小限制自然生效
+  // 根據篩選狀態決定按鈕顯示文字
+  let filterButtonText = '全部/';
+  if (filterStatus === 'completed') {
+    filterButtonText = '已完成/';
+  } else if (filterStatus === 'pending') {
+    filterButtonText = '未完成/';
+  }
+
   let displayTasks = tasks || [];
-  console.log(`📋 [FLEX MESSAGE] 顯示全部 ${displayTasks.length} 個任務`);
+  console.log(`📋 [FLEX MESSAGE] 顯示 ${displayTasks.length} 個任務`);
 
   // 使用顯示的任務數量（而非全部任務數量）
   const displayedTotal = displayTasks.length;
@@ -521,7 +529,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
               },
               {
                 type: 'text',
-                text: '全部/',
+                text: filterButtonText,
                 size: 'xxs',
                 color: '#666666',
                 align: 'end',

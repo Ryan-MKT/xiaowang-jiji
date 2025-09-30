@@ -2072,20 +2072,19 @@ async function handlePostback(event) {
     console.log(`🔍 用戶 ${userId} 點擊篩選結果按鈕: ${postbackData}`);
 
     try {
-      // 獲取用戶任務資料
-      let userTasks = await getUserFullTasksFromDatabase(userId);
-      if (!userTasks || userTasks.length === 0) {
-        userTasks = userTaskStacks.get(userId) || [];
-        console.log('⚠️ [篩選結果] 數據庫查詢失敗，使用記憶體任務作為備選');
-      }
+      // 使用記憶體中的活躍任務（與其他任務顯示邏輯一致）
+      let userTasks = userTaskStacks.get(userId) || [];
+      console.log(`🔍 [篩選結果] 從記憶體載入 ${userTasks.length} 個活躍任務`);
 
       // 根據篩選條件過濾任務
       let filteredTasks = [];
       let filterTitle = '';
+      let filterStatus = 'all';
 
       if (postbackData === 'filter_completed') {
         filteredTasks = userTasks.filter(task => task.completed === true);
         filterTitle = '已完成任務';
+        filterStatus = 'completed';
         console.log(`📋 [篩選] 顯示已完成任務，數量: ${filteredTasks.length}`);
 
         // 調試：檢查記憶體中所有任務的completed狀態
@@ -2096,10 +2095,12 @@ async function handlePostback(event) {
       } else if (postbackData === 'filter_pending') {
         filteredTasks = userTasks.filter(task => task.completed === false || task.completed === null);
         filterTitle = '未完成任務';
+        filterStatus = 'pending';
         console.log(`📋 [篩選] 顯示未完成任務，數量: ${filteredTasks.length}`);
       } else if (postbackData === 'filter_all') {
         filteredTasks = userTasks;
         filterTitle = '全部任務';
+        filterStatus = 'all';
         console.log(`📋 [篩選] 顯示全部任務，數量: ${filteredTasks.length}`);
       }
 
@@ -2126,7 +2127,7 @@ async function handlePostback(event) {
 
       // 生成篩選結果的 Flex Message
       const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
-      const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'general');
+      const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'general', 0, filterStatus);
 
       // 修改標題為篩選結果
       if (flexMessage && flexMessage.contents && flexMessage.contents.header) {
@@ -2186,68 +2187,16 @@ async function handlePostback(event) {
       }
       const userTags = await getUserTags(userId);
 
-      // 使用task-flex-message.js的函數生成各頁面
-      const { createTaskStackFlexMessage, generateDateTitle, generateQuickReply } = getTaskFlexModule();
-
-      // 生成7天的任務數據和Flex Messages
-      const sevenDaysBubbles = [];
-      const taskCounts = [];
-
-      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-        // 過濾指定天的任務
-        const dayTasks = filterTasksByDaysOffset(userTasks, dayOffset);
-        taskCounts.push(dayTasks.length);
-
-        // 生成該天的Flex Message
-        const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags, tabMode, dayOffset);
-
-        // 修改該天頁面的標題
-        const dayTitle = generateDateTitle(dayOffset);
-        if (dayFlexMessage && dayFlexMessage.contents && dayFlexMessage.contents.header) {
-          dayFlexMessage.contents.header.contents[0].contents[0].text = dayTitle.dateText;
-          dayFlexMessage.contents.header.contents[0].contents[1].text = dayTitle.weekdayText;
-          dayFlexMessage.altText = dayTitle.dateText + dayTitle.weekdayText;
-        }
-
-        // 添加到carousel中
-        if (dayFlexMessage && dayFlexMessage.contents) {
-          sevenDaysBubbles.push({
-            type: 'bubble',
-            header: dayFlexMessage.contents.header,
-            body: dayFlexMessage.contents.body
-          });
-        }
-      }
-
-      // 生成7個BUBBLE的carousel FLEX MESSAGE
-      const sevenDaysFlexMessage = {
-        type: 'flex',
-        altText: '未來7天任務',
-        contents: {
-          type: 'carousel',
-          contents: sevenDaysBubbles
-        }
-      };
-
-      // 添加 Quick Reply 按鈕 - 確保4個固定按鈕永遠顯示
-      const quickReply = generateQuickReply(userTags);
-      if (quickReply && quickReply.items && quickReply.items.length > 0) {
-        sevenDaysFlexMessage.quickReply = quickReply;
-        console.log('🎯 [7天任務] 附加 Quick Reply 按鈕，確保永遠顯示');
-      }
-
-      console.log(`📨 [7天任務] 準備發送7天任務頁面`);
-      console.log(`📊 [7天任務] 任務數量: ${taskCounts.map((count, i) => `第${i}天: ${count}件`).join(', ')}`);
-
-      // 調試：輸出完整的JSON結構
-      console.log('🔍 [7天任務 DEBUG] 完整JSON:', JSON.stringify(sevenDaysFlexMessage, null, 2));
+      // 使用通用的7天列表生成函數
+      const sevenDaysFlexMessage = await generateSevenDaysFlexMessage(userId, userTasks, userTags, tabMode);
 
       if (client) {
         return client.replyMessage(event.replyToken, sevenDaysFlexMessage);
       } else {
-        console.log('測試模式：7天任務 FLEX MESSAGE', JSON.stringify(sevenDaysFlexMessage, null, 2));
+        console.log('測試模式：7天任務列表', JSON.stringify(sevenDaysFlexMessage, null, 2));
         return Promise.resolve(null);
       }
+
 
     } catch (error) {
       console.error('❌ [7天任務] 展開任務頁面失敗:', error);
