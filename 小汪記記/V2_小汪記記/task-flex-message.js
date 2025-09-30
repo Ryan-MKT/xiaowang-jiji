@@ -1757,6 +1757,9 @@ function createCollectionsBubble() {
 function createFilterFlexMessage() {
   console.log('🔍 [篩選 FLEX] 生成篩選選項 Flex Message');
 
+  // 生成 Quick Reply 按鈕
+  const quickReply = generateQuickReply();
+
   return {
     type: 'flex',
     altText: '任務篩選選項',
@@ -1861,7 +1864,8 @@ function createFilterFlexMessage() {
           }
         ]
       }
-    }
+    },
+    quickReply: quickReply
   };
 }
 

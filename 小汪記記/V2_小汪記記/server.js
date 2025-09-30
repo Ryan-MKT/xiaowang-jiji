@@ -1421,28 +1421,66 @@ async function handlePostback(event) {
       userTaskStacks.set(userId, userTasks);
 
       console.log(`✅ 任務已完成: ${completedTask.text}`);
+      console.log(`🔍 [DEBUG] 記憶體中任務 ${taskId} 的 completed 狀態已更新為: ${userTasks[taskIndex].completed}`);
 
-      // 同時從數據庫刪除已完成的任務
+      // 更新數據庫中的任務狀態為已完成
       if (supabase) {
         try {
           const tablePrefix = process.env.TABLE_PREFIX || '';
           const tableName = tablePrefix + 'messages';
 
+          console.log(`🔍 [DEBUG] 準備更新資料庫 - 表名: ${tableName}, 任務ID: ${taskId} (類型: ${typeof taskId}), 用戶ID: ${userId}`);
+
+          // 先查詢是否存在該記錄 (用數字 ID)
+          const { data: existingData, error: queryError } = await supabase
+            .from(tableName)
+            .select('*')
+            .eq('id', taskId)
+            .eq('user_id', userId);
+
+          console.log(`🔍 [DEBUG] 查詢現有記錄 (數字ID):`, existingData);
+
+          // 也嘗試用字串 ID 查詢
+          const { data: existingDataStr, error: queryErrorStr } = await supabase
+            .from(tableName)
+            .select('*')
+            .eq('id', taskId.toString())
+            .eq('user_id', userId);
+
+          console.log(`🔍 [DEBUG] 查詢現有記錄 (字串ID):`, existingDataStr);
+
+          // 查詢該用戶的所有記錄以便比較
+          const { data: allUserData, error: allQueryError } = await supabase
+            .from(tableName)
+            .select('id, text, user_id, completed')
+            .eq('user_id', userId)
+            .limit(5);
+
+          console.log(`🔍 [DEBUG] 該用戶的前5筆記錄:`, allUserData);
+
+          if (queryError) {
+            console.error(`❌ [DEBUG] 查詢錯誤:`, queryError);
+          }
+
           const { data, error } = await supabase
             .from(tableName)
-            .delete()
+            .update({ completed: true })
             .eq('id', taskId)
             .eq('user_id', userId)
             .select();
 
           if (error) {
-            console.error('❌ [任務完成] 數據庫刪除失敗:', error);
+            console.error('❌ [任務完成] 數據庫更新失敗:', error);
+            console.error('❌ [任務完成] 錯誤詳情:', JSON.stringify(error, null, 2));
           } else {
-            console.log(`✅ [任務完成] 數據庫已刪除已完成任務`);
+            console.log(`✅ [任務完成] 數據庫已標記任務為已完成`);
+            console.log(`✅ [任務完成] 更新結果:`, data);
           }
         } catch (dbError) {
           console.error('❌ [任務完成] 數據庫操作異常:', dbError);
         }
+      } else {
+        console.error('❌ [任務完成] Supabase 連接未初始化');
       }
       
       // 發送恭喜訊息
@@ -1455,6 +1493,10 @@ async function handlePostback(event) {
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
+
+      console.log(`🔍 [DEBUG] 準備發送更新的 Flex Message，今日任務數: ${todayTasks.length}`);
+      console.log(`🔍 [DEBUG] 已完成任務 ${taskId} 的 completed 狀態: ${userTasks[taskIndex].completed}`);
+
       const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
       
       if (client) {
@@ -2010,6 +2052,109 @@ async function handlePostback(event) {
       return Promise.resolve(null);
     } catch (error) {
       console.error('❌ [篩選] 發送篩選選項失敗:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '抱歉，篩選功能暫時無法使用，請稍後再試！'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 處理篩選結果按鈕點擊
+  if (postbackData === 'filter_completed' || postbackData === 'filter_pending' || postbackData === 'filter_all') {
+    console.log(`🔍 用戶 ${userId} 點擊篩選結果按鈕: ${postbackData}`);
+
+    try {
+      // 獲取用戶任務資料
+      let userTasks = await getUserFullTasksFromDatabase(userId);
+      if (!userTasks || userTasks.length === 0) {
+        userTasks = userTaskStacks.get(userId) || [];
+        console.log('⚠️ [篩選結果] 數據庫查詢失敗，使用記憶體任務作為備選');
+      }
+
+      // 根據篩選條件過濾任務
+      let filteredTasks = [];
+      let filterTitle = '';
+
+      if (postbackData === 'filter_completed') {
+        filteredTasks = userTasks.filter(task => task.completed === true);
+        filterTitle = '已完成任務';
+        console.log(`📋 [篩選] 顯示已完成任務，數量: ${filteredTasks.length}`);
+
+        // 調試：檢查記憶體中所有任務的completed狀態
+        console.log(`🔍 [DEBUG] 記憶體中總任務數: ${userTasks.length}`);
+        userTasks.forEach((task, index) => {
+          console.log(`🔍 [DEBUG] 任務${index}: ID=${task.id}, completed=${task.completed}, text=${task.text}`);
+        });
+      } else if (postbackData === 'filter_pending') {
+        filteredTasks = userTasks.filter(task => task.completed === false || task.completed === null);
+        filterTitle = '未完成任務';
+        console.log(`📋 [篩選] 顯示未完成任務，數量: ${filteredTasks.length}`);
+      } else if (postbackData === 'filter_all') {
+        filteredTasks = userTasks;
+        filterTitle = '全部任務';
+        console.log(`📋 [篩選] 顯示全部任務，數量: ${filteredTasks.length}`);
+      }
+
+      // 過濾今天的任務
+      const todayTasks = filterTodayTasks(filteredTasks);
+      console.log(`📅 [篩選結果] 今天的${filterTitle}數量: ${todayTasks.length}`);
+
+      if (todayTasks.length === 0) {
+        const noTasksMessage = {
+          type: 'text',
+          text: `今天沒有${filterTitle}喔！`
+        };
+
+        if (client) {
+          return client.replyMessage(event.replyToken, noTasksMessage);
+        } else {
+          console.log('測試模式：無任務訊息', noTasksMessage.text);
+          return Promise.resolve(null);
+        }
+      }
+
+      // 獲取用戶標籤
+      const userTags = await getUserTags(userId);
+
+      // 生成篩選結果的 Flex Message
+      const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
+      const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'general');
+
+      // 修改標題為篩選結果
+      if (flexMessage && flexMessage.contents && flexMessage.contents.header) {
+        const today = new Date();
+        const month = today.getMonth() + 1;
+        const day = today.getDate();
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        const weekday = weekdays[today.getDay()];
+
+        flexMessage.contents.header.contents[0].contents[0].text = `${month}/${day} (${weekday})`;
+        flexMessage.contents.header.contents[0].contents[1].text = filterTitle;
+        flexMessage.altText = `${month}/${day} ${filterTitle}`;
+      }
+
+      // 確保包含 Quick Reply
+      const quickReply = generateQuickReply();
+      flexMessage.quickReply = quickReply;
+
+      if (client) {
+        await client.replyMessage(event.replyToken, flexMessage);
+        console.log(`✅ [篩選結果] ${filterTitle} Flex Message 發送成功`);
+      } else {
+        console.log(`🔍 [測試模式] ${filterTitle} Flex Message:`, JSON.stringify(flexMessage, null, 2));
+      }
+
+      return Promise.resolve(null);
+    } catch (error) {
+      console.error('❌ [篩選結果] 發送篩選結果失敗:', error);
 
       const errorMessage = {
         type: 'text',
@@ -3309,6 +3454,7 @@ async function handleEvent(event) {
   if (userMessage.startsWith('完成任務_')) {
     const taskId = parseInt(userMessage.replace('完成任務_', ''));
     console.log(`✅ 用戶 ${userId} 點擊完成任務 ID: ${taskId}`);
+    console.log(`🔍 [DEBUG] 完成任務流程開始 - 用戶: ${userId}, 任務ID: ${taskId}`);
 
     // 建立模擬的 postback 事件
     const mockPostbackEvent = {
@@ -3318,6 +3464,7 @@ async function handleEvent(event) {
       replyToken: event.replyToken
     };
 
+    console.log(`🔍 [DEBUG] 建立模擬 postback 事件:`, mockPostbackEvent);
     return handlePostback(mockPostbackEvent);
   }
 
@@ -3724,9 +3871,12 @@ async function handleEvent(event) {
     // 取得或初始化用戶任務堆疊
     let userTasks = userTaskStacks.get(userId) || [];
 
+    // 生成任務ID（與資料庫使用相同ID）
+    const taskId = Date.now();
+
     // 新增任務到堆疊
     const newTask = {
-      id: Date.now(),
+      id: taskId,
       text: parsedTask.text, // 儲存AI解析的任務文字（去除時間），與資料庫message_text一致
       originalText: userMessage, // 保留完整原始訊息到 originalText 欄位
       scheduledDate: parsedTask.scheduledDate, // AI 解析的時間
@@ -3864,6 +4014,7 @@ async function handleEvent(event) {
           .from(tableName)
           .insert([
             {
+              id: taskId, // 使用與記憶體中相同的任務ID
               user_id: userId,
               message_text: parsedTask.text, // 儲存AI解析的任務文字（去除時間）
               scheduled_date: parsedTask.scheduledDate, // AI解析的時間
@@ -7044,7 +7195,7 @@ async function loadTasksFromDatabase() {
         repeat_pattern: record.repeat_pattern || null,
         google_calendar_enabled: record.google_calendar_enabled || false,
         google_calendar_who: record.google_calendar_who || null,
-        completed: false,  // 從數據庫載入的都是未完成任務
+        completed: record.completed || false,  // 從數據庫讀取實際完成狀態
         timestamp: record.created_at
       };
 
@@ -7113,7 +7264,7 @@ async function getUserFullTasksFromDatabase(userId) {
       repeat_pattern: record.repeat_pattern || null,
       google_calendar_enabled: record.google_calendar_enabled || false,
       google_calendar_who: record.google_calendar_who || null,
-      completed: false,  // 從數據庫載入的都是未完成任務
+      completed: record.completed || false,  // 從數據庫讀取實際完成狀態
       timestamp: record.created_at
     }));
 
