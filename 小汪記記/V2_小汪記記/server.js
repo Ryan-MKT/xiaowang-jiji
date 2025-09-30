@@ -1851,7 +1851,7 @@ async function handlePostback(event) {
 
     try {
       // 獲取用戶的常用任務
-      const response = await fetch(`http://localhost:3002/api/frequent-tasks/${userId}`);
+      const response = await fetch(`http://localhost:${PORT}/api/frequent-tasks/${userId}`);
 
       if (!response.ok) {
         throw new Error(`API 請求失敗: ${response.status}`);
