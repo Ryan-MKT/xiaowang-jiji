@@ -1489,14 +1489,39 @@
                 return new Date(b) - new Date(a);
             });
 
-            // 顯示每一天的任務 (新版佈局不需要日期標題)
+            // 顯示每一天的任務
             sortedDates.forEach(date => {
                 const dayTasks = tasksByDate[date];
                 const completedCount = dayTasks.filter(t => t.completed).length;
 
-                // 標題已刪除，不需要更新
+                // 創建日期標題
+                const dateHeader = document.createElement('div');
+                dateHeader.className = 'date-header';
+                dateHeader.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    padding: 15px;
+                    margin: 15px 0 10px 0;
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #333;
+                    background: transparent;
+                `;
 
-                // 直接顯示任務清單，不需要日期標題
+                // 格式化日期顯示
+                const dateObj = new Date(date);
+                const month = dateObj.getMonth() + 1;
+                const day = dateObj.getDate();
+                const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+                const weekday = weekdays[dateObj.getDay()];
+
+                dateHeader.innerHTML = `
+                    <span>${month}/${day} (${weekday})</span>
+                `;
+
+                recordsContainer.appendChild(dateHeader);
+
+                // 顯示任務清單
                 dayTasks.forEach((task, index) => {
                     const taskItem = document.createElement('div');
                     taskItem.className = `task-item ${task.completed ? 'task-completed' : ''}`;

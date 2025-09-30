@@ -575,6 +575,32 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
                 ]
               },
               {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#E8E8E8',
+                cornerRadius: '8px',
+                paddingTop: 'xs',
+                paddingBottom: 'xs',
+                paddingStart: 'md',
+                paddingEnd: 'md',
+                flex: 0,
+                margin: 'md',
+                action: {
+                  type: 'postback',
+                  label: '篩選',
+                  data: 'filter_tasks'
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '篩選',
+                    size: 'sm',
+                    color: '#666666',
+                    align: 'center'
+                  }
+                ]
+              },
+              {
                 type: 'text',
                 text: '近7天 »',
                 size: 'sm',
@@ -1727,6 +1753,118 @@ function createCollectionsBubble() {
   };
 }
 
+// 創建篩選 Flex Message
+function createFilterFlexMessage() {
+  console.log('🔍 [篩選 FLEX] 生成篩選選項 Flex Message');
+
+  return {
+    type: 'flex',
+    altText: '任務篩選選項',
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        backgroundColor: '#FFFFFF',
+        contents: [
+          {
+            type: 'text',
+            text: '任務表只顯示',
+            size: 'lg',
+            weight: 'bold',
+            color: '#333333',
+            align: 'center',
+            margin: 'none'
+          },
+          {
+            type: 'separator',
+            margin: 'lg',
+            color: '#E0E0E0'
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'md',
+            margin: 'lg',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#4CAF50',
+                cornerRadius: '8px',
+                paddingAll: 'md',
+                action: {
+                  type: 'postback',
+                  label: '已完成',
+                  data: 'filter_completed'
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '已完成',
+                    size: 'md',
+                    color: '#FFFFFF',
+                    align: 'center',
+                    weight: 'bold'
+                  }
+                ]
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#2196F3',
+                cornerRadius: '8px',
+                paddingAll: 'md',
+                margin: 'md',
+                action: {
+                  type: 'postback',
+                  label: '未完成',
+                  data: 'filter_pending'
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '未完成',
+                    size: 'md',
+                    color: '#FFFFFF',
+                    align: 'center',
+                    weight: 'bold'
+                  }
+                ]
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#FF9800',
+                cornerRadius: '8px',
+                paddingAll: 'md',
+                margin: 'md',
+                action: {
+                  type: 'postback',
+                  label: '恢復全部',
+                  data: 'filter_all'
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '恢復全部',
+                    size: 'md',
+                    color: '#FFFFFF',
+                    align: 'center',
+                    weight: 'bold'
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  };
+}
+
 module.exports = {
   createTaskFlexMessage,
   createTaskStackFlexMessage,
@@ -1743,5 +1881,6 @@ module.exports = {
   createCollectionsBubble,
   generateTomorrowTitle,
   generateDayAfterTomorrowTitle,
-  generateDateTitle
+  generateDateTitle,
+  createFilterFlexMessage
 };

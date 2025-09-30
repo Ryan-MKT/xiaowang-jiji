@@ -1988,6 +1988,43 @@ async function handlePostback(event) {
     }
   }
 
+  // 處理篩選按鈕點擊
+  console.log(`🔍 [DEBUG] 準備檢查篩選按鈕，postbackData: "${postbackData}"`);
+  if (postbackData === 'filter_tasks') {
+    console.log(`🔍 用戶 ${userId} 點擊篩選按鈕`);
+
+    try {
+      // 獲取篩選 Flex Message 函數
+      const { createFilterFlexMessage } = getTaskFlexModule();
+
+      // 生成篩選選項 Flex Message
+      const filterMessage = createFilterFlexMessage();
+
+      if (client) {
+        await client.replyMessage(event.replyToken, filterMessage);
+        console.log('✅ [篩選] 篩選選項 Flex Message 發送成功');
+      } else {
+        console.log('🔍 [測試模式] 篩選選項 Flex Message:', JSON.stringify(filterMessage, null, 2));
+      }
+
+      return Promise.resolve(null);
+    } catch (error) {
+      console.error('❌ [篩選] 發送篩選選項失敗:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '抱歉，篩選功能暫時無法使用，請稍後再試！'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
   // 處理展開常用任務多頁檢視 - 7天任務頁面
   if (postbackData.startsWith('expand_frequent_tasks_pages')) {
     // 解析當前的 tab 模式
