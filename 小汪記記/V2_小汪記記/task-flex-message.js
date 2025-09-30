@@ -1873,6 +1873,61 @@ function createFilterFlexMessage() {
   };
 }
 
+// 創建「已記錄」確認訊息的 Flex Message
+function createRecordedConfirmationFlexMessage(recordedText) {
+  console.log('📝 [已記錄訊息] 創建確認訊息:', recordedText);
+
+  return {
+    type: 'flex',
+    altText: `已記錄 ${recordedText}`,
+    contents: {
+      type: 'bubble',
+      size: 'micro',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        backgroundColor: '#4CAF50',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: '✅',
+                size: 'xl',
+                color: '#FFFFFF',
+                flex: 0,
+                margin: 'none'
+              },
+              {
+                type: 'text',
+                text: '已記錄',
+                size: 'lg',
+                color: '#FFFFFF',
+                weight: 'bold',
+                flex: 1,
+                margin: 'sm'
+              }
+            ],
+            spacing: 'sm'
+          },
+          {
+            type: 'text',
+            text: recordedText,
+            size: 'md',
+            color: '#FFFFFF',
+            wrap: true,
+            margin: 'md',
+            maxLines: 3
+          }
+        ]
+      }
+    }
+  };
+}
+
 module.exports = {
   createTaskFlexMessage,
   createTaskStackFlexMessage,
@@ -1890,5 +1945,6 @@ module.exports = {
   generateTomorrowTitle,
   generateDayAfterTomorrowTitle,
   generateDateTitle,
-  createFilterFlexMessage
+  createFilterFlexMessage,
+  createRecordedConfirmationFlexMessage
 };

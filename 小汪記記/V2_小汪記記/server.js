@@ -4090,21 +4090,40 @@ async function handleEvent(event) {
     }
     
     if (client) {
-      console.log('🚀 [FLEX SEND] 開始發送 FLEX MESSAGE 到 LINE...');
-      return replyWithQuickReply(client, event.replyToken, flexMessage, userId)
+      // 創建「已記錄」確認訊息
+      const { createRecordedConfirmationFlexMessage } = getTaskFlexModule();
+      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage);
+
+      // 為第二則訊息添加 Quick Reply
+      const { generateQuickReply } = getTaskFlexModule();
+      const quickReply = generateQuickReply(userTags);
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        flexMessage.quickReply = quickReply;
+        console.log('🎯 [第二則訊息] 附加 Quick Reply 按鈕');
+      }
+
+      console.log('🚀 [雙訊息發送] 一次發送兩則訊息到 LINE...');
+      console.log('📝 [第一則] 已記錄確認訊息');
+      console.log('📋 [第二則] 任務堆疊 FLEX MESSAGE');
+
+      // 一次發送兩則訊息
+      return client.replyMessage(event.replyToken, [recordedMessage, flexMessage])
         .then(result => {
-          console.log('✅ [FLEX SEND] FLEX MESSAGE 發送成功!', {
+          console.log('✅ [雙訊息發送成功]', {
             requestId: result['x-line-request-id'],
             sentMessages: result.sentMessages?.length || 0
           }, userId);
           return result;
         })
         .catch(error => {
-          console.error('❌ [FLEX SEND] FLEX MESSAGE 發送失敗:', error);
+          console.error('❌ [雙訊息發送失敗]:', error);
           console.error('❌ [FLEX ERROR] 錯誤詳情:', error.message);
           throw error;
-        }, userId);
+        });
     } else {
+      const { createRecordedConfirmationFlexMessage } = getTaskFlexModule();
+      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage);
+      console.log('測試模式：已記錄確認訊息', JSON.stringify(recordedMessage, null, 2));
       console.log('測試模式：任務堆疊 Flex Message', JSON.stringify(flexMessage, null, 2));
       return Promise.resolve(null);
     }
