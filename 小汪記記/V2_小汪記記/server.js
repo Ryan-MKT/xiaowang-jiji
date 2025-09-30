@@ -2790,6 +2790,67 @@ async function handleEvent(event) {
       
       return replyWithQuickReply(client, event.replyToken, errorReply, userId);
     }
+  } else if (event.message.type === 'image') {
+    // 圖片訊息 - 自動收藏到收藏頁
+    console.log('📸 [訊息類型] 圖片訊息 - 準備自動收藏');
+
+    try {
+      // 引入圖片上傳模組
+      const { uploadLineImageToSupabase } = require('./image-storage');
+
+      // 獲取圖片內容
+      const messageId = event.message.id;
+      console.log(`📸 [圖片收藏] 開始下載圖片，Message ID: ${messageId}`);
+
+      const imageStream = await client.getMessageContent(messageId);
+
+      // 上傳到 Supabase Storage
+      const imageUrl = await uploadLineImageToSupabase(imageStream, userId, messageId);
+      console.log(`✅ [圖片收藏] 圖片已上傳: ${imageUrl}`);
+
+      // 建立收藏卡資料
+      const collectionData = {
+        user_id: userId,
+        title: '圖片',
+        content: {
+          type: 'image',
+          imageUrl: imageUrl
+        },
+        preview_image: imageUrl,  // 預覽圖
+        is_active: true,
+        category: 'image',
+        color: '#FF6B6B',
+        icon: '📸'
+      };
+
+      // 呼叫收藏卡 API
+      const { createCollection } = require('./collections-api');
+      const result = await createCollection(collectionData);
+
+      if (result && result.id) {
+        console.log(`✅ [圖片收藏] 圖片已成功儲存到收藏卡`);
+
+        // 回覆收藏成功訊息
+        const successMessage = {
+          type: 'text',
+          text: '📸 圖片已成功收藏！\n\n您可以在「收藏」頁面查看'
+        };
+
+        return replyWithQuickReply(client, event.replyToken, successMessage, userId);
+      } else {
+        throw new Error('收藏卡創建失敗');
+      }
+
+    } catch (error) {
+      console.error('❌ [圖片收藏] 收藏失敗:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '❌ 圖片收藏失敗，請稍後再試\n\n錯誤: ' + error.message
+      };
+
+      return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
+    }
   } else {
     // 其他類型訊息不處理
     console.log(`⚠️ [訊息類型] 不支援的訊息類型: ${event.message.type}`);

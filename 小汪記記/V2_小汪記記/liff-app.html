@@ -1366,6 +1366,18 @@
             try {
                 console.log('🔧 [LIFF 初始化] 開始初始化 LIFF...');
 
+                // 檢查是否有 LINE Login OAuth 回調參數
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasOAuthParams = urlParams.has('code') && urlParams.has('liffClientId');
+
+                if (hasOAuthParams) {
+                    console.log('🔄 [LINE Login] 檢測到 OAuth 回調參數，清理 URL...');
+                    // 清理 URL 參數但保留原本的路徑
+                    const cleanUrl = window.location.origin + window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                    console.log('✅ [LINE Login] URL 已清理:', cleanUrl);
+                }
+
                 await liff.init({
                     liffId: '2008077335-rZlgE4bX'
                 });
@@ -1382,7 +1394,10 @@
                     await loadTaskData();
                 } else {
                     console.log('❌ [使用者驗證] 使用者未登入，導向登入頁面');
-                    liff.login();
+                    // 指定 redirectUri 為當前頁面（不含參數）
+                    const redirectUri = window.location.origin + window.location.pathname;
+                    console.log('🔑 [LINE Login] 準備登入，登入後將回到:', redirectUri);
+                    liff.login({ redirectUri: redirectUri });
                 }
             } catch (error) {
                 console.error('❌ [LIFF 初始化] 初始化失敗:', error);
