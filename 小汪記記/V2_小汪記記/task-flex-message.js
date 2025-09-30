@@ -510,6 +510,28 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
                 flex: 1
               }
             ]
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'sm',
+            contents: [
+              {
+                type: 'filler'
+              },
+              {
+                type: 'text',
+                text: '全部/',
+                size: 'xxs',
+                color: '#666666',
+                align: 'end',
+                action: {
+                  type: 'postback',
+                  label: '篩選任務',
+                  data: 'filter_tasks'
+                }
+              }
+            ]
           }
         ].concat(taskContents).concat([
           {
@@ -568,32 +590,6 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
                   {
                     type: 'text',
                     text: '卡片',
-                    size: 'sm',
-                    color: '#666666',
-                    align: 'center'
-                  }
-                ]
-              },
-              {
-                type: 'box',
-                layout: 'vertical',
-                backgroundColor: '#E8E8E8',
-                cornerRadius: '8px',
-                paddingTop: 'xs',
-                paddingBottom: 'xs',
-                paddingStart: 'md',
-                paddingEnd: 'md',
-                flex: 0,
-                margin: 'md',
-                action: {
-                  type: 'postback',
-                  label: '篩選',
-                  data: 'filter_tasks'
-                },
-                contents: [
-                  {
-                    type: 'text',
-                    text: '篩選',
                     size: 'sm',
                     color: '#666666',
                     align: 'center'
