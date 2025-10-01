@@ -12,6 +12,7 @@ const FormData = require('form-data');
 const axios = require('axios');
 const path = require('path');
 const { google } = require('googleapis');
+const cron = require('node-cron');
 const { setupRoundedImageRoute, generateRoundedImageUrl, clearImageCache } = require('./realtime-rounded-image-api');
 const { createBookmarkSuccessFlexMessage } = require('./flex-message-builder');
 // 動態載入frequent-tasks-flex-message模組以支援熱重載（和其他FLEX MESSAGE一樣）
@@ -774,15 +775,10 @@ function filterTodayTasks(allTasks) {
       const scheduledDateStr = task.scheduled_date;
       let taskDateString;
 
-      if (scheduledDateStr.includes('+')) {
-        // 如果已經包含時區信息，直接提取日期部分
-        taskDateString = scheduledDateStr.split('T')[0];
-      } else {
-        // 如果沒有時區信息，當作 UTC 處理並轉換為台灣時間
-        const taskDate = new Date(scheduledDateStr);
-        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
-        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
-      }
+      // 不論是否有時區信息，都統一轉換為台灣時間
+      const taskDate = new Date(scheduledDateStr);
+      const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+      taskDateString = taiwanTaskDate.toISOString().split('T')[0];
 
       const isToday = taskDateString === todayDateString;
       console.log(`📅 [日期過濾] "${task.text}": scheduled_date=${taskDateString} ${isToday ? '✅今天' : '❌非今天'} (原始: ${scheduledDateStr})`);
@@ -792,19 +788,11 @@ function filterTodayTasks(allTasks) {
     // 2. 如果沒有 scheduled_date，檢查 created_at (task.timestamp)
     if (task.timestamp) {
       const createdDateStr = task.timestamp;
-      let taskDateString;
 
-      if (createdDateStr.includes('+') || createdDateStr.includes('Z')) {
-        // 如果已經包含時區信息，轉換為台灣時間後取日期部分
-        const taskDate = new Date(createdDateStr);
-        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
-        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
-      } else {
-        // 如果沒有時區信息，當作 UTC 處理並轉換為台灣時間
-        const taskDate = new Date(createdDateStr);
-        const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
-        taskDateString = taiwanTaskDate.toISOString().split('T')[0];
-      }
+      // 不論是否有時區信息，都統一轉換為台灣時間
+      const taskDate = new Date(createdDateStr);
+      const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+      const taskDateString = taiwanTaskDate.toISOString().split('T')[0];
 
       const isToday = taskDateString === todayDateString;
       console.log(`📅 [日期過濾] "${task.text}": created_at=${taskDateString} ${isToday ? '✅今天' : '❌非今天'} (原始: ${createdDateStr})`);
@@ -1439,10 +1427,113 @@ function isLink(text) {
 // 處理 postback 事件（任務完成）
 async function handlePostback(event) {
   console.log('Postback event:', event);
-  
+
   const userId = event.source.userId;
   const postbackData = event.postback?.data || event.postbackData;
-  
+
+  // 檢查是否為移動任務到今天的事件
+  if (postbackData.includes('action=move_tasks_to_today')) {
+    const params = new URLSearchParams(postbackData);
+    const fromDate = params.get('from_date'); // 取得來源日期
+    console.log(`📅 [移動任務到今天] 用戶 ${userId} 確認移動任務 (從 ${fromDate})`);
+
+    await moveUncompletedTasksToToday(userId, fromDate);
+
+    // 載入今天的任務並發送 FLEX MESSAGE
+    const userTasks = userTaskStacks.get(userId) || [];
+    const { createTaskStackFlexMessage } = require('./task-flex-message');
+
+    // 過濾今天的任務
+    const now = new Date();
+    const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const todayDateString = taiwanNow.toISOString().split('T')[0];
+
+    const todayTasks = userTasks.filter(task => {
+      let isToday = false;
+      if (task.scheduled_date || task.scheduledDate) {
+        const scheduledDate = new Date(task.scheduled_date || task.scheduledDate);
+        const scheduledDateStr = scheduledDate.toISOString().split('T')[0];
+        isToday = scheduledDateStr === todayDateString;
+      } else if (task.created_at) {
+        const createdDate = new Date(task.created_at);
+        const taskTaiwanDate = new Date(createdDate.getTime() + 8 * 60 * 60 * 1000);
+        const taskDateStr = taskTaiwanDate.toISOString().split('T')[0];
+        isToday = taskDateStr === todayDateString;
+      }
+      return isToday;
+    });
+
+    console.log(`📋 [移動任務到今天] 今天共有 ${todayTasks.length} 個任務`);
+
+    // 只發送確認訊息（不發送 FLEX MESSAGE，避免訊息太大）
+    const confirmMessage = {
+      type: 'text',
+      text: `✅ 已將 ${fromDate} 未完成的任務移到今天！\n\n請輸入「今天」來查看今天的任務列表。`
+    };
+
+    await client.replyMessage(event.replyToken, confirmMessage);
+    return;
+  }
+
+  // 檢查是否為移動任務到明天的事件
+  if (postbackData.includes('action=move_tasks_to_tomorrow')) {
+    const params = new URLSearchParams(postbackData);
+    const fromDate = params.get('from_date'); // 取得來源日期
+    console.log(`📅 [移動任務] 用戶 ${userId} 確認移動任務${fromDate ? ` (從 ${fromDate})` : ''}`);
+
+    await moveUncompletedTasksToTomorrow(userId, fromDate);
+
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `✅ 已將${fromDate ? fromDate + ' ' : '今天'}未完成的任務移到${fromDate ? '明天' : '明天'}！`
+    });
+    return;
+  }
+
+  // 檢查是否為取消移動任務的事件
+  if (postbackData.includes('action=cancel_move_tasks')) {
+    console.log(`❌ [移動任務] 用戶 ${userId} 取消移動任務`);
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '好的，不移動任務。晚安！😴'
+    });
+    return;
+  }
+
+  // 檢查是否為標籤收合/展開事件
+  if (postbackData.includes('action=toggle_tag')) {
+    const params = new URLSearchParams(postbackData);
+    const tagName = decodeURIComponent(params.get('tag'));
+    const currentState = params.get('currentState');
+
+    console.log(`🔽 用戶 ${userId} 切換標籤: ${tagName} (當前: ${currentState})`);
+
+    // 切換狀態 (expanded -> collapsed 或 collapsed -> expanded)
+    const newState = currentState === 'expanded' ? 'collapsed' : 'expanded';
+    const { setTagCollapseState } = require('./task-flex-message');
+    setTagCollapseState(userId, tagName, newState === 'collapsed');
+
+    // 重新生成任務頁面
+    const replyToken = event.replyToken;
+
+    // 使用和標籤視圖完全相同的過濾邏輯
+    const allUserTasks = userTaskStacks.get(userId) || [];
+    const todayTasks = filterTodayTasks(allUserTasks);
+    console.log(`🔽 [標籤收合] 從記憶體載入 ${allUserTasks.length} 個活躍任務，篩選出 ${todayTasks.length} 個今天任務`);
+
+    const flexMessage = require('./task-flex-message').createTaskStackFlexMessage(
+      todayTasks,
+      null,
+      'tags',
+      0,
+      'all',
+      userId
+    );
+
+    await client.replyMessage(replyToken, flexMessage);
+    return;
+  }
+
   // 檢查是否為任務完成事件
   if (postbackData.startsWith('complete_task_')) {
     const taskId = parseInt(postbackData.replace('complete_task_', ''));
@@ -7825,12 +7916,12 @@ async function loadTasksFromDatabase() {
 
     console.log('🔄 [啟動載入] 開始從數據庫載入所有任務...');
 
-    // 查詢最新任務記錄（限制數量以避免載入過多資料）
+    // 查詢最近任務記錄（增加限制數量以載入更多任務）
     const { data, error } = await supabase
       .from(tableName)
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(20);  // 限制最多20筆記錄以避免FLEX MESSAGE過大
+      .limit(500);  // 增加到500筆記錄，確保能載入更多天的任務
 
     if (error) {
       console.error('❌ [啟動載入] 數據庫查詢失敗:', error);
@@ -7855,11 +7946,13 @@ async function loadTasksFromDatabase() {
         note: record.note || null,
         tag: record.tag || null,
         scheduled_date: record.scheduled_date || null,
+        scheduledDate: record.scheduled_date || null,
         reminder_minutes: record.reminder_minutes || null,
         repeat_pattern: record.repeat_pattern || null,
         google_calendar_enabled: record.google_calendar_enabled || false,
         google_calendar_who: record.google_calendar_who || null,
         completed: record.completed || false,  // 從數據庫讀取實際完成狀態
+        created_at: record.created_at,
         timestamp: record.created_at
       };
 
@@ -7961,6 +8054,605 @@ async function getUserFullTasksFromDatabase(userId) {
   }
 }
 
+// 檢查今天未完成的任務並詢問用戶是否移到明天
+async function checkAndAskMoveUncompletedTasks() {
+  try {
+    console.log('📋 [定時任務] 開始檢查所有用戶今天未完成的任務');
+
+    // 從數據庫獲取所有用戶的今天未完成任務
+    const { data: users, error: usersError } = await supabase
+      .from('dev_messages')
+      .select('user_id')
+      .not('user_id', 'is', null);
+
+    if (usersError) {
+      console.error('❌ [定時任務] 獲取用戶列表失敗:', usersError);
+      return;
+    }
+
+    // 去重用戶ID
+    const uniqueUserIds = [...new Set(users.map(u => u.user_id))];
+    console.log(`👥 [定時任務] 找到 ${uniqueUserIds.length} 位用戶`);
+
+    // 獲取今天的日期字串
+    const now = new Date();
+    const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const todayDateString = taiwanNow.toISOString().split('T')[0];
+
+    // 對每個用戶檢查今天未完成的任務
+    for (const userId of uniqueUserIds) {
+      try {
+        // 從記憶體獲取用戶任務
+        const userTasks = userTaskStacks.get(userId) || [];
+
+        // 過濾今天的未完成任務
+        const todayUncompletedTasks = userTasks.filter(task => {
+          // 檢查是否為今天的任務
+          let isToday = false;
+
+          if (task.scheduled_date || task.scheduledDate) {
+            const scheduledDate = new Date(task.scheduled_date || task.scheduledDate);
+            const scheduledDateStr = scheduledDate.toISOString().split('T')[0];
+            isToday = scheduledDateStr === todayDateString;
+          } else if (task.created_at) {
+            const createdDate = new Date(task.created_at);
+            const taskTaiwanDate = new Date(createdDate.getTime() + 8 * 60 * 60 * 1000);
+            const taskDateStr = taskTaiwanDate.toISOString().split('T')[0];
+            isToday = taskDateStr === todayDateString;
+          }
+
+          // 必須是今天的任務且未完成
+          return isToday && !task.completed;
+        });
+
+        if (todayUncompletedTasks.length > 0) {
+          console.log(`📝 [定時任務] 用戶 ${userId} 有 ${todayUncompletedTasks.length} 個今天未完成的任務`);
+
+          // 發送詢問訊息
+          await sendMoveTasksConfirmation(userId, todayUncompletedTasks);
+        } else {
+          console.log(`✅ [定時任務] 用戶 ${userId} 今天所有任務都完成了`);
+        }
+      } catch (userError) {
+        console.error(`❌ [定時任務] 處理用戶 ${userId} 時發生錯誤:`, userError);
+      }
+    }
+
+    console.log('✅ [定時任務] 完成檢查所有用戶');
+  } catch (error) {
+    console.error('❌ [定時任務] 檢查未完成任務失敗:', error);
+  }
+}
+
+// 發送移動任務的確認訊息
+async function sendMoveTasksConfirmation(userId, uncompletedTasks) {
+  try {
+    const taskList = uncompletedTasks.slice(0, 5).map(t => `• ${t.text}`).join('\n');
+    const moreCount = uncompletedTasks.length > 5 ? `\n...還有 ${uncompletedTasks.length - 5} 個任務` : '';
+
+    const message = {
+      type: 'flex',
+      altText: '今天還有未完成的任務，要移到明天嗎？',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '📋 今天未完成任務',
+              weight: 'bold',
+              size: 'xl',
+              color: '#333333'
+            },
+            {
+              type: 'text',
+              text: `你今天還有 ${uncompletedTasks.length} 個未完成的任務：`,
+              size: 'sm',
+              color: '#666666',
+              margin: 'md',
+              wrap: true
+            },
+            {
+              type: 'text',
+              text: taskList + moreCount,
+              size: 'sm',
+              color: '#333333',
+              margin: 'md',
+              wrap: true
+            },
+            {
+              type: 'text',
+              text: '要將這些任務移到明天嗎？',
+              size: 'md',
+              color: '#666666',
+              margin: 'lg',
+              wrap: true
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'postback',
+                label: '是，移到明天',
+                data: `action=move_tasks_to_tomorrow&count=${uncompletedTasks.length}`
+              },
+              style: 'primary',
+              height: 'sm'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'postback',
+                label: '不用了',
+                data: 'action=cancel_move_tasks'
+              },
+              style: 'secondary',
+              height: 'sm'
+            }
+          ]
+        }
+      }
+    };
+
+    await client.pushMessage(userId, message);
+    console.log(`✅ [定時任務] 已發送移動任務確認訊息給用戶 ${userId}`);
+  } catch (error) {
+    console.error(`❌ [定時任務] 發送訊息給用戶 ${userId} 失敗:`, error);
+  }
+}
+
+// 發送過去日期未完成任務的確認訊息（移到今天）
+async function sendMovePastTasksToTodayConfirmation(userId, uncompletedTasks, pastDate) {
+  try {
+    const taskList = uncompletedTasks.slice(0, 5).map(t => `• ${t.text}`).join('\n');
+    const moreCount = uncompletedTasks.length > 5 ? `\n...還有 ${uncompletedTasks.length - 5} 個任務` : '';
+
+    // 將日期格式化為 10/1 的形式
+    const dateObj = new Date(pastDate);
+    const month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+    const formattedDate = `${month}/${day}`;
+
+    const message = {
+      type: 'flex',
+      altText: `${formattedDate} 還有未完成的任務，要移到今天嗎？`,
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: `📋 ${formattedDate} 未完成任務`,
+              weight: 'bold',
+              size: 'xl',
+              color: '#333333'
+            },
+            {
+              type: 'text',
+              text: `${formattedDate} 還有 ${uncompletedTasks.length} 個未完成的任務：`,
+              size: 'sm',
+              color: '#666666',
+              margin: 'md',
+              wrap: true
+            },
+            {
+              type: 'text',
+              text: taskList + moreCount,
+              size: 'sm',
+              color: '#333333',
+              margin: 'md',
+              wrap: true
+            },
+            {
+              type: 'text',
+              text: `要將這些任務移到今天 (${new Date().getMonth() + 1}/${new Date().getDate()}) 嗎？`,
+              size: 'md',
+              color: '#666666',
+              margin: 'lg',
+              wrap: true
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'postback',
+                label: '是，移到今天',
+                data: `action=move_tasks_to_today&from_date=${pastDate}&count=${uncompletedTasks.length}`
+              },
+              style: 'primary',
+              height: 'sm'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'postback',
+                label: '不用了',
+                data: 'action=cancel_move_tasks'
+              },
+              style: 'secondary',
+              height: 'sm'
+            }
+          ]
+        }
+      }
+    };
+
+    await client.pushMessage(userId, message);
+    console.log(`✅ [過去任務提醒] 已發送移動任務確認訊息給用戶 ${userId} (從 ${pastDate} 移到今天)`);
+  } catch (error) {
+    console.error(`❌ [過去任務提醒] 發送訊息給用戶 ${userId} 失敗:`, error);
+  }
+}
+
+// 移動指定日期未完成的任務到今天
+async function moveUncompletedTasksToToday(userId, fromDate) {
+  try {
+    console.log(`📅 [移動任務到今天] 開始處理用戶 ${userId} 的未完成任務 (從 ${fromDate})`);
+
+    // 從記憶體獲取用戶任務
+    const userTasks = userTaskStacks.get(userId) || [];
+
+    // 獲取今天的日期字串
+    const now = new Date();
+    const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const todayDateString = taiwanNow.toISOString().split('T')[0];
+
+    console.log(`📅 [移動任務到今天] 從 ${fromDate} 移動到今天 ${todayDateString}`);
+
+    // 過濾來源日期的未完成任務
+    const pastUncompletedTasks = userTasks.filter(task => {
+      let isFromDate = false;
+
+      if (task.scheduled_date || task.scheduledDate) {
+        const scheduledDate = new Date(task.scheduled_date || task.scheduledDate);
+        const scheduledDateStr = scheduledDate.toISOString().split('T')[0];
+        isFromDate = scheduledDateStr === fromDate;
+      } else if (task.created_at) {
+        const createdDate = new Date(task.created_at);
+        const taskTaiwanDate = new Date(createdDate.getTime() + 8 * 60 * 60 * 1000);
+        const taskDateStr = taskTaiwanDate.toISOString().split('T')[0];
+        isFromDate = taskDateStr === fromDate;
+      }
+
+      return isFromDate && !task.completed;
+    });
+
+    console.log(`📝 [移動任務到今天] 找到 ${pastUncompletedTasks.length} 個未完成任務`);
+
+    // 複製這些任務到今天
+    let movedCount = 0;
+    for (const task of pastUncompletedTasks) {
+      try {
+        // 創建新任務（今天）
+        const newTask = {
+          user_id: userId,
+          message_text: task.text,
+          scheduled_date: todayDateString,
+          tag: task.tag || null,
+          completed: false,
+          created_at: new Date().toISOString(),
+          note: task.note || null
+        };
+
+        // 儲存到數據庫
+        const { data, error } = await supabase
+          .from('dev_messages')
+          .insert([newTask])
+          .select();
+
+        if (error) {
+          console.error(`❌ [移動任務到今天] 儲存任務失敗:`, error);
+          continue;
+        }
+
+        // 更新記憶體中的任務堆疊
+        if (data && data.length > 0) {
+          const savedTask = data[0];
+          userTasks.push({
+            id: savedTask.id,
+            text: savedTask.message_text,
+            completed: false,
+            scheduledDate: savedTask.scheduled_date,
+            scheduled_date: savedTask.scheduled_date,
+            created_at: savedTask.created_at,
+            tag: savedTask.tag,
+            note: savedTask.note
+          });
+          movedCount++;
+        }
+      } catch (taskError) {
+        console.error(`❌ [移動任務到今天] 處理任務 "${task.text}" 失敗:`, taskError);
+      }
+    }
+
+    // 更新記憶體
+    userTaskStacks.set(userId, userTasks);
+
+    console.log(`✅ [移動任務到今天] 成功移動 ${movedCount} 個任務到今天`);
+  } catch (error) {
+    console.error(`❌ [移動任務到今天] 移動任務失敗:`, error);
+  }
+}
+
+// 移動指定日期未完成的任務到下一天
+async function moveUncompletedTasksToTomorrow(userId, fromDate = null) {
+  try {
+    console.log(`📅 [移動任務] 開始處理用戶 ${userId} 的未完成任務`);
+
+    // 從記憶體獲取用戶任務
+    const userTasks = userTaskStacks.get(userId) || [];
+
+    // 獲取來源日期和目標日期字串
+    let sourceDateString, targetDateString;
+
+    if (fromDate) {
+      // 如果指定了來源日期，使用指定的日期
+      sourceDateString = fromDate;
+      const sourceDate = new Date(fromDate);
+      const targetDate = new Date(sourceDate);
+      targetDate.setDate(targetDate.getDate() + 1);
+      targetDateString = targetDate.toISOString().split('T')[0];
+      console.log(`📅 [移動任務] 從指定日期 ${sourceDateString} 移動到 ${targetDateString}`);
+    } else {
+      // 如果沒有指定，使用今天和明天
+      const now = new Date();
+      const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+      sourceDateString = taiwanNow.toISOString().split('T')[0];
+
+      const tomorrow = new Date(taiwanNow);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      targetDateString = tomorrow.toISOString().split('T')[0];
+      console.log(`📅 [移動任務] 從今天 ${sourceDateString} 移動到明天 ${targetDateString}`);
+    }
+
+    // 過濾來源日期的未完成任務
+    const todayUncompletedTasks = userTasks.filter(task => {
+      let isSourceDate = false;
+
+      if (task.scheduled_date || task.scheduledDate) {
+        const scheduledDate = new Date(task.scheduled_date || task.scheduledDate);
+        const scheduledDateStr = scheduledDate.toISOString().split('T')[0];
+        isSourceDate = scheduledDateStr === sourceDateString;
+      } else if (task.created_at) {
+        const createdDate = new Date(task.created_at);
+        const taskTaiwanDate = new Date(createdDate.getTime() + 8 * 60 * 60 * 1000);
+        const taskDateStr = taskTaiwanDate.toISOString().split('T')[0];
+        isSourceDate = taskDateStr === sourceDateString;
+      }
+
+      return isSourceDate && !task.completed;
+    });
+
+    console.log(`📝 [移動任務] 找到 ${todayUncompletedTasks.length} 個未完成任務`);
+
+    // 複製這些任務到目標日期
+    let movedCount = 0;
+    for (const task of todayUncompletedTasks) {
+      try {
+        // 創建新任務（目標日期）
+        const newTask = {
+          user_id: userId,
+          message_text: task.text,
+          scheduled_date: targetDateString,
+          tag: task.tag || null,
+          completed: false,
+          created_at: new Date().toISOString()
+        };
+
+        // 儲存到數據庫
+        const { data, error } = await supabase
+          .from('dev_messages')
+          .insert([newTask])
+          .select();
+
+        if (error) {
+          console.error(`❌ [移動任務] 儲存任務失敗:`, error);
+          continue;
+        }
+
+        // 更新記憶體中的任務堆疊
+        if (data && data.length > 0) {
+          const savedTask = data[0];
+          userTasks.push({
+            id: savedTask.id,
+            text: savedTask.message_text,
+            completed: false,
+            scheduledDate: savedTask.scheduled_date,
+            scheduled_date: savedTask.scheduled_date,
+            created_at: savedTask.created_at,
+            tag: savedTask.tag
+          });
+          movedCount++;
+        }
+      } catch (taskError) {
+        console.error(`❌ [移動任務] 處理任務 "${task.text}" 失敗:`, taskError);
+      }
+    }
+
+    // 更新記憶體
+    userTaskStacks.set(userId, userTasks);
+
+    console.log(`✅ [移動任務] 成功移動 ${movedCount} 個任務到明天`);
+  } catch (error) {
+    console.error(`❌ [移動任務] 移動任務失敗:`, error);
+  }
+}
+
+// 調試 API：直接從資料庫查詢指定日期的任務
+app.get('/api/debug-db-tasks/:userId/:pastDate', async (req, res) => {
+  try {
+    const { userId, pastDate } = req.params;
+    console.log(`🔍 [資料庫調試] 檢查日期任務: userId=${userId}, pastDate=${pastDate}`);
+
+    const tablePrefix = process.env.TABLE_PREFIX || '';
+    const tableName = tablePrefix + 'messages';
+
+    // 查詢該日期創建的所有任務
+    const startDate = new Date(pastDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(pastDate);
+    endDate.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('id, message_text, completed, scheduled_date, created_at')
+      .eq('user_id', userId)
+      .or(`scheduled_date.eq.${pastDate},and(created_at.gte.${startDate.toISOString()},created_at.lte.${endDate.toISOString()})`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ [資料庫調試] 查詢失敗:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    const allTasks = data || [];
+    const uncompletedTasks = allTasks.filter(t => !t.completed);
+
+    console.log(`🔍 [資料庫調試] ${pastDate} 所有任務數: ${allTasks.length}`);
+    console.log(`🔍 [資料庫調試] ${pastDate} 未完成任務數: ${uncompletedTasks.length}`);
+
+    res.json({
+      totalTasks: allTasks.length,
+      uncompletedTasks: uncompletedTasks.length,
+      tasks: allTasks.slice(0, 20).map(t => ({
+        text: t.message_text,
+        completed: t.completed,
+        scheduled_date: t.scheduled_date,
+        created_at: t.created_at
+      })),
+      message: `資料庫中找到 ${allTasks.length} 個 ${pastDate} 的任務，其中 ${uncompletedTasks.length} 個未完成`
+    });
+  } catch (error) {
+    console.error('❌ [資料庫調試] 檢查任務失敗:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 調試 API：檢查指定日期的所有任務（記憶體）
+app.get('/api/debug-tasks/:userId/:pastDate', async (req, res) => {
+  try {
+    const { userId, pastDate } = req.params;
+    console.log(`🔍 [調試] 檢查日期任務: userId=${userId}, pastDate=${pastDate}`);
+
+    // 從記憶體獲取用戶任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    console.log(`🔍 [調試] 記憶體中總任務數: ${userTasks.length}`);
+
+    // 過濾指定日期的所有任務（包含已完成和未完成）
+    const allPastTasks = [];
+    const pastUncompletedTasks = [];
+
+    userTasks.forEach(task => {
+      let isPastDate = false;
+      let dateSource = '';
+
+      if (task.scheduled_date || task.scheduledDate) {
+        const scheduledDate = new Date(task.scheduled_date || task.scheduledDate);
+        const scheduledDateStr = scheduledDate.toISOString().split('T')[0];
+        isPastDate = scheduledDateStr === pastDate;
+        dateSource = `scheduled_date: ${scheduledDateStr}`;
+      } else if (task.created_at) {
+        const createdDate = new Date(task.created_at);
+        const taskTaiwanDate = new Date(createdDate.getTime() + 8 * 60 * 60 * 1000);
+        const taskDateStr = taskTaiwanDate.toISOString().split('T')[0];
+        isPastDate = taskDateStr === pastDate;
+        dateSource = `created_at: ${taskDateStr}`;
+      }
+
+      if (isPastDate) {
+        allPastTasks.push({
+          text: task.text,
+          completed: task.completed,
+          dateSource: dateSource
+        });
+
+        if (!task.completed) {
+          pastUncompletedTasks.push(task);
+        }
+      }
+    });
+
+    console.log(`🔍 [調試] ${pastDate} 所有任務數: ${allPastTasks.length}`);
+    console.log(`🔍 [調試] ${pastDate} 未完成任務數: ${pastUncompletedTasks.length}`);
+
+    res.json({
+      totalTasks: userTasks.length,
+      allPastTasks: allPastTasks.length,
+      uncompletedPastTasks: pastUncompletedTasks.length,
+      tasks: allPastTasks.slice(0, 10), // 只顯示前 10 個
+      message: `找到 ${allPastTasks.length} 個 ${pastDate} 的任務，其中 ${pastUncompletedTasks.length} 個未完成`
+    });
+  } catch (error) {
+    console.error('❌ [調試] 檢查任務失敗:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 測試 API：手動觸發過去日期任務提醒
+app.get('/api/test-past-tasks/:userId/:pastDate', async (req, res) => {
+  try {
+    const { userId, pastDate } = req.params;
+    console.log(`🧪 [測試] 手動觸發過去日期任務提醒: userId=${userId}, pastDate=${pastDate}`);
+
+    // 從記憶體獲取用戶任務
+    const userTasks = userTaskStacks.get(userId) || [];
+
+    // 過濾指定日期的未完成任務
+    const pastUncompletedTasks = userTasks.filter(task => {
+      let isPastDate = false;
+
+      if (task.scheduled_date || task.scheduledDate) {
+        const scheduledDate = new Date(task.scheduled_date || task.scheduledDate);
+        const scheduledDateStr = scheduledDate.toISOString().split('T')[0];
+        isPastDate = scheduledDateStr === pastDate;
+      } else if (task.created_at) {
+        const createdDate = new Date(task.created_at);
+        const taskTaiwanDate = new Date(createdDate.getTime() + 8 * 60 * 60 * 1000);
+        const taskDateStr = taskTaiwanDate.toISOString().split('T')[0];
+        isPastDate = taskDateStr === pastDate;
+      }
+
+      return isPastDate && !task.completed;
+    });
+
+    console.log(`🧪 [測試] 記憶體中總任務數: ${userTasks.length}`);
+    console.log(`🧪 [測試] 找到 ${pastUncompletedTasks.length} 個 ${pastDate} 的未完成任務`);
+
+    if (pastUncompletedTasks.length > 0) {
+      await sendMovePastTasksToTodayConfirmation(userId, pastUncompletedTasks, pastDate);
+      res.json({
+        success: true,
+        message: `已發送 ${pastDate} 的任務提醒`,
+        taskCount: pastUncompletedTasks.length
+      });
+    } else {
+      res.json({
+        success: false,
+        message: `${pastDate} 沒有未完成任務`
+      });
+    }
+  } catch (error) {
+    console.error('❌ [測試] 發送測試提醒失敗:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // 啟動伺服器
 app.listen(PORT, async () => {
   console.log(`🤖 LINE Bot server running on port ${PORT} with Open Graph API`);
@@ -7968,4 +8660,16 @@ app.listen(PORT, async () => {
 
   // 啟動時載入數據庫任務到記憶體
   await loadTasksFromDatabase();
+
+  // 設定每天晚上 12 點的定時任務（檢查今天未完成的任務）
+  // cron 格式: 分 時 日 月 星期
+  // '0 0 * * *' = 每天 00:00 (午夜12點)
+  cron.schedule('0 0 * * *', async () => {
+    console.log('⏰ [定時任務] 晚上 12 點檢查未完成任務');
+    await checkAndAskMoveUncompletedTasks();
+  }, {
+    timezone: "Asia/Taipei"
+  });
+
+  console.log('⏰ [定時任務] 已設定每天晚上 12 點檢查未完成任務');
 });// 強制重啟 西元2025年09月18日 (星期四) 13時03分19秒    

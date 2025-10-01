@@ -1,5 +1,29 @@
 // 任務 Flex Message 建構器 - 統計卡片功能版本 2025-09-11-23:50-STATS-CARD-LATEST
 
+// 標籤收合狀態追蹤 (按用戶ID存儲)
+const userTagCollapseState = new Map(); // userId -> Map<tagName, isCollapsed>
+
+// 獲取用戶的標籤收合狀態
+function getUserTagState(userId) {
+  if (!userTagCollapseState.has(userId)) {
+    userTagCollapseState.set(userId, new Map());
+  }
+  return userTagCollapseState.get(userId);
+}
+
+// 設置標籤收合狀態
+function setTagCollapseState(userId, tagName, isCollapsed) {
+  const userState = getUserTagState(userId);
+  userState.set(tagName, isCollapsed);
+  console.log(`🔽 [標籤收合] 用戶 ${userId} 的標籤 "${tagName}" 設為 ${isCollapsed ? '收起' : '展開'}`);
+}
+
+// 檢查標籤是否收合
+function isTagCollapsed(userId, tagName) {
+  const userState = getUserTagState(userId);
+  return userState.get(tagName) || false;
+}
+
 // 生成帶日期的標題函數
 function generateDateTitle(dayOffset = 0) {
   // 獲取台灣當前日期和星期，並加上偏移天數
@@ -135,7 +159,7 @@ function createTaskFlexMessage(taskText) {
 }
 
 // 任務堆疊 Flex Message - 支援動態標籤 Quick Reply 和 Tab Segment
-function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general', dayOffset = 0, filterStatus = 'all') {
+function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general', dayOffset = 0, filterStatus = 'all', userId = null) {
   console.log('🚨 [FLEX MESSAGE] 函數被調用 - 版本: 2025-09-11-23:50-STATS-CARD-LATEST');
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
@@ -153,6 +177,15 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
   }
 
   let displayTasks = tasks || [];
+  console.log(`📋 [FLEX MESSAGE] 收到 ${displayTasks.length} 個任務`);
+
+  // 限制顯示任務數量，避免 Flex Message 過大
+  const MAX_DISPLAY_TASKS = 20;
+  if (displayTasks.length > MAX_DISPLAY_TASKS) {
+    console.log(`⚠️ [FLEX MESSAGE] 任務數量 ${displayTasks.length} 超過顯示上限，僅顯示前 ${MAX_DISPLAY_TASKS} 個`);
+    displayTasks = displayTasks.slice(0, MAX_DISPLAY_TASKS);
+  }
+
   console.log(`📋 [FLEX MESSAGE] 顯示 ${displayTasks.length} 個任務`);
 
   // 使用顯示的任務數量（而非全部任務數量）
@@ -172,15 +205,29 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
 
     // 顯示各標籤組
     tagGroups.forEach(group => {
-      // 添加標籤標題
+      // 檢查此標籤是否被收合
+      const isCollapsed = userId ? isTagCollapsed(userId, group.tagName) : false;
+      const stateSymbol = isCollapsed ? '＞' : '∨';
+      const currentState = isCollapsed ? 'collapsed' : 'expanded';
+
+      // 添加標籤標題（可點擊收合）
       taskContents.push({
         type: 'text',
-        text: group.tagName,
+        text: `${group.tagName}${stateSymbol}`,
         weight: 'bold',
         size: 'md',
         color: '#333333',
-        margin: 'lg'
+        margin: 'lg',
+        action: {
+          type: 'postback',
+          data: `action=toggle_tag&tag=${encodeURIComponent(group.tagName)}&currentState=${currentState}`
+        }
       });
+
+      // 如果被收合，跳過任務顯示
+      if (isCollapsed) {
+        return;
+      }
 
       // 添加該標籤組的所有任務到一個框架中
       const groupTaskContents = [];
@@ -273,14 +320,27 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
 
     // 顯示無標籤任務
     if (untaggedTasks.length > 0) {
+      // 檢查無標籤是否被收合
+      const isCollapsed = userId ? isTagCollapsed(userId, '無標籤') : false;
+      const stateSymbol = isCollapsed ? '＞' : '∨';
+      const currentState = isCollapsed ? 'collapsed' : 'expanded';
+
       taskContents.push({
         type: 'text',
-        text: '無標籤',
+        text: `無標籤${stateSymbol}`,
         weight: 'bold',
         size: 'md',
         color: '#333333',
-        margin: 'lg'
+        margin: 'lg',
+        action: {
+          type: 'postback',
+          data: `action=toggle_tag&tag=無標籤&currentState=${currentState}`
+        }
       });
+
+      // 如果被收合，跳過任務顯示
+      if (!isCollapsed) {
+        // 只有在展開時才顯示無標籤任務
 
       const untaggedContents = [];
       untaggedTasks.forEach((task, taskIndex) => {
@@ -366,6 +426,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
         cornerRadius: '8px',
         contents: untaggedContents
       });
+      } // 結束 if (!isCollapsed) 區塊
     }
   } else {
     // 一般模式：原本的顯示方式
@@ -1490,11 +1551,15 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
     // 無標籤標題
     contents.push({
       type: 'text',
-      text: '無標籤',
+      text: '無標籤∨',
       weight: 'bold',
       size: 'md',
       color: '#333333',
-      margin: 'md'
+      margin: 'md',
+      action: {
+        type: 'postback',
+        data: `action=toggle_tag&tag=無標籤&currentState=expanded`
+      }
     });
 
     // 創建無標籤任務邊框容器
@@ -1992,5 +2057,7 @@ module.exports = {
   generateDayAfterTomorrowTitle,
   generateDateTitle,
   createFilterFlexMessage,
-  createRecordedConfirmationFlexMessage
+  createRecordedConfirmationFlexMessage,
+  setTagCollapseState,
+  isTagCollapsed
 };
