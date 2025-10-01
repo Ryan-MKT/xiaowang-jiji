@@ -1110,11 +1110,12 @@ function createSingleFavoriteBubble(favorite) {
     console.log(`🖼️ [收藏卡片-單張] 使用 content.image:`, displayImage.substring(0, 100) + '...');
   }
 
-  // 🚀 針對 scontent.fbcdn.net 直接使用，其他使用代理
+  // 🚀 針對 scontent.fbcdn.net 和 Supabase Storage 直接使用，其他使用代理
   if (displayImage) {
-    if (displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) {
-      // scontent 直接圖片不需要代理
-      console.log(`🖼️ [收藏卡片-單張] 直接使用 scontent URL:`, displayImage);
+    if ((displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) ||
+        displayImage.includes('supabase.co/storage')) {
+      // scontent 和 Supabase Storage 直接圖片不需要代理
+      console.log(`🖼️ [收藏卡片-單張] 直接使用圖片 URL:`, displayImage);
     } else {
       // lookaside 等其他圖片使用代理
       displayImage = `${process.env.BASE_URL}/api/image-proxy?url=${encodeURIComponent(displayImage)}`;
@@ -1217,11 +1218,12 @@ function createFavoritesCarousel(favorites) {
       console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 使用 content.image:`, displayImage.substring(0, 100) + '...');
     }
 
-    // 🚀 針對 scontent.fbcdn.net 直接使用，其他使用代理
+    // 🚀 針對 scontent.fbcdn.net 和 Supabase Storage 直接使用，其他使用代理
     if (displayImage) {
-      if (displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) {
-        // scontent 直接圖片不需要代理
-        console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 直接使用 scontent URL:`, displayImage);
+      if ((displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) ||
+          displayImage.includes('supabase.co/storage')) {
+        // scontent 和 Supabase Storage 直接圖片不需要代理
+        console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 直接使用圖片 URL:`, displayImage);
       } else {
         // lookaside 等其他圖片使用代理
         displayImage = `${process.env.BASE_URL}/api/image-proxy?url=${encodeURIComponent(displayImage)}`;
@@ -3788,6 +3790,205 @@ async function handleEvent(event) {
         return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
       } else {
         console.log('測試模式：編輯任務失敗');
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 檢查是否為簡易刪除指令（支援兩種格式：「任務內容 刪除」或「刪除 任務內容」）
+  const deletePattern1 = /^(.+?)\s+刪除$/;  // 招財貓 刪除
+  const deletePattern2 = /^刪除\s+(.+?)$/;  // 刪除 招財貓
+
+  let deleteMatch = userMessage.match(deletePattern1);
+  if (!deleteMatch) {
+    deleteMatch = userMessage.match(deletePattern2);
+  }
+
+  if (deleteMatch) {
+    const taskText = deleteMatch[1];
+    console.log(`🗑️ [簡易刪除] 偵測到刪除指令: "${taskText}"`);
+
+    // 從記憶體中找到要刪除的任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskToDelete = userTasks.find(task => task.text === taskText);
+
+    if (taskToDelete) {
+      console.log(`🗑️ [簡易刪除] 找到任務 ID: ${taskToDelete.id}`);
+
+      // 從記憶體中移除任務
+      const taskIndex = userTasks.findIndex(task => task.text === taskText);
+      userTasks.splice(taskIndex, 1);
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [簡易刪除] 記憶體任務已移除: "${taskText}"`);
+
+      // 從數據庫中刪除任務記錄
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const tableName = tablePrefix + 'messages';
+
+          const { data, error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', taskToDelete.id)
+            .eq('user_id', userId)
+            .select();
+
+          if (error) {
+            console.error('❌ [簡易刪除] 數據庫刪除失敗:', error);
+          } else if (data && data.length > 0) {
+            console.log(`✅ [簡易刪除] 數據庫記錄已刪除:`, data[0]);
+          } else {
+            console.log(`⚠️ [簡易刪除] 在數據庫中未找到匹配的記錄`);
+          }
+        } catch (dbError) {
+          console.error('❌ [簡易刪除] 數據庫操作失敗:', dbError);
+        }
+      }
+
+      // 發送確認訊息和更新的任務堆疊
+      const confirmationMessage = {
+        type: 'text',
+        text: `🗑️ 已刪除「${taskText}」`
+      };
+
+      // 重新生成任務堆疊 Flex Message
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+
+      if (client) {
+        // 發送兩則訊息：確認訊息 + 更新的任務堆疊
+        return client.replyMessage(event.replyToken, [confirmationMessage, updatedFlexMessage])
+          .then(result => {
+            console.log('✅ [簡易刪除] 雙訊息發送成功');
+            return result;
+          })
+          .catch(error => {
+            console.error('❌ [簡易刪除] 雙訊息發送失敗:', error);
+            throw error;
+          });
+      } else {
+        console.log('測試模式：簡易刪除成功');
+        return Promise.resolve(null);
+      }
+    } else {
+      console.log(`⚠️ [簡易刪除] 找不到任務: "${taskText}"`);
+
+      // 發送錯誤訊息
+      const errorMessage = {
+        type: 'text',
+        text: `找不到「${taskText}」這個任務\n\n請確認任務內容是否正確`
+      };
+
+      if (client) {
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
+      } else {
+        console.log('測試模式：簡易刪除失敗');
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 檢查是否為打標籤指令（支援兩種格式：「任務內容 打標籤 標籤名」或「打標籤 任務內容 標籤名」）
+  const tagPattern1 = /^(.+?)\s+打標籤\s+(.+?)$/;  // 去銀行辦事 打標籤 家庭
+  const tagPattern2 = /^打標籤\s+(.+?)\s+(.+?)$/;  // 打標籤 去銀行辦事 家庭
+
+  let tagMatch = userMessage.match(tagPattern1);
+  let taskTextForTag, tagName;
+
+  if (tagMatch) {
+    taskTextForTag = tagMatch[1];
+    tagName = tagMatch[2];
+  } else {
+    tagMatch = userMessage.match(tagPattern2);
+    if (tagMatch) {
+      taskTextForTag = tagMatch[1];
+      tagName = tagMatch[2];
+    }
+  }
+
+  if (tagMatch) {
+    console.log(`🏷️ [打標籤] 偵測到打標籤指令: "${taskTextForTag}" -> "${tagName}"`);
+
+    // 從記憶體中找到要打標籤的任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskToTag = userTasks.find(task => task.text === taskTextForTag);
+
+    if (taskToTag) {
+      console.log(`🏷️ [打標籤] 找到任務 ID: ${taskToTag.id}`);
+
+      // 更新記憶體中的標籤
+      taskToTag.tag = tagName;
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [打標籤] 記憶體任務已更新標籤: "${taskTextForTag}" -> "${tagName}"`);
+
+      // 更新數據庫中的標籤
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const tableName = tablePrefix + 'messages';
+
+          const { data, error } = await supabase
+            .from(tableName)
+            .update({ tag: tagName })
+            .eq('id', taskToTag.id)
+            .eq('user_id', userId)
+            .select();
+
+          if (error) {
+            console.error('❌ [打標籤] 數據庫更新失敗:', error);
+          } else if (data && data.length > 0) {
+            console.log(`✅ [打標籤] 數據庫標籤已更新:`, data[0]);
+          } else {
+            console.log(`⚠️ [打標籤] 在數據庫中未找到匹配的記錄`);
+          }
+        } catch (dbError) {
+          console.error('❌ [打標籤] 數據庫操作失敗:', dbError);
+        }
+      }
+
+      // 發送確認訊息和更新的任務堆疊
+      const confirmationMessage = {
+        type: 'text',
+        text: `🏷️ 已為「${taskTextForTag}」打上標籤「${tagName}」`
+      };
+
+      // 重新生成任務堆疊 Flex Message
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+
+      if (client) {
+        // 發送兩則訊息：確認訊息 + 更新的任務堆疊
+        return client.replyMessage(event.replyToken, [confirmationMessage, updatedFlexMessage])
+          .then(result => {
+            console.log('✅ [打標籤] 雙訊息發送成功');
+            return result;
+          })
+          .catch(error => {
+            console.error('❌ [打標籤] 雙訊息發送失敗:', error);
+            throw error;
+          });
+      } else {
+        console.log('測試模式：打標籤成功');
+        return Promise.resolve(null);
+      }
+    } else {
+      console.log(`⚠️ [打標籤] 找不到任務: "${taskTextForTag}"`);
+
+      // 發送錯誤訊息
+      const errorMessage = {
+        type: 'text',
+        text: `找不到「${taskTextForTag}」這個任務\n\n請確認任務內容是否正確`
+      };
+
+      if (client) {
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
+      } else {
+        console.log('測試模式：打標籤失敗');
         return Promise.resolve(null);
       }
     }
