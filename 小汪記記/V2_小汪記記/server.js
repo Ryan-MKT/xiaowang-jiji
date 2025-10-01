@@ -2389,6 +2389,73 @@ async function handlePostback(event) {
     }
   }
 
+  // 處理任務篩選事件（全部/已勾/未勾）
+  if (postbackData.startsWith('filter_status_')) {
+    const parts = postbackData.split('_');
+    const filterStatus = parts[2]; // 'all', 'completed', 'uncompleted'
+    const activeTab = parts[3]; // 'general' or 'tags'
+
+    console.log(`🔍 用戶 ${userId} 篩選任務：${filterStatus}（${activeTab}視圖）`);
+
+    try {
+      // 使用記憶體中的任務堆疊
+      let userTasks = userTaskStacks.get(userId) || [];
+      const todayTasks = filterTodayTasks(userTasks);
+
+      // 根據篩選狀態過濾任務
+      let filteredTasks = todayTasks;
+      if (filterStatus === 'completed') {
+        filteredTasks = todayTasks.filter(task => task.completed === true);
+        console.log(`✅ [篩選] 已勾選任務：${filteredTasks.length}/${todayTasks.length}`);
+      } else if (filterStatus === 'uncompleted') {
+        filteredTasks = todayTasks.filter(task => task.completed !== true);
+        console.log(`⬜ [篩選] 未勾選任務：${filteredTasks.length}/${todayTasks.length}`);
+      } else {
+        console.log(`📋 [篩選] 全部任務：${filteredTasks.length}`);
+      }
+
+      const userTags = await getUserTags(userId);
+
+      // 如果是標籤視圖，需要按標籤重新排序
+      if (activeTab === 'tags') {
+        const { parseTasksByTags } = getTaskFlexModule();
+        const { tagGroups, untaggedTasks } = parseTasksByTags(filteredTasks);
+
+        let reorderedTasks = [];
+        tagGroups.forEach(group => {
+          reorderedTasks = reorderedTasks.concat(group.tasks);
+        });
+        reorderedTasks = reorderedTasks.concat(untaggedTasks);
+        filteredTasks = reorderedTasks;
+      }
+
+      // 生成 Flex Message（帶上 filterStatus 參數）
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const flexMessage = createTaskStackFlexMessage(filteredTasks, userTags, activeTab, 0, filterStatus);
+
+      if (client) {
+        return client.replyMessage(event.replyToken, flexMessage);
+      } else {
+        console.log('測試模式：篩選視圖', JSON.stringify(flexMessage, null, 2));
+        return Promise.resolve(null);
+      }
+    } catch (error) {
+      console.error('❌ [任務篩選] 錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '😅 篩選任務時發生錯誤，請重試'
+      };
+
+      if (client) {
+        return client.replyMessage(event.replyToken, errorMessage);
+      } else {
+        console.log('測試模式：錯誤訊息', errorMessage.text);
+        return Promise.resolve(null);
+      }
+    }
+  }
+
   // 處理標籤任務查看事件
   if (postbackData.startsWith('view_tag_tasks|')) {
     const tagName = postbackData.split('|')[1];

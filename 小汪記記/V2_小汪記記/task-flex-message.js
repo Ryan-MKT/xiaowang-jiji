@@ -140,13 +140,16 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
   console.log('🔍 [FLEX 生成] 收到任務資料:', tasks ? tasks.length : 0, '個');
   console.log('📝 [FLEX 生成] 任務預覽:', tasks ? tasks.slice(0, 3).map(task => task.text) : '無任務');
   console.log('🎯 [FLEX 篩選] 當前篩選狀態:', filterStatus);
+  console.log('🎨 [顏色判斷] 全部顏色:', filterStatus === 'all' ? '#000000' : '#666666');
+  console.log('🎨 [顏色判斷] 已勾顏色:', filterStatus === 'completed' ? '#000000' : '#666666');
+  console.log('🎨 [顏色判斷] 未勾顏色:', filterStatus === 'uncompleted' ? '#000000' : '#666666');
 
   // 根據篩選狀態決定按鈕顯示文字
-  let filterButtonText = '全部/';
+  let filterButtonText = '全部 / 已勾 / 未勾';
   if (filterStatus === 'completed') {
-    filterButtonText = '已完成/';
-  } else if (filterStatus === 'pending') {
-    filterButtonText = '未完成/';
+    filterButtonText = '全部 / 已勾 / 未勾';
+  } else if (filterStatus === 'uncompleted') {
+    filterButtonText = '全部 / 已勾 / 未勾';
   }
 
   let displayTasks = tasks || [];
@@ -528,16 +531,62 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
                 type: 'filler'
               },
               {
-                type: 'text',
-                text: filterButtonText,
-                size: 'xxs',
-                color: '#666666',
-                align: 'end',
-                action: {
-                  type: 'postback',
-                  label: '篩選任務',
-                  data: 'filter_tasks'
-                }
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '全部',
+                    size: 'xxs',
+                    color: filterStatus === 'all' ? '#000000' : '#AAAAAA',
+                    flex: 0,
+                    align: 'end',
+                    action: {
+                      type: 'postback',
+                      label: '顯示全部任務',
+                      data: `filter_status_all_${activeTab}`
+                    }
+                  },
+                  {
+                    type: 'text',
+                    text: ' / ',
+                    size: 'xxs',
+                    color: '#AAAAAA',
+                    flex: 0
+                  },
+                  {
+                    type: 'text',
+                    text: '已勾',
+                    size: 'xxs',
+                    color: filterStatus === 'completed' ? '#000000' : '#AAAAAA',
+                    flex: 0,
+                    action: {
+                      type: 'postback',
+                      label: '顯示已勾選任務',
+                      data: `filter_status_completed_${activeTab}`
+                    }
+                  },
+                  {
+                    type: 'text',
+                    text: ' / ',
+                    size: 'xxs',
+                    color: '#AAAAAA',
+                    flex: 0
+                  },
+                  {
+                    type: 'text',
+                    text: '未勾',
+                    size: 'xxs',
+                    color: filterStatus === 'uncompleted' ? '#000000' : '#AAAAAA',
+                    flex: 0,
+                    action: {
+                      type: 'postback',
+                      label: '顯示未勾選任務',
+                      data: `filter_status_uncompleted_${activeTab}`
+                    }
+                  }
+                ],
+                justifyContent: 'flex-end'
               }
             ]
           }
