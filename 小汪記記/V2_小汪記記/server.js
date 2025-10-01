@@ -1178,6 +1178,24 @@ function createSingleFavoriteBubble(favorite) {
           }
         ],
         paddingAll: 'lg'
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: {
+              type: 'postback',
+              label: '回到任務',
+              data: 'return_to_tasks',
+              displayText: '顯示任務列表'
+            },
+            style: 'primary',
+            color: '#1DB446'
+          }
+        ],
+        paddingAll: 'sm'
       }
     }
   };
@@ -1269,6 +1287,24 @@ function createFavoritesCarousel(favorites) {
           }
         ],
         paddingAll: 'md'
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: {
+              type: 'postback',
+              label: '回到任務',
+              data: 'return_to_tasks',
+              displayText: '顯示任務列表'
+            },
+            style: 'primary',
+            color: '#1DB446'
+          }
+        ],
+        paddingAll: 'sm'
       }
     };
   });
@@ -1710,6 +1746,45 @@ async function handlePostback(event) {
       const errorMessage = {
         type: 'text',
         text: '⚠️ 獲取收藏資料時發生錯誤，請稍後再試。'
+      };
+
+      if (client) {
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
+      } else {
+        return Promise.resolve(null);
+      }
+    }
+  }
+
+  // 檢查是否為「回到任務」按鈕
+  if (postbackData === 'return_to_tasks') {
+    console.log(`📝 用戶 ${userId} 從收藏頁回到任務列表`);
+
+    try {
+      // 獲取用戶任務
+      const userTasks = userTaskStacks.get(userId) || [];
+      const todayTasks = filterTodayTasks(userTasks);
+
+      // 獲取用戶標籤
+      const userTags = await getUserTags(userId);
+
+      // 生成任務堆疊 Flex Message
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const taskStackMessage = createTaskStackFlexMessage(todayTasks, userTags);
+
+      if (client) {
+        return replyWithQuickReply(client, event.replyToken, taskStackMessage, userId);
+      } else {
+        console.log('測試模式：回到任務列表');
+        return Promise.resolve(null);
+      }
+
+    } catch (error) {
+      console.error('❌ [回到任務] 處理錯誤:', error);
+
+      const errorMessage = {
+        type: 'text',
+        text: '⚠️ 獲取任務列表時發生錯誤，請稍後再試。'
       };
 
       if (client) {

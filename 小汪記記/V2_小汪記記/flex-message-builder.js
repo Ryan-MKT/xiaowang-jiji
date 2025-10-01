@@ -337,6 +337,18 @@ function createBookmarkSuccessFlexMessage(url) {
               }
             ],
             spacing: "sm"
+          },
+          {
+            type: "button",
+            action: {
+              type: "postback",
+              label: "回到任務",
+              data: "return_to_tasks",
+              displayText: "顯示任務列表"
+            },
+            style: "primary",
+            color: "#1DB446",
+            margin: "sm"
           }
         ],
         paddingAll: "sm"
