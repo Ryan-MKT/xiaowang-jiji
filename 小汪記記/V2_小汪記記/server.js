@@ -3693,7 +3693,106 @@ async function handleEvent(event) {
       }
     }
   }
-  
+
+  // 檢查是否為編輯任務指令
+  // 支援兩種格式：
+  // 1. 編輯"舊內容"改成"新內容" (有引號)
+  // 2. 編輯 舊內容 改成 新內容 (無引號，空格分隔)
+  const editPatternWithQuotes = /^(編輯|重打)"(.+?)"改成"(.+?)"$/;
+  const editPatternWithoutQuotes = /^(編輯|重打)\s+(.+?)\s+改成\s+(.+?)$/;
+
+  let editMatch = userMessage.match(editPatternWithQuotes);
+  if (!editMatch) {
+    editMatch = userMessage.match(editPatternWithoutQuotes);
+  }
+
+  if (editMatch) {
+    const oldText = editMatch[2];
+    const newText = editMatch[3];
+    console.log(`✏️ [編輯任務] 偵測到編輯指令: "${oldText}" -> "${newText}"`);
+
+    // 從記憶體中找到要編輯的任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskToEdit = userTasks.find(task => task.text === oldText);
+
+    if (taskToEdit) {
+      console.log(`✏️ [編輯任務] 找到任務 ID: ${taskToEdit.id}`);
+
+      // 更新記憶體中的任務
+      taskToEdit.text = newText;
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [編輯任務] 記憶體任務已更新: "${oldText}" -> "${newText}"`);
+
+      // 更新數據庫
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const tableName = tablePrefix + 'messages';
+
+          const { data, error } = await supabase
+            .from(tableName)
+            .update({ message_text: newText })
+            .eq('id', taskToEdit.id)
+            .eq('user_id', userId)
+            .select();
+
+          if (error) {
+            console.error('❌ [編輯任務] 數據庫更新失敗:', error);
+          } else if (data && data.length > 0) {
+            console.log(`✅ [編輯任務] 數據庫記錄已更新:`, data[0]);
+          } else {
+            console.log(`⚠️ [編輯任務] 在數據庫中未找到匹配的記錄`);
+          }
+        } catch (dbError) {
+          console.error('❌ [編輯任務] 數據庫操作失敗:', dbError);
+        }
+      }
+
+      // 發送確認訊息和更新的任務堆疊
+      const confirmationMessage = {
+        type: 'text',
+        text: `✅ 已將「${oldText}」改成「${newText}」`
+      };
+
+      // 重新生成任務堆疊 Flex Message
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+
+      if (client) {
+        // 發送兩則訊息：確認訊息 + 更新的任務堆疊
+        return client.replyMessage(event.replyToken, [confirmationMessage, updatedFlexMessage])
+          .then(result => {
+            console.log('✅ [編輯任務] 雙訊息發送成功');
+            return result;
+          })
+          .catch(error => {
+            console.error('❌ [編輯任務] 雙訊息發送失敗:', error);
+            throw error;
+          });
+      } else {
+        console.log('測試模式：任務編輯成功');
+        return Promise.resolve(null);
+      }
+    } else {
+      console.log(`⚠️ [編輯任務] 找不到任務: "${oldText}"`);
+
+      // 發送錯誤訊息
+      const errorMessage = {
+        type: 'text',
+        text: `找不到「${oldText}」這個任務\n\n請確認任務內容是否正確`
+      };
+
+      if (client) {
+        return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
+      } else {
+        console.log('測試模式：編輯任務失敗');
+        return Promise.resolve(null);
+      }
+    }
+  }
+
   // 檢查是否為刪除任務指令
   if (userMessage.startsWith('刪除任務_')) {
     console.log('🗑️ [刪除任務] 偵測到刪除任務指令');
