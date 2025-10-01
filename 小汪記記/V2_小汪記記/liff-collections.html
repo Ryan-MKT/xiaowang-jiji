@@ -723,7 +723,7 @@
         // 初始化 LIFF
         async function initializeLiff() {
             try {
-                await liff.init({ liffId: '2008077335-rZlgE4bX' });
+                await liff.init({ liffId: '2008077335-RL1d4G2g' });
 
                 if (liff.isLoggedIn()) {
                     const profile = await liff.getProfile();
@@ -738,7 +738,11 @@
                     startAutoRefresh();
                 } else {
                     console.log('❌ [LIFF] 用戶未登入，請先登入');
-                    liff.login();
+                    console.log('🔄 [LIFF] 使用 redirectUri 導向回收藏頁面:', window.location.href);
+                    // ⚠️ 需要在 LINE Developers Console 註冊此 URL 為允許的 Redirect URI
+                    liff.login({
+                        redirectUri: window.location.href
+                    });
                 }
             } catch (error) {
                 console.error('❌ [LIFF] 初始化失敗:', error);

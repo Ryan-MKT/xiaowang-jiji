@@ -811,7 +811,7 @@ function generateQuickReply(userTags) {
       action: {
         type: 'uri',
         label: '日曆',
-        uri: 'https://138b00c20997.ngrok.app/liff/records'
+        uri: 'https://liff.line.me/2008077335-RWndA7y1'
       }
     },
     {
@@ -819,7 +819,7 @@ function generateQuickReply(userTags) {
       action: {
         type: 'uri',
         label: '收藏',
-        uri: 'https://138b00c20997.ngrok.app/liff/collections'
+        uri: 'https://liff.line.me/2008077335-RL1d4G2g'
       }
     },
     {
@@ -827,7 +827,7 @@ function generateQuickReply(userTags) {
       action: {
         type: 'uri',
         label: '分析',
-        uri: 'https://138b00c20997.ngrok.app/liff-analytics.html'
+        uri: 'https://liff.line.me/2008077335-p5rJyKLd'
       }
     },
     {
@@ -835,7 +835,7 @@ function generateQuickReply(userTags) {
       action: {
         type: 'uri',
         label: '我的',
-        uri: 'https://138b00c20997.ngrok.app/liff/account'
+        uri: 'https://liff.line.me/2008077335-wV60bmGQ'
       }
     }
   ];
