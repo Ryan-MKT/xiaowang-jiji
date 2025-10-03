@@ -91,14 +91,14 @@ async function updateCollection(collectionId, updateData) {
   }
 }
 
-// 刪除收藏品（軟刪除）
+// 刪除收藏品（硬刪除）
 async function deleteCollection(collectionId, userId) {
   try {
     console.log(`📦 [Collections API] 刪除收藏品 ID: ${collectionId}`);
 
     const { data, error } = await supabase
       .from('dev_collections')
-      .update({ is_active: false })
+      .delete()
       .eq('id', collectionId)
       .eq('user_id', userId)
       .select()

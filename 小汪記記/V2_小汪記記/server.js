@@ -1963,7 +1963,6 @@ async function handlePostback(event) {
           .from('dev_collections')
           .select('*')
           .eq('user_id', userId)
-          .eq('is_active', true)
           .gte('created_at', taiwanStartOfDay.toISOString())
           .lte('created_at', taiwanEndOfDay.toISOString())
           .order('created_at', { ascending: false });
