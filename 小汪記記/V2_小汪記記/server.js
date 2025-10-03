@@ -1051,6 +1051,11 @@ const userFavoriteTasks = new Map();
 // 資料結構: Map<userId, {waitingForTag: boolean, targetTaskId: number, timestamp: number}>
 const userTagSelectionStates = new Map();
 
+// 用戶視圖模式偏好（記憶體版本）
+// 資料結構: Map<userId, 'general' | 'tags'>
+// 預設為 'general'，當用戶點擊切換按鈕時會更新
+const userViewModePreferences = new Map();
+
 // 創建收藏卡片 FLEX MESSAGE 函數
 async function createFavoritesFlexMessage(favorites) {
   if (!favorites || favorites.length === 0) {
@@ -1605,10 +1610,13 @@ async function handlePostback(event) {
     const todayTasks = filterTodayTasks(allUserTasks);
     console.log(`🔽 [標籤收合] 從記憶體載入 ${allUserTasks.length} 個活躍任務，篩選出 ${todayTasks.length} 個今天任務`);
 
+    // 🏷️ 使用用戶儲存的視圖模式偏好
+    const viewMode = userViewModePreferences.get(userId) || 'general';
+
     const flexMessage = require('./task-flex-message').createTaskStackFlexMessage(
       todayTasks,
       null,
-      'tags',
+      viewMode,
       0,
       'all',
       userId
@@ -1710,7 +1718,9 @@ async function handlePostback(event) {
       console.log(`🔍 [DEBUG] 準備發送更新的 Flex Message，今日任務數: ${todayTasks.length}`);
       console.log(`🔍 [DEBUG] 已完成任務 ${taskId} 的 completed 狀態: ${userTasks[taskIndex].completed}`);
 
-      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
       
       if (client) {
         // 先發送恭喜訊息，再發送更新的任務清單
@@ -2001,9 +2011,12 @@ async function handlePostback(event) {
       // 獲取用戶標籤
       const userTags = await getUserTags(userId);
 
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+
       // 生成任務堆疊 Flex Message
       const { createTaskStackFlexMessage } = getTaskFlexModule();
-      const taskStackMessage = createTaskStackFlexMessage(todayTasks, userTags);
+      const taskStackMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
 
       if (client) {
         return replyWithQuickReply(client, event.replyToken, taskStackMessage, userId);
@@ -2435,9 +2448,12 @@ async function handlePostback(event) {
       // 獲取用戶標籤
       const userTags = await getUserTags(userId);
 
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+
       // 生成篩選結果的 Flex Message
       const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
-      const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, 'general', 0, filterStatus);
+      const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode, 0, filterStatus);
 
       // 修改標題為篩選結果
       if (flexMessage && flexMessage.contents && flexMessage.contents.header) {
@@ -2483,9 +2499,9 @@ async function handlePostback(event) {
 
   // 處理展開常用任務多頁檢視 - 7天任務頁面
   if (postbackData.startsWith('expand_frequent_tasks_pages')) {
-    // 解析當前的 tab 模式
-    const tabMode = postbackData.includes('_tags') ? 'tags' : 'general';
-    console.log(`🎨 用戶 ${userId} 點擊展開7天任務頁面 (${tabMode} 模式)`);
+    // 🏷️ 使用用戶儲存的視圖模式偏好，而不是從按鈕解析
+    const tabMode = userViewModePreferences.get(userId) || 'general';
+    console.log(`🎨 用戶 ${userId} 點擊展開7天任務頁面 (使用偏好模式: ${tabMode})`);
 
     try {
       // 📋 重要修正：獲取用戶完整任務資料（包含時間欄位）
@@ -2529,6 +2545,10 @@ async function handlePostback(event) {
   if (postbackData === 'switch_tab_general') {
     console.log(`🔄 用戶 ${userId} 切換到一般視圖`);
 
+    // 💾 儲存用戶的視圖模式偏好
+    userViewModePreferences.set(userId, 'general');
+    console.log(`💾 [視圖偏好] 用戶 ${userId} 的偏好已儲存為: general`);
+
     try {
       // 使用記憶體中的任務堆疊（用戶真正的活躍任務）
       const userTasks = userTaskStacks.get(userId) || [];
@@ -2566,6 +2586,10 @@ async function handlePostback(event) {
 
   if (postbackData === 'switch_tab_tags') {
     console.log(`🏷️ 用戶 ${userId} 切換到標籤視圖`);
+
+    // 💾 儲存用戶的視圖模式偏好
+    userViewModePreferences.set(userId, 'tags');
+    console.log(`💾 [視圖偏好] 用戶 ${userId} 的偏好已儲存為: tags`);
 
     try {
       // 使用記憶體中的任務堆疊（用戶真正的活躍任務）
@@ -2626,9 +2650,11 @@ async function handlePostback(event) {
   if (postbackData.startsWith('filter_status_')) {
     const parts = postbackData.split('_');
     const filterStatus = parts[2]; // 'all', 'completed', 'uncompleted'
-    const activeTab = parts[3]; // 'general' or 'tags'
 
-    console.log(`🔍 用戶 ${userId} 篩選任務：${filterStatus}（${activeTab}視圖）`);
+    // 🏷️ 使用用戶儲存的視圖模式偏好，而不是從按鈕解析
+    const activeTab = userViewModePreferences.get(userId) || 'general';
+
+    console.log(`🔍 用戶 ${userId} 篩選任務：${filterStatus}（使用偏好模式: ${activeTab}）`);
 
     try {
       // 使用記憶體中的任務堆疊
@@ -3977,7 +4003,9 @@ async function handleEvent(event) {
         const userTags = await getUserTags(userId);
         const { createTaskStackFlexMessage } = getTaskFlexModule();
         const todayTasks = filterTodayTasks(cleanedTasks);
-        const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+        // 🏷️ 使用用戶儲存的視圖模式偏好
+        const viewMode = userViewModePreferences.get(userId) || 'general';
+        const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
         
         console.log(`📋 任務同步完成，共 ${cleanedTasks.length} 個任務`);
         console.log('📝 更新後任務清單:', cleanedTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -4003,12 +4031,14 @@ async function handleEvent(event) {
         
         // 解析失敗時回到原本邏輯
         let userTasks = userTaskStacks.get(userId) || [];
-        
+
         if (userTasks.length > 0) {
           const userTags = await getUserTags(userId);
           const { createTaskStackFlexMessage } = getTaskFlexModule();
           const todayTasks = filterTodayTasks(userTasks);
-          const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+          // 🏷️ 使用用戶儲存的視圖模式偏好
+          const viewMode = userViewModePreferences.get(userId) || 'general';
+          const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
           
           if (client) {
             return replyWithQuickReply(client, event.replyToken, taskStackFlexMessage, userId);
@@ -4034,13 +4064,15 @@ async function handleEvent(event) {
     } else {
       // 沒有 SYNC_TASKS 資料時，使用原本邏輯
       let userTasks = userTaskStacks.get(userId) || [];
-      
+
       if (userTasks.length > 0) {
         // 重新生成任務堆疊 Flex Message（只顯示今天的任務）
         const userTags = await getUserTags(userId);
         const { createTaskStackFlexMessage } = getTaskFlexModule();
         const todayTasks = filterTodayTasks(userTasks);
-        const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+        // 🏷️ 使用用戶儲存的視圖模式偏好
+        const viewMode = userViewModePreferences.get(userId) || 'general';
+        const taskStackFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
         
         console.log(`📋 重新生成任務堆疊，共 ${userTasks.length} 個任務`);
         console.log('📝 任務清單:', userTasks.map((task, index) => `${index + 1}. ${task.text}`));
@@ -4109,8 +4141,10 @@ async function handleEvent(event) {
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
-      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
-      
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+
       if (client) {
         return replyWithQuickReply(client, event.replyToken, updatedFlexMessage, userId);
       } else {
@@ -4199,7 +4233,9 @@ async function handleEvent(event) {
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
-      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊
@@ -4295,7 +4331,9 @@ async function handleEvent(event) {
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
-      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊
@@ -4398,7 +4436,9 @@ async function handleEvent(event) {
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
-      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊
@@ -4487,7 +4527,9 @@ async function handleEvent(event) {
       const userTags = await getUserTags(userId);
       const { createTaskStackFlexMessage } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
-      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags);
+      // 🏷️ 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊
@@ -4890,9 +4932,9 @@ async function handleEvent(event) {
     const { createTaskStackFlexMessage } = getTaskFlexModule();
     const todayTasks = filterTodayTasks(userTasks);
 
-    // 🏷️ 檢測是否包含打標籤功能，如果有則自動切換到標籤版視圖
-    const hasTagFunction = userMessage.includes('打標籤');
-    const viewMode = hasTagFunction ? 'tags' : 'general';
+    // 🏷️ 使用用戶儲存的視圖模式偏好，預設為 'general'
+    const viewMode = userViewModePreferences.get(userId) || 'general';
+    console.log(`👁️ [視圖模式] 用戶 ${userId} 使用偏好模式: ${viewMode}`);
 
     // 📅 檢測任務是否為非今天的任務
     let isNonTodayTask = false;
@@ -4920,13 +4962,10 @@ async function handleEvent(event) {
 
     if (isNonTodayTask) {
       // 🌟 非今天任務 - 自動跳出近7天列表
-      console.log(`🌟 [非今天任務] 偵測到非今天任務，自動跳出近7天${viewMode}列表`);
+      console.log(`🌟 [非今天任務] 偵測到非今天任務，自動跳出近7天列表（使用 ${viewMode} 模式）`);
       flexMessage = await generateSevenDaysFlexMessage(userId, userTasks, userTags, viewMode);
     } else {
-      // 📋 今天任務 - 使用一般單日FLEX MESSAGE
-      if (hasTagFunction) {
-        console.log(`🏷️ [自動切換] 偵測到「打標籤」功能，自動切換到標籤版 FLEX MESSAGE`);
-      }
+      // 📋 今天任務 - 使用單日FLEX MESSAGE（保持用戶選擇的視圖模式）
       flexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
     }
     
