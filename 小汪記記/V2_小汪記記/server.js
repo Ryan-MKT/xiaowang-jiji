@@ -1112,7 +1112,7 @@ function createSingleFavoriteBubble(favorite) {
     altText: `今天收藏：${title}`,
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       header: {
         type: 'box',
         layout: 'vertical',
@@ -1277,7 +1277,7 @@ function createFavoritesCarousel(favorites) {
 
     return {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       body: {
         type: 'box',
         layout: 'vertical',
@@ -1870,7 +1870,7 @@ async function handlePostback(event) {
           altText: '今天還沒有收藏任何卡片',
           contents: {
             type: 'bubble',
-            size: 'kilo',
+            size: 'giga',
             body: {
               type: 'box',
               layout: 'vertical',
@@ -2079,7 +2079,7 @@ async function handlePostback(event) {
           altText: '今天還沒有收藏',
           contents: {
             type: 'bubble',
-            size: 'kilo',
+            size: 'giga',
             body: {
               type: 'box',
               layout: 'vertical',
@@ -2725,7 +2725,7 @@ async function handlePostback(event) {
           altText: `${tagName}標籤沒有任務`,
           contents: {
             type: 'bubble',
-            size: 'kilo',
+            size: 'giga',
             body: {
               type: 'box',
               layout: 'vertical',
