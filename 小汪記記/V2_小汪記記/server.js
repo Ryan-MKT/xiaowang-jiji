@@ -1197,9 +1197,6 @@ function createSingleFavoriteBubble(favorite) {
                 }
               },
               {
-                type: 'filler'
-              },
-              {
                 type: 'box',
                 layout: 'vertical',
                 contents: [
@@ -1224,7 +1221,8 @@ function createSingleFavoriteBubble(favorite) {
                 }
               }
             ],
-            spacing: 'sm'
+            spacing: 'sm',
+            justifyContent: 'flex-end'
           }
         ],
         paddingAll: 'sm'
@@ -1302,17 +1300,10 @@ function createFavoritesCarousel(favorites) {
             size: 'md',
             color: '#333333',
             margin: 'md'
-          },
-          {
-            type: 'text',
-            text: title,
-            wrap: true,
-            size: 'xs',
-            color: '#888888',
-            margin: 'sm'
           }
         ],
-        paddingAll: 'md'
+        paddingAll: 'md',
+        paddingBottom: 'xl'
       },
       footer: {
         type: 'box',
@@ -1322,6 +1313,14 @@ function createFavoritesCarousel(favorites) {
             type: 'box',
             layout: 'horizontal',
             contents: [
+              {
+                type: 'text',
+                text: title,
+                wrap: true,
+                size: 'xs',
+                color: '#888888',
+                flex: 1
+              },
               {
                 type: 'box',
                 layout: 'vertical',
@@ -1348,9 +1347,6 @@ function createFavoritesCarousel(favorites) {
                   }),
                   displayText: '刪除收藏'
                 }
-              },
-              {
-                type: 'filler'
               },
               {
                 type: 'box',
@@ -3663,8 +3659,33 @@ async function handleEvent(event) {
           // 創建收藏卡片列表的 FLEX MESSAGE
           const collectionsFlexMessage = await createFavoritesFlexMessage(todayFavorites || []);
 
-          // 直接回傳收藏卡列表（只發送一則訊息）
-          return replyWithQuickReply(client, event.replyToken, collectionsFlexMessage, userId);
+          // 創建「最愛檔案夾」Flex Message
+          const favoriteFolderMessage = {
+            type: 'flex',
+            altText: '最愛檔案夾',
+            contents: {
+              type: 'bubble',
+              size: 'nano',
+              body: {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '最愛檔案夾',
+                    size: 'lg',
+                    weight: 'bold',
+                    color: '#1DB446',
+                    align: 'center'
+                  }
+                ],
+                paddingAll: 'xl'
+              }
+            }
+          };
+
+          // 回傳兩則訊息：收藏卡列表 + 最愛檔案夾
+          return client.replyMessage(event.replyToken, [collectionsFlexMessage, favoriteFolderMessage]);
         } else {
           throw new Error('收藏卡創建失敗');
         }
