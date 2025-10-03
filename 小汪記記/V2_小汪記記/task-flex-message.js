@@ -1,5 +1,11 @@
 // 任務 Flex Message 建構器 - 統計卡片功能版本 2025-09-11-23:50-STATS-CARD-LATEST
 
+// LINE Flex Message 圖片資源
+const SUPABASE_STORAGE_URL = process.env.SUPABASE_URL || 'https://dvarirqrahqvlijkxqdc.supabase.co';
+const FLEX_IMAGE_URLS = {
+  DELETE_ICON: 'https://dvarirqrahqvlijkxqdc.supabase.co/storage/v1/object/public/line-flex-images/trash.png',
+};
+
 // 標籤收合狀態追蹤 (按用戶ID存儲)
 const userTagCollapseState = new Map(); // userId -> Map<tagName, isCollapsed>
 
@@ -239,7 +245,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           {
             type: 'text',
             text: task.text,
-            size: 'md',
+            size: 'lg',
             color: isCompleted ? '#999999' : '#333333',
             flex: 1,
             wrap: true,
@@ -286,12 +292,29 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
               flex: 1
             },
             {
+              type: 'image',
+              url: FLEX_IMAGE_URLS.DELETE_ICON,
+              size: 'xxs',
+              flex: 0,
+              gravity: 'top',
+              action: {
+                type: 'postback',
+                data: `action=delete_task&taskId=${task.id}`,
+                displayText: `刪除任務：${task.text}`
+              }
+            },
+            {
               type: 'text',
               text: isCompleted ? '🅥' : '○',
-              size: 'lg',
+              size: 'xl',
               color: '#000000',
               flex: 0,
-              align: 'center'
+              align: 'center',
+              action: {
+                type: 'message',
+                label: '完成任務',
+                text: `完成任務_${task.id}`
+              }
             }
           ]
         });
@@ -351,7 +374,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           {
             type: 'text',
             text: task.text,
-            size: 'md',
+            size: 'lg',
             color: isCompleted ? '#999999' : '#333333',
             flex: 1,
             wrap: true,
@@ -398,12 +421,29 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
               flex: 1
             },
             {
+              type: 'image',
+              url: FLEX_IMAGE_URLS.DELETE_ICON,
+              size: 'xxs',
+              flex: 0,
+              gravity: 'top',
+              action: {
+                type: 'postback',
+                data: `action=delete_task&taskId=${task.id}`,
+                displayText: `刪除任務：${task.text}`
+              }
+            },
+            {
               type: 'text',
               text: isCompleted ? '🅥' : '○',
-              size: 'lg',
+              size: 'xl',
               color: '#000000',
               flex: 0,
-              align: 'center'
+              align: 'center',
+              action: {
+                type: 'message',
+                label: '完成任務',
+                text: `完成任務_${task.id}`
+              }
             }
           ]
         });
@@ -446,7 +486,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       {
         type: 'text',
         text: task.text,
-        size: 'md',
+        size: 'lg',
         color: isCompleted ? '#999999' : '#333333',
         flex: 1,
         wrap: true,
@@ -522,9 +562,20 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           contents: taskBoxContents
         },
         {
+          type: 'image',
+          url: FLEX_IMAGE_URLS.DELETE_ICON,
+          size: 'xxs',
+          flex: 0,
+          action: {
+            type: 'postback',
+            data: `action=delete_task&taskId=${task.id}`,
+            displayText: `刪除任務：${task.text}`
+          }
+        },
+        {
           type: 'text',
           text: isCompleted ? '🅥' : '○',
-          size: 'lg',
+          size: 'xl',
           color: '#000000',
           flex: 0,
           align: 'center',
@@ -1158,9 +1209,20 @@ function createTagBubble(tagName, tasks, userTags = null) {
           contents: taskBoxContents
         },
         {
+          type: 'image',
+          url: FLEX_IMAGE_URLS.DELETE_ICON,
+          size: 'xxs',
+          flex: 0,
+          action: {
+            type: 'postback',
+            data: `action=delete_task&taskId=${task.id}`,
+            displayText: `刪除任務：${task.text}`
+          }
+        },
+        {
           type: 'text',
           text: isCompleted ? '🅥' : '○',
-          size: 'lg',
+          size: 'xl',
           color: '#000000',
           flex: 0,
           align: 'center',
@@ -1255,7 +1317,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         {
           type: 'text',
           text: task.text,
-          size: 'md',
+          size: 'lg',
           color: isCompleted ? '#999999' : '#333333',
           flex: 1,
           wrap: true,
@@ -1297,9 +1359,19 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
             contents: taskBoxContents
           },
           {
+            type: 'icon',
+            url: FLEX_IMAGE_URLS.DELETE_ICON,
+            size: 'sm',
+            action: {
+              type: 'postback',
+              data: `action=delete_task&taskId=${task.id}`,
+              displayText: `刪除任務：${task.text}`
+            }
+          },
+          {
             type: 'text',
             text: isCompleted ? '🅥' : '○',
-            size: 'lg',
+            size: 'xl',
             color: '#000000',
             flex: 0,
             align: 'center',
@@ -1523,7 +1595,7 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
           {
             type: 'text',
             text: task.text,
-            size: 'md',
+            size: 'lg',
             color: '#333333',
             flex: 1,
             wrap: true
@@ -1581,7 +1653,7 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
           {
             type: 'text',
             text: task.text,
-            size: 'md',
+            size: 'lg',
             color: '#333333',
             flex: 1,
             wrap: true

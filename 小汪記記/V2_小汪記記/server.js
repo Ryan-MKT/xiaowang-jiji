@@ -1,6 +1,12 @@
 // 載入環境變數（必須在最頂端）
 require('dotenv').config();
 
+// LINE Flex Message 圖片資源
+const SUPABASE_STORAGE_URL = process.env.SUPABASE_URL || 'https://dvarirqrahqvlijkxqdc.supabase.co';
+const FLEX_IMAGE_URLS = {
+  DELETE_ICON: 'https://dvarirqrahqvlijkxqdc.supabase.co/storage/v1/object/public/line-flex-images/trash.png',
+};
+
 const express = require('express');
 const line = require('@line/bot-sdk');
 const session = require('express-session');
@@ -1520,6 +1526,78 @@ async function handlePostback(event) {
 
   const userId = event.source.userId;
   const postbackData = event.postback?.data || event.postbackData;
+
+  // 檢查是否為刪除任務事件
+  if (postbackData.includes('action=delete_task')) {
+    const params = new URLSearchParams(postbackData);
+    const taskId = params.get('taskId');
+    console.log(`🗑️ [刪除任務] 用戶 ${userId} 刪除任務 ID: ${taskId}`);
+
+    // 從記憶體中找到要刪除的任務
+    const userTasks = userTaskStacks.get(userId) || [];
+    const taskToDelete = userTasks.find(task => task.id == taskId);
+
+    if (taskToDelete) {
+      // 從記憶體中移除任務
+      const taskIndex = userTasks.findIndex(task => task.id == taskId);
+      userTasks.splice(taskIndex, 1);
+      userTaskStacks.set(userId, userTasks);
+      console.log(`✅ [刪除任務] 記憶體任務已移除: ${taskToDelete.text}`);
+
+      // 從數據庫中刪除任務記錄
+      if (supabase) {
+        try {
+          const tablePrefix = process.env.TABLE_PREFIX || '';
+          const tableName = tablePrefix + 'messages';
+
+          const { data, error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', taskId)
+            .eq('user_id', userId)
+            .select();
+
+          if (error) {
+            console.error('❌ [刪除任務] 數據庫刪除失敗:', error);
+          } else if (data && data.length > 0) {
+            console.log(`✅ [刪除任務] 數據庫記錄已刪除:`, data[0]);
+          } else {
+            console.log(`⚠️ [刪除任務] 在數據庫中未找到匹配的記錄`);
+          }
+        } catch (dbError) {
+          console.error('❌ [刪除任務] 數據庫操作失敗:', dbError);
+        }
+      }
+
+      // 重新生成任務堆疊 Flex Message
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+
+      // 使用用戶儲存的視圖模式偏好
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+      const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode, 0, 'all', userId);
+
+      // 直接回傳更新的任務堆疊（不顯示確認訊息）
+      if (client) {
+        return client.replyMessage(event.replyToken, updatedFlexMessage)
+          .then(result => {
+            console.log('✅ [刪除任務] 更新任務列表成功');
+            return result;
+          })
+          .catch(error => {
+            console.error('❌ [刪除任務] 更新任務列表失敗:', error);
+            throw error;
+          });
+      } else {
+        console.log('測試模式：任務刪除成功');
+        return Promise.resolve(null);
+      }
+    } else {
+      console.log(`⚠️ [刪除任務] 找不到任務 ID: ${taskId}`);
+      return Promise.resolve(null);
+    }
+  }
 
   // 檢查是否為移動任務到今天的事件
   if (postbackData.includes('action=move_tasks_to_today')) {
@@ -5019,40 +5097,32 @@ async function handleEvent(event) {
     }
     
     if (client) {
-      // 創建「已記錄」確認訊息
-      const { createRecordedConfirmationFlexMessage } = getTaskFlexModule();
-      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage, taskId);
-
-      // 為第二則訊息添加 Quick Reply
+      // 為任務堆疊訊息添加 Quick Reply
       const { generateQuickReply } = getTaskFlexModule();
       const quickReply = generateQuickReply(userTags);
       if (quickReply && quickReply.items && quickReply.items.length > 0) {
         flexMessage.quickReply = quickReply;
-        console.log('🎯 [第二則訊息] 附加 Quick Reply 按鈕');
+        console.log('🎯 [任務堆疊訊息] 附加 Quick Reply 按鈕');
       }
 
-      console.log('🚀 [雙訊息發送] 一次發送兩則訊息到 LINE...');
-      console.log('📝 [第一則] 已記錄確認訊息');
-      console.log('📋 [第二則] 任務堆疊 FLEX MESSAGE');
+      console.log('🚀 [訊息發送] 發送任務堆疊訊息到 LINE...');
+      console.log('📋 [訊息] 任務堆疊 FLEX MESSAGE');
 
-      // 一次發送兩則訊息
-      return client.replyMessage(event.replyToken, [recordedMessage, flexMessage])
+      // 只發送任務堆疊訊息
+      return client.replyMessage(event.replyToken, flexMessage)
         .then(result => {
-          console.log('✅ [雙訊息發送成功]', {
+          console.log('✅ [訊息發送成功]', {
             requestId: result['x-line-request-id'],
             sentMessages: result.sentMessages?.length || 0
           }, userId);
           return result;
         })
         .catch(error => {
-          console.error('❌ [雙訊息發送失敗]:', error);
+          console.error('❌ [訊息發送失敗]:', error);
           console.error('❌ [FLEX ERROR] 錯誤詳情:', error.message);
           throw error;
         });
     } else {
-      const { createRecordedConfirmationFlexMessage } = getTaskFlexModule();
-      const recordedMessage = createRecordedConfirmationFlexMessage(userMessage, taskId);
-      console.log('測試模式：已記錄確認訊息', JSON.stringify(recordedMessage, null, 2));
       console.log('測試模式：任務堆疊 Flex Message', JSON.stringify(flexMessage, null, 2));
       return Promise.resolve(null);
     }
