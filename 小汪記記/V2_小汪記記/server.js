@@ -1164,15 +1164,65 @@ function createSingleFavoriteBubble(favorite) {
         layout: 'vertical',
         contents: [
           {
-            type: 'button',
-            action: {
-              type: 'postback',
-              label: '回到任務',
-              data: 'return_to_tasks',
-              displayText: '顯示任務列表'
-            },
-            style: 'primary',
-            color: '#1DB446'
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '刪除',
+                    color: '#FFFFFF',
+                    size: 'sm',
+                    weight: 'bold',
+                    align: 'center'
+                  }
+                ],
+                backgroundColor: '#666666',
+                cornerRadius: 'md',
+                paddingAll: 'sm',
+                flex: 0,
+                width: '60px',
+                action: {
+                  type: 'postback',
+                  data: JSON.stringify({
+                    action: 'delete_collection',
+                    collectionId: favorite.id
+                  }),
+                  displayText: '刪除收藏'
+                }
+              },
+              {
+                type: 'filler'
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '翻卡 →',
+                    color: '#FFFFFF',
+                    size: 'sm',
+                    weight: 'bold',
+                    align: 'center'
+                  }
+                ],
+                backgroundColor: '#000000',
+                cornerRadius: 'md',
+                paddingAll: 'sm',
+                flex: 0,
+                width: '80px',
+                action: {
+                  type: 'postback',
+                  data: 'return_to_tasks',
+                  displayText: '顯示任務列表'
+                }
+              }
+            ],
+            spacing: 'sm'
           }
         ],
         paddingAll: 'sm'
@@ -1265,15 +1315,65 @@ function createFavoritesCarousel(favorites) {
         layout: 'vertical',
         contents: [
           {
-            type: 'button',
-            action: {
-              type: 'postback',
-              label: '回到任務',
-              data: 'return_to_tasks',
-              displayText: '顯示任務列表'
-            },
-            style: 'primary',
-            color: '#1DB446'
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '刪除',
+                    color: '#FFFFFF',
+                    size: 'sm',
+                    weight: 'bold',
+                    align: 'center'
+                  }
+                ],
+                backgroundColor: '#666666',
+                cornerRadius: 'md',
+                paddingAll: 'sm',
+                flex: 0,
+                width: '60px',
+                action: {
+                  type: 'postback',
+                  data: JSON.stringify({
+                    action: 'delete_collection',
+                    collectionId: favorite.id
+                  }),
+                  displayText: '刪除收藏'
+                }
+              },
+              {
+                type: 'filler'
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                contents: [
+                  {
+                    type: 'text',
+                    text: '翻卡 →',
+                    color: '#FFFFFF',
+                    size: 'sm',
+                    weight: 'bold',
+                    align: 'center'
+                  }
+                ],
+                backgroundColor: '#000000',
+                cornerRadius: 'md',
+                paddingAll: 'sm',
+                flex: 0,
+                width: '80px',
+                action: {
+                  type: 'postback',
+                  data: 'return_to_tasks',
+                  displayText: '顯示任務列表'
+                }
+              }
+            ],
+            spacing: 'sm'
           }
         ],
         paddingAll: 'sm'
@@ -1829,6 +1929,65 @@ async function handlePostback(event) {
         return Promise.resolve(null);
       }
     }
+  }
+
+  // 檢查是否為「刪除收藏」按鈕
+  try {
+    const parsedData = JSON.parse(postbackData);
+    if (parsedData.action === 'delete_collection') {
+      console.log(`🗑️ [刪除收藏] 用戶 ${userId} 刪除收藏 ID: ${parsedData.collectionId}`);
+
+      try {
+        // 呼叫刪除 API
+        const { deleteCollection } = require('./collections-api');
+        await deleteCollection(parsedData.collectionId, userId);
+
+        // 刪除成功後，重新獲取今天的收藏列表
+        const now = new Date();
+        const taiwanOffset = 8 * 60 * 60 * 1000;
+        const taiwanNow = new Date(now.getTime() + taiwanOffset);
+        const taiwanStartOfDay = new Date(Date.UTC(
+          taiwanNow.getUTCFullYear(),
+          taiwanNow.getUTCMonth(),
+          taiwanNow.getUTCDate(),
+          0, 0, 0, 0
+        ) - taiwanOffset);
+        const taiwanEndOfDay = new Date(Date.UTC(
+          taiwanNow.getUTCFullYear(),
+          taiwanNow.getUTCMonth(),
+          taiwanNow.getUTCDate(),
+          23, 59, 59, 999
+        ) - taiwanOffset);
+
+        const { data: todayFavorites, error } = await supabase
+          .from('dev_collections')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .gte('created_at', taiwanStartOfDay.toISOString())
+          .lte('created_at', taiwanEndOfDay.toISOString())
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('❌ [刪除收藏] 重新獲取收藏列表失敗:', error);
+        }
+
+        console.log(`✅ [刪除收藏] 成功刪除，剩餘 ${todayFavorites?.length || 0} 個收藏`);
+
+        // 回傳更新後的收藏卡列表
+        const collectionsFlexMessage = await createFavoritesFlexMessage(todayFavorites || []);
+        return replyWithQuickReply(client, event.replyToken, collectionsFlexMessage, userId);
+
+      } catch (error) {
+        console.error('❌ [刪除收藏] 刪除失敗:', error);
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '❌ 刪除失敗，請稍後再試'
+        });
+      }
+    }
+  } catch (e) {
+    // postbackData 不是 JSON，繼續處理其他情況
   }
 
   // 檢查是否為「回到任務」按鈕
@@ -3460,46 +3619,49 @@ async function handleEvent(event) {
         if (result && result.id) {
           console.log(`✅ [自動收藏] 連結已成功儲存到收藏卡: ${cleanedMessage}`);
 
-          // 準備第一則訊息（連結已記錄）
-          const firstMessage = createBookmarkSuccessFlexMessage(cleanedMessage);
+          // 獲取今天的所有收藏 (台灣時區 UTC+8)
+          const now = new Date();
+          const taiwanOffset = 8 * 60 * 60 * 1000; // 8小時
 
-          // 準備第二則訊息（今天的收藏卡列表）
-          // 獲取今天的所有收藏
-          const today = new Date();
-          const taiwanOffset = 8 * 60 * 60 * 1000;
-          const taiwanDate = new Date(today.getTime() + taiwanOffset);
-          const taiwanStartOfDay = new Date(taiwanDate.getFullYear(), taiwanDate.getMonth(), taiwanDate.getDate()).toISOString();
-          const taiwanEndOfDay = new Date(taiwanDate.getFullYear(), taiwanDate.getMonth(), taiwanDate.getDate() + 1).toISOString();
+          // 計算台灣當天的開始時間 (00:00:00)
+          const taiwanNow = new Date(now.getTime() + taiwanOffset);
+          const taiwanStartOfDay = new Date(Date.UTC(
+            taiwanNow.getUTCFullYear(),
+            taiwanNow.getUTCMonth(),
+            taiwanNow.getUTCDate(),
+            0, 0, 0, 0
+          ) - taiwanOffset);
+
+          // 計算台灣當天的結束時間 (23:59:59.999)
+          const taiwanEndOfDay = new Date(Date.UTC(
+            taiwanNow.getUTCFullYear(),
+            taiwanNow.getUTCMonth(),
+            taiwanNow.getUTCDate(),
+            23, 59, 59, 999
+          ) - taiwanOffset);
+
+          console.log(`🕐 [時間範圍] 台灣時間 ${taiwanNow.toISOString().slice(0, 19).replace('T', ' ')}`);
+          console.log(`🕐 [時間範圍] 查詢範圍: ${taiwanStartOfDay.toISOString()} ~ ${taiwanEndOfDay.toISOString()}`);
 
           const { data: todayFavorites, error } = await supabase
             .from('dev_collections')
             .select('*')
             .eq('user_id', userId)
-            .gte('created_at', taiwanStartOfDay)
-            .lt('created_at', taiwanEndOfDay)
+            .gte('created_at', taiwanStartOfDay.toISOString())
+            .lte('created_at', taiwanEndOfDay.toISOString())
             .order('created_at', { ascending: false });
+
+          if (error) {
+            console.error('❌ [自動收藏] 查詢失敗:', error);
+          }
 
           console.log(`📋 [自動收藏] 獲取今天的收藏列表，共 ${todayFavorites?.length || 0} 個項目`);
 
           // 創建收藏卡片列表的 FLEX MESSAGE
-          const secondMessage = await createFavoritesFlexMessage(todayFavorites || []);
+          const collectionsFlexMessage = await createFavoritesFlexMessage(todayFavorites || []);
 
-          console.log('🔍 [DEBUG] 第二則訊息類型:', secondMessage.type);
-          console.log('🔍 [DEBUG] 第二則訊息結構:', JSON.stringify(secondMessage).substring(0, 500));
-
-          // 添加 Quick Reply 到第二則訊息
-          const userTags = await getUserTags(userId);
-          const { generateQuickReply } = getTaskFlexModule();
-          const quickReply = generateQuickReply(userTags);
-
-          if (quickReply && quickReply.items && quickReply.items.length > 0) {
-            secondMessage.quickReply = quickReply;
-            console.log('🎯 [Quick Reply] 已添加 Quick Reply 到第二則訊息');
-          }
-
-          // 發送兩則訊息
-          console.log('🔍 [DEBUG] 準備發送兩則訊息');
-          return client.replyMessage(event.replyToken, [firstMessage, secondMessage]);
+          // 直接回傳收藏卡列表（只發送一則訊息）
+          return replyWithQuickReply(client, event.replyToken, collectionsFlexMessage, userId);
         } else {
           throw new Error('收藏卡創建失敗');
         }
