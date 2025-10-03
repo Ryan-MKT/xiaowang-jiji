@@ -240,8 +240,8 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       group.tasks.forEach((task, taskIndex) => {
         const isCompleted = task.completed || false;
 
-        // 建立任務文字和時間的水平佈局容器
-        const taskAndTimeBox = [
+        // 建立任務文字的垂直佈局容器（包含任務名稱和時間）
+        const taskBoxContents = [
           {
             type: 'text',
             text: task.text,
@@ -257,7 +257,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           }
         ];
 
-        // 如果有預定時間，在任務同行右邊顯示
+        // 如果有預定時間，在任務名稱下方顯示
         if (task.scheduled_date || task.scheduledDate) {
           const timeField = task.scheduled_date || task.scheduledDate;
           console.log(`⏰ [FLEX 標籤時間] 任務 ${task.id} 顯示預定時間: ${timeField}`);
@@ -269,13 +269,12 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
             minute: '2-digit',
             hour12: false
           });
-          taskAndTimeBox.push({
+          taskBoxContents.push({
             type: 'text',
             text: formattedTime,
             size: 'xs',
-            color: isCompleted ? '#CCCCCC' : '#666666',
-            flex: 0,
-            align: 'end'
+            color: '#0084ff',
+            margin: 'xs'
           });
         }
 
@@ -286,9 +285,9 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           contents: [
             {
               type: 'box',
-              layout: 'horizontal',
-              spacing: 'sm',
-              contents: taskAndTimeBox,
+              layout: 'vertical',
+              spacing: 'none',
+              contents: taskBoxContents,
               flex: 1
             },
             {
@@ -369,8 +368,8 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       untaggedTasks.forEach((task, taskIndex) => {
         const isCompleted = task.completed || false;
 
-        // 建立任務文字和時間的水平佈局容器
-        const untaggedTaskAndTimeBox = [
+        // 建立任務文字的垂直佈局容器（包含任務名稱和時間）
+        const taskBoxContents = [
           {
             type: 'text',
             text: task.text,
@@ -386,7 +385,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           }
         ];
 
-        // 如果有預定時間，在任務同行右邊顯示
+        // 如果有預定時間，在任務名稱下方顯示
         if (task.scheduled_date || task.scheduledDate) {
           const timeField = task.scheduled_date || task.scheduledDate;
           console.log(`⏰ [FLEX 無標籤時間] 任務 ${task.id} 顯示預定時間: ${timeField}`);
@@ -398,13 +397,12 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
             minute: '2-digit',
             hour12: false
           });
-          untaggedTaskAndTimeBox.push({
+          taskBoxContents.push({
             type: 'text',
             text: formattedTime,
             size: 'xs',
-            color: isCompleted ? '#CCCCCC' : '#666666',
-            flex: 0,
-            align: 'end'
+            color: '#0084ff',
+            margin: 'xs'
           });
         }
 
@@ -415,9 +413,9 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           contents: [
             {
               type: 'box',
-              layout: 'horizontal',
-              spacing: 'sm',
-              contents: untaggedTaskAndTimeBox,
+              layout: 'vertical',
+              spacing: 'none',
+              contents: taskBoxContents,
               flex: 1
             },
             {
@@ -481,8 +479,8 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
     });
 
     // 添加任務項目 - 支援備註顯示
-    // 建立任務文字和時間的水平佈局容器
-    const taskAndTimeBox = [
+    // 建立任務主要內容區塊（包含任務文字和時間的垂直佈局）
+    const taskBoxContents = [
       {
         type: 'text',
         text: task.text,
@@ -499,7 +497,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       }
     ];
 
-    // 如果有預定時間，在任務同行右邊顯示
+    // 如果有預定時間，在任務名稱下方顯示
     if (task.scheduled_date || task.scheduledDate) {
       const timeField = task.scheduled_date || task.scheduledDate;
       console.log(`⏰ [FLEX 時間] 任務 ${task.id} 顯示預定時間: ${timeField}`);
@@ -511,27 +509,14 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
         minute: '2-digit',
         hour12: false
       });
-      taskAndTimeBox.push({
+      taskBoxContents.push({
         type: 'text',
         text: formattedTime,
         size: 'xs',
         color: '#0084ff',
-        flex: 0,
-        wrap: false,
-        align: 'end',
-        margin: 'sm'
+        margin: 'xs'
       });
     }
-
-    // 建立任務主要內容區塊（包含任務文字/時間的水平佈局）
-    const taskBoxContents = [
-      {
-        type: 'box',
-        layout: 'horizontal',
-        spacing: 'sm',
-          contents: taskAndTimeBox
-      }
-    ];
 
     // 如果有備註，在任務下方顯示
     if (task.note && task.note.trim()) {
