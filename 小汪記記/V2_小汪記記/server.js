@@ -1079,6 +1079,9 @@ function createSingleFavoriteBubble(favorite) {
   const displayTitle = favorite.preview_title || favorite.social_account_name || favorite.title || '無標題';
   const title = displayTitle.length > 40 ? displayTitle.substring(0, 40) + '...' : displayTitle;
 
+  // 取得 description 用於顯示
+  const displayDescription = favorite.preview_description || favorite.description || '無描述';
+
   // 🚀 與收藏頁面完全一致的圖片優先級邏輯
   let displayImage = null;
 
@@ -1140,18 +1143,17 @@ function createSingleFavoriteBubble(favorite) {
           },
           {
             type: 'text',
-            text: title,
+            text: displayDescription,
             wrap: true,
-            size: 'sm',
+            maxLines: 2,
+            size: 'md',
             color: '#333333',
             margin: 'md'
           },
           {
             type: 'text',
-            text: new Date(favorite.created_at).toLocaleTimeString('zh-TW', {
-              hour: '2-digit',
-              minute: '2-digit'
-            }),
+            text: title,
+            wrap: true,
             size: 'xs',
             color: '#888888',
             margin: 'sm'
@@ -1247,6 +1249,9 @@ function createFavoritesCarousel(favorites) {
       ? displayTitle.substring(0, 30) + '...'
       : displayTitle;
 
+    // 取得 description 用於顯示
+    const displayDescription = favorite.preview_description || favorite.description || '無描述';
+
     // 🚀 與收藏頁面完全一致的圖片優先級邏輯
     let displayImage = null;
 
@@ -1291,18 +1296,17 @@ function createFavoritesCarousel(favorites) {
           },
           {
             type: 'text',
-            text: title,
+            text: displayDescription,
             wrap: true,
-            size: 'sm',
+            maxLines: 2,
+            size: 'md',
             color: '#333333',
             margin: 'md'
           },
           {
             type: 'text',
-            text: new Date(favorite.created_at).toLocaleTimeString('zh-TW', {
-              hour: '2-digit',
-              minute: '2-digit'
-            }),
+            text: title,
+            wrap: true,
             size: 'xs',
             color: '#888888',
             margin: 'sm'
