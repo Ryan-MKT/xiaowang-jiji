@@ -1098,18 +1098,10 @@ function createSingleFavoriteBubble(favorite) {
     console.log(`🖼️ [收藏卡片-單張] 使用 content.image:`, displayImage.substring(0, 100) + '...');
   }
 
-  // 🚀 針對 scontent.fbcdn.net 和 Supabase Storage 直接使用，其他使用代理
+  // 🚀 LINE Flex Message 直接使用原始圖片URL（不使用代理）
   if (displayImage) {
-    if ((displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) ||
-        displayImage.includes('supabase.co/storage')) {
-      // scontent 和 Supabase Storage 直接圖片不需要代理
-      console.log(`🖼️ [收藏卡片-單張] 直接使用圖片 URL:`, displayImage);
-    } else {
-      // lookaside 等其他圖片使用代理
-      displayImage = `${process.env.BASE_URL}/api/image-proxy?url=${encodeURIComponent(displayImage)}`;
-      console.log(`🖼️ [收藏卡片-單張] 使用圖片代理 URL:`, displayImage);
-    }
-    console.log(`🔍 [收藏卡片-單張] 原始圖片 URL:`, favorite.preview_image || favorite.content?.preview_image || favorite.content?.image);
+    // 所有圖片都直接使用原始URL，包括 lookaside、scontent、instagram 等
+    console.log(`🖼️ [收藏卡片-單張] 直接使用原始圖片 URL:`, displayImage);
   } else {
     displayImage = 'https://picsum.photos/400/300';
     console.log(`🖼️ [收藏卡片-單張] 無圖片，使用預設圖片`);
@@ -1224,21 +1216,13 @@ function createFavoritesCarousel(favorites) {
       console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 使用 content.image:`, displayImage.substring(0, 100) + '...');
     }
 
-    // 🚀 針對 scontent.fbcdn.net 和 Supabase Storage 直接使用，其他使用代理
+    // 🚀 LINE Flex Message 直接使用原始圖片URL（不使用代理）
     if (displayImage) {
-      if ((displayImage.includes('scontent') && displayImage.includes('fbcdn.net')) ||
-          displayImage.includes('supabase.co/storage')) {
-        // scontent 和 Supabase Storage 直接圖片不需要代理
-        console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 直接使用圖片 URL:`, displayImage);
-      } else {
-        // lookaside 等其他圖片使用代理
-        displayImage = `${process.env.BASE_URL}/api/image-proxy?url=${encodeURIComponent(displayImage)}`;
-        console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 使用圖片代理 URL:`, displayImage);
-      }
+      // 所有圖片都直接使用原始URL，包括 lookaside、scontent、instagram 等
+      console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 直接使用原始圖片 URL:`, displayImage);
     } else {
       displayImage = 'https://picsum.photos/400/300';
       console.log(`🖼️ [收藏卡片-輪播] 項目 ${index + 1} 無圖片，使用預設圖片`);
-      console.log(`🎯 [修改確認] aspectRatio 1:1 已添加到輪播卡片 ${index + 1}`);
     }
 
     return {
@@ -3476,10 +3460,46 @@ async function handleEvent(event) {
         if (result && result.id) {
           console.log(`✅ [自動收藏] 連結已成功儲存到收藏卡: ${cleanedMessage}`);
 
-          // 直接回傳 FLEX MESSAGE
-          return replyWithQuickReply(client, event.replyToken,
-            createBookmarkSuccessFlexMessage(cleanedMessage)
-          );
+          // 準備第一則訊息（連結已記錄）
+          const firstMessage = createBookmarkSuccessFlexMessage(cleanedMessage);
+
+          // 準備第二則訊息（今天的收藏卡列表）
+          // 獲取今天的所有收藏
+          const today = new Date();
+          const taiwanOffset = 8 * 60 * 60 * 1000;
+          const taiwanDate = new Date(today.getTime() + taiwanOffset);
+          const taiwanStartOfDay = new Date(taiwanDate.getFullYear(), taiwanDate.getMonth(), taiwanDate.getDate()).toISOString();
+          const taiwanEndOfDay = new Date(taiwanDate.getFullYear(), taiwanDate.getMonth(), taiwanDate.getDate() + 1).toISOString();
+
+          const { data: todayFavorites, error } = await supabase
+            .from('dev_collections')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('created_at', taiwanStartOfDay)
+            .lt('created_at', taiwanEndOfDay)
+            .order('created_at', { ascending: false });
+
+          console.log(`📋 [自動收藏] 獲取今天的收藏列表，共 ${todayFavorites?.length || 0} 個項目`);
+
+          // 創建收藏卡片列表的 FLEX MESSAGE
+          const secondMessage = await createFavoritesFlexMessage(todayFavorites || []);
+
+          console.log('🔍 [DEBUG] 第二則訊息類型:', secondMessage.type);
+          console.log('🔍 [DEBUG] 第二則訊息結構:', JSON.stringify(secondMessage).substring(0, 500));
+
+          // 添加 Quick Reply 到第二則訊息
+          const userTags = await getUserTags(userId);
+          const { generateQuickReply } = getTaskFlexModule();
+          const quickReply = generateQuickReply(userTags);
+
+          if (quickReply && quickReply.items && quickReply.items.length > 0) {
+            secondMessage.quickReply = quickReply;
+            console.log('🎯 [Quick Reply] 已添加 Quick Reply 到第二則訊息');
+          }
+
+          // 發送兩則訊息
+          console.log('🔍 [DEBUG] 準備發送兩則訊息');
+          return client.replyMessage(event.replyToken, [firstMessage, secondMessage]);
         } else {
           throw new Error('收藏卡創建失敗');
         }

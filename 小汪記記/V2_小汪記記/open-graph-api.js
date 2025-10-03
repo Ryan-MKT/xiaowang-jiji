@@ -325,16 +325,15 @@ class OpenGraphAPI {
 
       // 過濾和清理URL
       const directImages = scontentMatches
+        .map(url => {
+          // 先清理URL中的HTML實體
+          return url.replace(/&amp;/g, '&');
+        })
         .filter(url => {
           // 過濾掉過小或不相關的圖片
           return !url.includes('profile_pic') &&
                  !url.includes('safe_image') &&
-                 !url.includes('&amp;') &&
-                 (url.includes('.jpg') || url.includes('.png') || url.includes('.webp'));
-        })
-        .map(url => {
-          // 清理URL中的HTML實體
-          return url.replace(/&amp;/g, '&');
+                 (url.includes('.jpg') || url.includes('.png') || url.includes('.webp') || url.includes('.jpeg'));
         })
         .slice(0, 5); // 只取前5個最相關的
 
