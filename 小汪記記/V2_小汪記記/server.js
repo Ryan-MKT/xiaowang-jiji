@@ -1010,6 +1010,7 @@ async function generateSevenDaysFlexMessage(userId, userTasks, userTags, tabMode
       if (dayFlexMessage && dayFlexMessage.contents) {
         sevenDaysBubbles.push({
           type: 'bubble',
+          size: 'giga',
           header: dayFlexMessage.contents.header,
           body: dayFlexMessage.contents.body
         });

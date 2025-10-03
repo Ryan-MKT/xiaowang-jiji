@@ -239,7 +239,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           {
             type: 'text',
             text: task.text,
-            size: 'sm',
+            size: 'md',
             color: isCompleted ? '#999999' : '#333333',
             flex: 1,
             wrap: true,
@@ -279,19 +279,19 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           spacing: 'sm',
           contents: [
             {
+              type: 'box',
+              layout: 'horizontal',
+              spacing: 'sm',
+              contents: taskAndTimeBox,
+              flex: 1
+            },
+            {
               type: 'text',
               text: isCompleted ? '🅥' : '○',
               size: 'lg',
               color: '#000000',
               flex: 0,
               align: 'center'
-            },
-            {
-              type: 'box',
-              layout: 'horizontal',
-              spacing: 'sm',
-              contents: taskAndTimeBox,
-              flex: 1
             }
           ]
         });
@@ -351,7 +351,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           {
             type: 'text',
             text: task.text,
-            size: 'sm',
+            size: 'md',
             color: isCompleted ? '#999999' : '#333333',
             flex: 1,
             wrap: true,
@@ -391,19 +391,19 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           spacing: 'sm',
           contents: [
             {
+              type: 'box',
+              layout: 'horizontal',
+              spacing: 'sm',
+              contents: untaggedTaskAndTimeBox,
+              flex: 1
+            },
+            {
               type: 'text',
               text: isCompleted ? '🅥' : '○',
               size: 'lg',
               color: '#000000',
               flex: 0,
               align: 'center'
-            },
-            {
-              type: 'box',
-              layout: 'horizontal',
-              spacing: 'sm',
-              contents: untaggedTaskAndTimeBox,
-              flex: 1
             }
           ]
         });
@@ -446,7 +446,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       {
         type: 'text',
         text: task.text,
-        size: 'sm',
+        size: 'md',
         color: isCompleted ? '#999999' : '#333333',
         flex: 1,
         wrap: true,
@@ -516,6 +516,12 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
       paddingAll: 'md',
       contents: [
         {
+          type: 'box',
+          layout: 'vertical',
+          flex: 1,
+          contents: taskBoxContents
+        },
+        {
           type: 'text',
           text: isCompleted ? '🅥' : '○',
           size: 'lg',
@@ -528,12 +534,6 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
             label: '完成任務',
             text: `完成任務_${task.id}`
           }
-        },
-        {
-          type: 'box',
-          layout: 'vertical',
-          flex: 1,
-          contents: taskBoxContents
         }
       ]
     });
@@ -559,7 +559,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
     altText: altText,
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       body: {
         type: 'box',
         layout: 'vertical',
@@ -756,7 +756,7 @@ function createTaskStatsCard(completedCount, favoriteCount) {
     altText: `統計：已完成 ${completedCount} 件，已收藏 ${favoriteCount} 件`,
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       body: {
         type: 'box',
         layout: 'horizontal',
@@ -966,7 +966,7 @@ function createQuickActionCard() {
     altText: '快捷功能：語音輸入、設定、幫助',
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       header: {
         type: 'box',
         layout: 'vertical',
@@ -1185,7 +1185,7 @@ function createTagBubble(tagName, tasks, userTags = null) {
 
   return {
     type: 'bubble',
-    size: 'kilo',
+    size: 'giga',
     header: {
       type: 'box',
       layout: 'vertical',
@@ -1255,7 +1255,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         {
           type: 'text',
           text: task.text,
-          size: 'sm',
+          size: 'md',
           color: isCompleted ? '#999999' : '#333333',
           flex: 1,
           wrap: true,
@@ -1291,6 +1291,12 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
         paddingAll: 'md',
           contents: [
           {
+            type: 'box',
+            layout: 'vertical',
+            flex: 1,
+            contents: taskBoxContents
+          },
+          {
             type: 'text',
             text: isCompleted ? '🅥' : '○',
             size: 'lg',
@@ -1303,12 +1309,6 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
               label: '完成任務',
               text: `完成任務_${task.id}`
             }
-          },
-          {
-            type: 'box',
-            layout: 'vertical',
-            flex: 1,
-            contents: taskBoxContents
           }
         ]
       });
@@ -1385,7 +1385,7 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
     altText: altText,
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       body: {
         type: 'box',
         layout: 'vertical',
@@ -1523,7 +1523,7 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
           {
             type: 'text',
             text: task.text,
-            size: 'sm',
+            size: 'md',
             color: '#333333',
             flex: 1,
             wrap: true
@@ -1581,7 +1581,7 @@ function createTagGroupedFlexMessage(tasks, userTags = null) {
           {
             type: 'text',
             text: task.text,
-            size: 'sm',
+            size: 'md',
             color: '#333333',
             flex: 1,
             wrap: true
@@ -1735,7 +1735,7 @@ function createCollectionsBubble() {
     altText: '收藏卡展開頁面',
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       header: {
         type: 'box',
         layout: 'vertical',
@@ -1883,7 +1883,7 @@ function createFilterFlexMessage() {
     altText: '任務篩選選項',
     contents: {
       type: 'bubble',
-      size: 'kilo',
+      size: 'giga',
       body: {
         type: 'box',
         layout: 'vertical',
