@@ -971,10 +971,18 @@ function createTabSegment(activeTab = 'general') {
 
 // 生成動態 Quick Reply
 function generateQuickReply(userTags) {
-  console.log(`🔍 [Quick Reply] 生成固定的四個按鈕：日曆、收藏、分析、我的`);
+  console.log(`🔍 [Quick Reply] 生成固定的四個按鈕：返回、日曆、收藏、我的`);
 
   // 固定的四個Quick Reply按鈕
   const quickReplyItems = [
+    {
+      type: 'action',
+      action: {
+        type: 'message',
+        label: '⮂',
+        text: '返回'
+      }
+    },
     {
       type: 'action',
       action: {
@@ -989,14 +997,6 @@ function generateQuickReply(userTags) {
         type: 'uri',
         label: '收藏',
         uri: 'https://liff.line.me/2008077335-RL1d4G2g'
-      }
-    },
-    {
-      type: 'action',
-      action: {
-        type: 'uri',
-        label: '分析',
-        uri: 'https://liff.line.me/2008077335-p5rJyKLd'
       }
     },
     {

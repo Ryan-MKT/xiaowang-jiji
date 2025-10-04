@@ -742,6 +742,10 @@ function getTaskFlexModule() {
 // 資料結構: Map<userId, Array<{text: string, id: number, timestamp: string}>>
 const userTaskStacks = new Map();
 
+// 🔄 記錄用戶最後發送的訊息類型（用於「返回」按鈕切換功能）
+// 資料結構: Map<userId, 'taskStack' | 'collections'>
+const userLastMessageType = new Map();
+
 // 🗓️ 日期過濾幫助函數：只返回今天的任務
 function filterTodayTasks(allTasks) {
   console.log(`📅 [日期過濾] 開始過濾，總任務數: ${allTasks.length}`);
@@ -3354,6 +3358,115 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
+  // 特殊指令：返回 - 在「任務堆疊」和「收藏列表」之間切換
+  if (userMessage === '返回') {
+    console.log(`🔙 用戶 ${userId} 點擊返回`);
+
+    // 🔍 檢查用戶最後發送的訊息類型
+    const lastMessageType = userLastMessageType.get(userId);
+    console.log(`📊 [返回按鈕] 用戶最後訊息類型: ${lastMessageType}`);
+
+    if (lastMessageType === 'collections') {
+      // 最後是收藏列表 → 切換回任務堆疊
+      console.log(`🔄 [返回按鈕] 從收藏列表切換回任務堆疊`);
+
+      const userTasks = userTaskStacks.get(userId) || [];
+
+      if (userTasks.length === 0) {
+        return replyWithQuickReply(client, event.replyToken, {
+          type: 'text',
+          text: '目前沒有任務記錄'
+        }, userId);
+      }
+
+      // 生成完整的任務堆疊 Flex Message
+      const userTags = await getUserTags(userId);
+      const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
+      const todayTasks = filterTodayTasks(userTasks);
+      const viewMode = userViewModePreferences.get(userId) || 'general';
+
+      const flexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+
+      const quickReply = generateQuickReply(userTags);
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        flexMessage.quickReply = quickReply;
+      }
+
+      // 📝 記錄發送了任務堆疊訊息
+      userLastMessageType.set(userId, 'taskStack');
+      console.log(`✅ [返回按鈕] 已記錄訊息類型: taskStack`);
+
+      return client.replyMessage(event.replyToken, flexMessage);
+
+    } else {
+      // 最後是任務堆疊（或無記錄）→ 切換到收藏列表
+      console.log(`🔄 [返回按鈕] 從任務堆疊切換到收藏列表`);
+
+      // 🗓️ 獲取台灣時區的今天起始和結束時間（使用與收藏功能相同的邏輯）
+      const now = new Date();
+      const taiwanOffset = 8 * 60 * 60 * 1000; // 8小時
+
+      // 計算台灣當天的開始時間 (00:00:00)
+      const taiwanNow = new Date(now.getTime() + taiwanOffset);
+      const taiwanStartOfDay = new Date(Date.UTC(
+        taiwanNow.getUTCFullYear(),
+        taiwanNow.getUTCMonth(),
+        taiwanNow.getUTCDate(),
+        0, 0, 0, 0
+      ) - taiwanOffset);
+
+      // 計算台灣當天的結束時間 (23:59:59.999)
+      const taiwanEndOfDay = new Date(Date.UTC(
+        taiwanNow.getUTCFullYear(),
+        taiwanNow.getUTCMonth(),
+        taiwanNow.getUTCDate(),
+        23, 59, 59, 999
+      ) - taiwanOffset);
+
+      console.log(`🕐 [返回按鈕] 台灣時間: ${taiwanNow.toISOString().slice(0, 19).replace('T', ' ')}`);
+      console.log(`🕐 [返回按鈕] 查詢範圍: ${taiwanStartOfDay.toISOString()} ~ ${taiwanEndOfDay.toISOString()}`);
+
+      // 📊 從資料庫獲取今天的收藏（最多 10 筆）
+      const { data: todayFavorites, error } = await supabase
+        .from('dev_collections')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('created_at', taiwanStartOfDay.toISOString())
+        .lte('created_at', taiwanEndOfDay.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('❌ [返回按鈕] 獲取收藏失敗:', error);
+        return replyWithQuickReply(client, event.replyToken, {
+          type: 'text',
+          text: '❌ 獲取收藏列表失敗'
+        }, userId);
+      }
+
+      console.log(`📋 [返回按鈕] 獲取今天的收藏列表，共 ${todayFavorites?.length || 0} 個項目`);
+
+      // 創建收藏卡片列表的 FLEX MESSAGE
+      const collectionsFlexMessage = await createFavoritesFlexMessage(todayFavorites || []);
+
+      // 為收藏卡列表添加 Quick Reply 按鈕
+      const userTags = await getUserTags(userId);
+      const { generateQuickReply } = getTaskFlexModule();
+      const quickReply = generateQuickReply(userTags);
+
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        collectionsFlexMessage.quickReply = quickReply;
+        console.log('🎯 [返回按鈕] 為收藏卡列表添加 Quick Reply 按鈕');
+      }
+
+      // 📝 記錄發送了收藏列表訊息
+      userLastMessageType.set(userId, 'collections');
+      console.log(`✅ [返回按鈕] 已記錄訊息類型: collections`);
+
+      return client.replyMessage(event.replyToken, collectionsFlexMessage);
+    }
+  }
+
   // 特殊指令：測試高級卡片設計 (88測試) - 不保存到資料庫，不觸發任務堆疊
   if (userMessage === '88測試' || userMessage === '99測試') {
     console.log(`🎨 用戶 ${userId} 請求測試高級卡片設計 (跳過所有其他處理)`);
@@ -3774,6 +3887,10 @@ async function handleEvent(event) {
             collectionsFlexMessage.quickReply = quickReply;
             console.log('🎯 [收藏訊息] 為收藏卡列表添加 Quick Reply 按鈕');
           }
+
+          // 📝 記錄發送了收藏列表訊息（用於「返回」按鈕切換）
+          userLastMessageType.set(userId, 'collections');
+          console.log(`✅ [訊息類型記錄] 已記錄用戶 ${userId} 最後訊息類型: collections`);
 
           // 只回傳收藏卡列表
           return client.replyMessage(event.replyToken, collectionsFlexMessage);
@@ -5125,6 +5242,10 @@ async function handleEvent(event) {
 
       console.log('🚀 [訊息發送] 發送任務堆疊訊息到 LINE...');
       console.log('📋 [訊息] 任務堆疊 FLEX MESSAGE');
+
+      // 📝 記錄發送了任務堆疊訊息（用於「返回」按鈕切換）
+      userLastMessageType.set(userId, 'taskStack');
+      console.log(`✅ [訊息類型記錄] 已記錄用戶 ${userId} 最後訊息類型: taskStack`);
 
       // 只發送任務堆疊訊息
       return client.replyMessage(event.replyToken, flexMessage)
