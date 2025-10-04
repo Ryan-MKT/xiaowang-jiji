@@ -3789,6 +3789,17 @@ async function handleEvent(event) {
             }
           };
 
+          // 為兩則訊息添加 Quick Reply 按鈕
+          const userTags = await getUserTags(userId);
+          const { generateQuickReply } = getTaskFlexModule();
+          const quickReply = generateQuickReply(userTags);
+
+          if (quickReply && quickReply.items && quickReply.items.length > 0) {
+            collectionsFlexMessage.quickReply = quickReply;
+            favoriteFolderMessage.quickReply = quickReply;
+            console.log('🎯 [收藏訊息] 為兩則訊息添加 Quick Reply 按鈕');
+          }
+
           // 回傳兩則訊息：收藏卡列表 + 最愛檔案夾
           return client.replyMessage(event.replyToken, [collectionsFlexMessage, favoriteFolderMessage]);
         } else {
@@ -4310,11 +4321,19 @@ async function handleEvent(event) {
 
       // 重新生成任務堆疊 Flex Message
       const userTags = await getUserTags(userId);
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
       // 🏷️ 使用用戶儲存的視圖模式偏好
       const viewMode = userViewModePreferences.get(userId) || 'general';
       const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+
+      // 為兩則訊息添加 Quick Reply 按鈕
+      const quickReply = generateQuickReply(userTags);
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        confirmationMessage.quickReply = quickReply;
+        updatedFlexMessage.quickReply = quickReply;
+        console.log('🎯 [編輯任務] 為兩則訊息添加 Quick Reply 按鈕');
+      }
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊
@@ -4408,11 +4427,19 @@ async function handleEvent(event) {
 
       // 重新生成任務堆疊 Flex Message
       const userTags = await getUserTags(userId);
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
       // 🏷️ 使用用戶儲存的視圖模式偏好
       const viewMode = userViewModePreferences.get(userId) || 'general';
       const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+
+      // 為兩則訊息添加 Quick Reply 按鈕
+      const quickReply = generateQuickReply(userTags);
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        confirmationMessage.quickReply = quickReply;
+        updatedFlexMessage.quickReply = quickReply;
+        console.log('🎯 [簡易刪除] 為兩則訊息添加 Quick Reply 按鈕');
+      }
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊
@@ -4513,11 +4540,19 @@ async function handleEvent(event) {
 
       // 重新生成任務堆疊 Flex Message
       const userTags = await getUserTags(userId);
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
       // 🏷️ 使用用戶儲存的視圖模式偏好
       const viewMode = userViewModePreferences.get(userId) || 'general';
       const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+
+      // 為兩則訊息添加 Quick Reply 按鈕
+      const quickReply = generateQuickReply(userTags);
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        confirmationMessage.quickReply = quickReply;
+        updatedFlexMessage.quickReply = quickReply;
+        console.log('🎯 [打標籤] 為兩則訊息添加 Quick Reply 按鈕');
+      }
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊
@@ -4604,11 +4639,19 @@ async function handleEvent(event) {
 
       // 重新生成任務堆疊 Flex Message
       const userTags = await getUserTags(userId);
-      const { createTaskStackFlexMessage } = getTaskFlexModule();
+      const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
       const todayTasks = filterTodayTasks(userTasks);
       // 🏷️ 使用用戶儲存的視圖模式偏好
       const viewMode = userViewModePreferences.get(userId) || 'general';
       const updatedFlexMessage = createTaskStackFlexMessage(todayTasks, userTags, viewMode);
+
+      // 為兩則訊息添加 Quick Reply 按鈕
+      const quickReply = generateQuickReply(userTags);
+      if (quickReply && quickReply.items && quickReply.items.length > 0) {
+        confirmationMessage.quickReply = quickReply;
+        updatedFlexMessage.quickReply = quickReply;
+        console.log('🎯 [刪除任務] 為兩則訊息添加 Quick Reply 按鈕');
+      }
 
       if (client) {
         // 發送兩則訊息：確認訊息 + 更新的任務堆疊

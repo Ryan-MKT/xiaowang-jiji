@@ -4,6 +4,7 @@
 const SUPABASE_STORAGE_URL = process.env.SUPABASE_URL || 'https://dvarirqrahqvlijkxqdc.supabase.co';
 const FLEX_IMAGE_URLS = {
   DELETE_ICON: 'https://dvarirqrahqvlijkxqdc.supabase.co/storage/v1/object/public/line-flex-images/trash.png',
+  EDIT_ICON: 'https://dvarirqrahqvlijkxqdc.supabase.co/storage/v1/object/public/line-flex-images/edit.png',
 };
 
 // 標籤收合狀態追蹤 (按用戶ID存儲)
@@ -284,6 +285,17 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           spacing: 'sm',
           contents: [
             {
+              type: 'image',
+              url: FLEX_IMAGE_URLS.EDIT_ICON,
+              size: 'xxs',
+              flex: 0,
+              gravity: 'top',
+              action: {
+                type: 'uri',
+                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+              }
+            },
+            {
               type: 'box',
               layout: 'vertical',
               spacing: 'none',
@@ -411,6 +423,17 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           layout: 'horizontal',
           spacing: 'sm',
           contents: [
+            {
+              type: 'image',
+              url: FLEX_IMAGE_URLS.EDIT_ICON,
+              size: 'xxs',
+              flex: 0,
+              gravity: 'top',
+              action: {
+                type: 'uri',
+                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+              }
+            },
             {
               type: 'box',
               layout: 'vertical',
