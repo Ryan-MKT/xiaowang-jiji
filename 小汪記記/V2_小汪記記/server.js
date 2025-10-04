@@ -3753,7 +3753,8 @@ async function handleEvent(event) {
             .eq('user_id', userId)
             .gte('created_at', taiwanStartOfDay.toISOString())
             .lte('created_at', taiwanEndOfDay.toISOString())
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(10);
 
           if (error) {
             console.error('❌ [自動收藏] 查詢失敗:', error);
@@ -3764,44 +3765,18 @@ async function handleEvent(event) {
           // 創建收藏卡片列表的 FLEX MESSAGE
           const collectionsFlexMessage = await createFavoritesFlexMessage(todayFavorites || []);
 
-          // 創建「最愛檔案夾」Flex Message
-          const favoriteFolderMessage = {
-            type: 'flex',
-            altText: '最愛檔案夾',
-            contents: {
-              type: 'bubble',
-              size: 'nano',
-              body: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                  {
-                    type: 'text',
-                    text: '最愛檔案夾',
-                    size: 'lg',
-                    weight: 'bold',
-                    color: '#1DB446',
-                    align: 'center'
-                  }
-                ],
-                paddingAll: 'xl'
-              }
-            }
-          };
-
-          // 為兩則訊息添加 Quick Reply 按鈕
+          // 為收藏卡列表添加 Quick Reply 按鈕
           const userTags = await getUserTags(userId);
           const { generateQuickReply } = getTaskFlexModule();
           const quickReply = generateQuickReply(userTags);
 
           if (quickReply && quickReply.items && quickReply.items.length > 0) {
             collectionsFlexMessage.quickReply = quickReply;
-            favoriteFolderMessage.quickReply = quickReply;
-            console.log('🎯 [收藏訊息] 為兩則訊息添加 Quick Reply 按鈕');
+            console.log('🎯 [收藏訊息] 為收藏卡列表添加 Quick Reply 按鈕');
           }
 
-          // 回傳兩則訊息：收藏卡列表 + 最愛檔案夾
-          return client.replyMessage(event.replyToken, [collectionsFlexMessage, favoriteFolderMessage]);
+          // 只回傳收藏卡列表
+          return client.replyMessage(event.replyToken, collectionsFlexMessage);
         } else {
           throw new Error('收藏卡創建失敗');
         }
