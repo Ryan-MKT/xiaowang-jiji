@@ -5820,6 +5820,113 @@ app.get('/api/collections/:userId/stats', async (req, res) => {
   }
 });
 
+// ==================== 卡片夾管理 API ====================
+
+// 🔍 獲取用戶的所有卡片夾
+app.get('/api/boxs/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    console.log(`🔍 [卡片夾API] 獲取用戶 ${userId} 的卡片夾列表`);
+
+    const { data, error } = await supabase
+      .from('dev_boxs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('❌ [卡片夾API] 獲取卡片夾失敗:', error);
+      return res.status(400).json({ success: false, error: error.message });
+    }
+
+    console.log(`✅ [卡片夾API] 成功獲取 ${data.length} 個卡片夾`);
+    res.json({ success: true, data: data });
+  } catch (error) {
+    console.error('❌ [卡片夾API] 系統錯誤:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ➕ 新增卡片夾
+app.post('/api/boxs/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { box_name } = req.body;
+
+    if (!box_name || box_name.trim() === '') {
+      return res.status(400).json({ success: false, error: '卡片夾名稱不能為空' });
+    }
+
+    console.log(`➕ [卡片夾API] 新增卡片夾: ${box_name} (用戶: ${userId})`);
+
+    const { data, error } = await supabase
+      .from('dev_boxs')
+      .insert([{ user_id: userId, box_name: box_name.trim() }])
+      .select();
+
+    if (error) {
+      // 處理重複名稱錯誤
+      if (error.code === '23505') {
+        console.error('⚠️ [卡片夾API] 卡片夾名稱已存在');
+        return res.status(400).json({ success: false, error: '此卡片夾名稱已存在' });
+      }
+      console.error('❌ [卡片夾API] 新增卡片夾失敗:', error);
+      return res.status(400).json({ success: false, error: error.message });
+    }
+
+    console.log(`✅ [卡片夾API] 成功新增卡片夾:`, data[0]);
+    res.json({ success: true, data: data[0] });
+  } catch (error) {
+    console.error('❌ [卡片夾API] 系統錯誤:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// 🏷️ 更新收藏卡片的卡片夾標籤
+app.patch('/api/collections/:userId/:collectionId/box', async (req, res) => {
+  try {
+    const { userId, collectionId } = req.params;
+    const { box_name } = req.body;
+
+    console.log(`🏷️ [卡片夾API] 更新收藏卡 ${collectionId} 的卡片夾標籤: ${box_name}`);
+
+    // 獲取現有收藏卡的 tags 欄位
+    const { data: collection, error: fetchError } = await supabase
+      .from('dev_collections')
+      .select('tags')
+      .eq('id', collectionId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError) {
+      console.error('❌ [卡片夾API] 獲取收藏卡失敗:', fetchError);
+      return res.status(400).json({ success: false, error: fetchError.message });
+    }
+
+    // 更新 tags 欄位（將卡片夾名稱加入 tags 陣列）
+    const currentTags = collection.tags || [];
+    const updatedTags = currentTags.includes(box_name) ? currentTags : [...currentTags, box_name];
+
+    const { data, error } = await supabase
+      .from('dev_collections')
+      .update({ tags: updatedTags })
+      .eq('id', collectionId)
+      .eq('user_id', userId)
+      .select();
+
+    if (error) {
+      console.error('❌ [卡片夾API] 更新卡片夾標籤失敗:', error);
+      return res.status(400).json({ success: false, error: error.message });
+    }
+
+    console.log(`✅ [卡片夾API] 成功更新收藏卡 ${collectionId} 的卡片夾標籤`);
+    res.json({ success: true, data: data[0] });
+  } catch (error) {
+    console.error('❌ [卡片夾API] 系統錯誤:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 // 網址預覽 API
 const { openGraphAPI } = require('./open-graph-api');
 

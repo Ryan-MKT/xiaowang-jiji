@@ -357,6 +357,128 @@
             font-size: 0.8rem;
         }
 
+        /* 收藏按鈕樣式 */
+        .favorite-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 12px;
+            background: #007bff;
+            color: #ffffff;
+            border: 2px solid #007bff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .favorite-btn:hover {
+            background: #0056b3;
+            border-color: #0056b3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
+
+        .favorite-btn i {
+            font-size: 0.9rem;
+        }
+
+        /* 卡片夾下拉選單樣式 */
+        .box-dropdown {
+            position: absolute;
+            bottom: 60px;
+            left: 12px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            min-width: 200px;
+            max-width: 280px;
+            z-index: 100;
+            display: none;
+        }
+
+        .box-dropdown.active {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .box-dropdown-header {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .box-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .box-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .box-item:hover {
+            background: #f0f4f8;
+        }
+
+        .box-item.selected {
+            background: #e3f2fd;
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .add-box-btn {
+            margin-top: 8px;
+            padding: 10px 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .add-box-btn:hover {
+            background: #218838;
+        }
+
+        .add-box-input {
+            margin-top: 8px;
+            padding: 8px 12px;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
         .user-tags {
             display: flex;
             flex-wrap: wrap;
@@ -648,6 +770,28 @@
                 <h6 class="mb-0">篩選分類</h6>
                 <small class="text-muted" id="collectionCount">載入中...</small>
             </div>
+
+            <!-- 收藏卡片區 UI -->
+            <div class="collection-folders-ui mb-3" style="background: #f0f4f8; border-radius: 12px; padding: 20px;">
+                <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                    <span style="font-size: 20px; font-weight: 600; color: #2c3e50;">📁 收藏卡片區</span>
+                </div>
+                <div style="display: flex; gap: 16px;">
+                    <div style="flex: 1; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        <div style="font-size: 56px; margin-bottom: 12px;">🔗</div>
+                        <div style="font-size: 15px; color: #555; font-weight: 500;">檔案夾1</div>
+                    </div>
+                    <div style="flex: 1; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        <div style="font-size: 56px; margin-bottom: 12px;">🎬</div>
+                        <div style="font-size: 15px; color: #555; font-weight: 500;">檔案夾2</div>
+                    </div>
+                    <div style="flex: 1; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        <div style="font-size: 56px; margin-bottom: 12px;">📸</div>
+                        <div style="font-size: 15px; color: #555; font-weight: 500;">檔案夾3</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="filter-buttons">
                 <button class="filter-btn active" data-filter="all">
                     <i class="bi bi-grid-3x3-gap me-1"></i>全部
@@ -1098,6 +1242,32 @@
                                 return socialResult;
                             })()}
 
+                        </div>
+
+                        <button class="favorite-btn" onclick="handleFavoriteClick(event, '${collection.id}')" title="收藏">
+                            <i class="bi bi-star"></i> 收藏
+                            ${(() => {
+                                const tags = collection.tags || [];
+                                if (tags.length > 0) {
+                                    return `<span style="margin-left: 8px; padding: 4px 8px; background: #fff; color: #007bff; border-radius: 8px; font-size: 0.8rem; font-weight: 600;">${tags.join(', ')}</span>`;
+                                }
+                                return '';
+                            })()}
+                        </button>
+
+                        <!-- 卡片夾下拉選單 -->
+                        <div class="box-dropdown" id="boxDropdown-${collection.id}">
+                            <div class="box-dropdown-header">選擇卡片夾</div>
+                            <div class="box-list" id="boxList-${collection.id}">
+                                <!-- 動態載入卡片夾列表 -->
+                            </div>
+                            <button class="add-box-btn" onclick="showAddBoxInput('${collection.id}')">
+                                <i class="bi bi-plus"></i> 新增卡片夾
+                            </button>
+                            <div id="addBoxContainer-${collection.id}" style="display: none;">
+                                <input type="text" class="add-box-input" id="addBoxInput-${collection.id}" placeholder="輸入卡片夾名稱">
+                                <button class="add-box-btn" onclick="confirmAddBox('${collection.id}')" style="margin-top: 6px;">確認新增</button>
+                            </div>
                         </div>
 
                         <button class="bottom-right-btn" onclick="handleBottomRightClick('${collection.id}')" title="翻卡">
@@ -1626,6 +1796,160 @@
             console.log(`🎯 [按鈕] 右下角按鈕被點擊，收藏品 ID: ${collectionId}`);
             // 暫時沒有功能，可以在這裡添加未來的功能
         }
+
+        // 全局變數：儲存用戶的卡片夾列表
+        let userBoxs = [];
+
+        // 收藏按鈕點擊處理
+        async function handleFavoriteClick(event, collectionId) {
+            event.stopPropagation();
+            console.log(`⭐ [收藏] 收藏按鈕被點擊，收藏品 ID: ${collectionId}`);
+
+            const dropdown = document.getElementById(`boxDropdown-${collectionId}`);
+
+            // 切換下拉選單顯示
+            const isActive = dropdown.classList.contains('active');
+
+            // 關閉所有其他下拉選單
+            document.querySelectorAll('.box-dropdown').forEach(d => d.classList.remove('active'));
+
+            if (!isActive) {
+                // 載入卡片夾列表
+                await loadBoxList(collectionId);
+                dropdown.classList.add('active');
+            }
+        }
+
+        // 載入卡片夾列表
+        async function loadBoxList(collectionId) {
+            try {
+                console.log(`🔍 [卡片夾] 載入用戶 ${userId} 的卡片夾列表`);
+
+                const response = await fetch(`/api/boxs/${userId}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    console.error('❌ [卡片夾] 載入失敗:', result.error);
+                    return;
+                }
+
+                userBoxs = result.data;
+                console.log(`✅ [卡片夾] 成功載入 ${userBoxs.length} 個卡片夾`);
+
+                // 渲染卡片夾列表
+                const boxListContainer = document.getElementById(`boxList-${collectionId}`);
+
+                if (userBoxs.length === 0) {
+                    boxListContainer.innerHTML = '<div style="padding: 10px; text-align: center; color: #999; font-size: 0.85rem;">還沒有卡片夾</div>';
+                } else {
+                    boxListContainer.innerHTML = userBoxs.map(box => `
+                        <div class="box-item" onclick="selectBox('${collectionId}', '${box.box_name}')">
+                            📁 ${box.box_name}
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('❌ [卡片夾] 載入錯誤:', error);
+            }
+        }
+
+        // 選擇卡片夾
+        async function selectBox(collectionId, boxName) {
+            try {
+                console.log(`📁 [卡片夾] 將收藏卡 ${collectionId} 加入卡片夾: ${boxName}`);
+
+                const response = await fetch(`/api/collections/${userId}/${collectionId}/box`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ box_name: boxName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log(`✅ [卡片夾] 成功加入卡片夾: ${boxName}`);
+                    alert(`✅ 已加入「${boxName}」卡片夾！`);
+
+                    // 關閉下拉選單
+                    document.getElementById(`boxDropdown-${collectionId}`).classList.remove('active');
+
+                    // 重新載入收藏卡列表以顯示更新
+                    await loadCollections();
+                } else {
+                    console.error('❌ [卡片夾] 加入失敗:', result.error);
+                    alert('❌ 加入卡片夾失敗：' + result.error);
+                }
+            } catch (error) {
+                console.error('❌ [卡片夾] 系統錯誤:', error);
+                alert('❌ 系統錯誤，請稍後再試');
+            }
+        }
+
+        // 顯示新增卡片夾輸入框
+        function showAddBoxInput(collectionId) {
+            const container = document.getElementById(`addBoxContainer-${collectionId}`);
+            const input = document.getElementById(`addBoxInput-${collectionId}`);
+
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                input.focus();
+            } else {
+                container.style.display = 'none';
+                input.value = '';
+            }
+        }
+
+        // 確認新增卡片夾
+        async function confirmAddBox(collectionId) {
+            const input = document.getElementById(`addBoxInput-${collectionId}`);
+            const boxName = input.value.trim();
+
+            if (!boxName) {
+                alert('請輸入卡片夾名稱');
+                return;
+            }
+
+            try {
+                console.log(`➕ [卡片夾] 新增卡片夾: ${boxName}`);
+
+                const response = await fetch(`/api/boxs/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ box_name: boxName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log(`✅ [卡片夾] 成功新增卡片夾:`, result.data);
+                    alert(`✅ 成功新增「${boxName}」卡片夾！`);
+
+                    // 清空輸入框並隱藏
+                    input.value = '';
+                    document.getElementById(`addBoxContainer-${collectionId}`).style.display = 'none';
+
+                    // 重新載入卡片夾列表
+                    await loadBoxList(collectionId);
+                } else {
+                    console.error('❌ [卡片夾] 新增失敗:', result.error);
+                    alert('❌ 新增失敗：' + result.error);
+                }
+            } catch (error) {
+                console.error('❌ [卡片夾] 系統錯誤:', error);
+                alert('❌ 系統錯誤，請稍後再試');
+            }
+        }
+
+        // 點擊頁面其他地方時關閉所有下拉選單
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.favorite-btn') && !event.target.closest('.box-dropdown')) {
+                document.querySelectorAll('.box-dropdown').forEach(d => d.classList.remove('active'));
+            }
+        });
 
         // 刪除收藏品
         async function deleteCollection(collectionId) {
