@@ -776,19 +776,21 @@
                 <div style="display: flex; align-items: center; margin-bottom: 16px;">
                     <span style="font-size: 20px; font-weight: 600; color: #2c3e50;">📁 收藏卡片區</span>
                 </div>
-                <div style="display: flex; gap: 16px;">
-                    <div style="flex: 1; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                        <div style="font-size: 56px; margin-bottom: 12px;">🔗</div>
-                        <div style="font-size: 15px; color: #555; font-weight: 500;">檔案夾1</div>
+                <div id="boxCardsContainer" style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <!-- 動態載入卡片夾 -->
+                </div>
+            </div>
+
+            <!-- 卡片夾篩選提示 -->
+            <div id="boxFilterNotice" style="display: none; background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">📁</span>
+                        <span style="color: #1976d2; font-weight: 600;">正在顯示「<span id="currentBoxName"></span>」卡片夾</span>
                     </div>
-                    <div style="flex: 1; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                        <div style="font-size: 56px; margin-bottom: 12px;">🎬</div>
-                        <div style="font-size: 15px; color: #555; font-weight: 500;">檔案夾2</div>
-                    </div>
-                    <div style="flex: 1; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                        <div style="font-size: 56px; margin-bottom: 12px;">📸</div>
-                        <div style="font-size: 15px; color: #555; font-weight: 500;">檔案夾3</div>
-                    </div>
+                    <button onclick="clearBoxFilter()" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 14px; padding: 4px 8px;">
+                        ✕ 清除篩選
+                    </button>
                 </div>
             </div>
 
@@ -855,6 +857,7 @@
         let userId = null;
         let collections = [];
         let currentFilter = 'all';
+        let currentBoxFilter = null; // 卡片夾篩選
         let previewCheckInterval = null;
         let cardsNeedingPreview = new Set();
 
@@ -877,6 +880,9 @@
 
                     // 載入收藏品
                     await loadCollections();
+
+                    // 載入收藏卡片區的卡片夾
+                    await loadBoxCards();
 
                     // 🔥 設置自動刷新機制 - 每10秒檢查新收藏卡
                     startAutoRefresh();
@@ -1157,10 +1163,21 @@
 
             // 篩選收藏品
             filteredCollections = collections;
+
+            // 按類型篩選 (網址/影片/圖片/文字)
             if (currentFilter !== 'all') {
-                filteredCollections = collections.filter(collection =>
+                filteredCollections = filteredCollections.filter(collection =>
                     analyzeCollectionType(collection) === currentFilter
                 );
+            }
+
+            // 按卡片夾標籤篩選
+            if (currentBoxFilter) {
+                filteredCollections = filteredCollections.filter(collection => {
+                    const tags = collection.tags || [];
+                    return tags.includes(currentBoxFilter);
+                });
+                console.log(`🔍 [卡片夾篩選] 篩選「${currentBoxFilter}」，結果: ${filteredCollections.length} 個`);
             }
 
             // 🔥 FORCE FIX: 確保 ID 129 永遠顯示在最前面
@@ -1800,6 +1817,109 @@
         // 全局變數：儲存用戶的卡片夾列表
         let userBoxs = [];
 
+        // 卡片夾圖示對應表（可根據需求擴展）
+        const boxIcons = {
+            'ai': '🤖',
+            '運動': '⚽',
+            '工作': '💼',
+            '學習': '📚',
+            '旅遊': '✈️',
+            '美食': '🍔',
+            '音樂': '🎵',
+            '電影': '🎬',
+            '遊戲': '🎮',
+            '健康': '💪',
+            'default': '📁'
+        };
+
+        // 獲取卡片夾圖示
+        function getBoxIcon(boxName) {
+            return boxIcons[boxName] || boxIcons['default'];
+        }
+
+        // 載入收藏卡片區的卡片夾
+        async function loadBoxCards() {
+            try {
+                console.log(`📁 [收藏卡片區] 開始載入卡片夾`);
+
+                const response = await fetch(`/api/boxs/${userId}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    console.error('❌ [收藏卡片區] 載入失敗:', result.error);
+                    return;
+                }
+
+                const boxs = result.data;
+                console.log(`✅ [收藏卡片區] 成功載入 ${boxs.length} 個卡片夾`);
+
+                // 渲染卡片夾卡片
+                const container = document.getElementById('boxCardsContainer');
+
+                if (boxs.length === 0) {
+                    container.innerHTML = `
+                        <div style="width: 100%; text-align: center; padding: 30px; color: #999;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+                            <div style="font-size: 14px;">還沒有卡片夾，點擊卡片的「收藏」按鈕新增吧！</div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = boxs.map(box => `
+                        <div style="flex: 1; min-width: 150px; max-width: 200px; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; transition: transform 0.2s ease;"
+                             onmouseover="this.style.transform='translateY(-4px)'"
+                             onmouseout="this.style.transform='translateY(0)'"
+                             onclick="filterByBox('${box.box_name}')">
+                            <div style="font-size: 56px; margin-bottom: 12px;">${getBoxIcon(box.box_name)}</div>
+                            <div style="font-size: 15px; color: #555; font-weight: 500;">${box.box_name}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('❌ [收藏卡片區] 載入錯誤:', error);
+            }
+        }
+
+        // 根據卡片夾篩選收藏卡片
+        function filterByBox(boxName) {
+            console.log(`🔍 [收藏卡片區] 篩選卡片夾: ${boxName}`);
+
+            // 設定卡片夾篩選
+            currentBoxFilter = boxName;
+
+            // 重置頁碼
+            currentPage = 1;
+
+            // 清除類型篩選，顯示所有類型
+            currentFilter = 'all';
+
+            // 更新篩選按鈕狀態
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+
+            // 顯示篩選提示
+            document.getElementById('boxFilterNotice').style.display = 'block';
+            document.getElementById('currentBoxName').textContent = boxName;
+
+            // 執行篩選並顯示
+            filterAndDisplayCollections();
+
+            // 捲動到卡片區域
+            document.getElementById('collectionsGrid').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 清除卡片夾篩選
+        function clearBoxFilter() {
+            currentBoxFilter = null;
+            currentPage = 1;
+
+            // 隱藏篩選提示
+            document.getElementById('boxFilterNotice').style.display = 'none';
+
+            filterAndDisplayCollections();
+        }
+
         // 收藏按鈕點擊處理
         async function handleFavoriteClick(event, collectionId) {
             event.stopPropagation();
@@ -1934,6 +2054,9 @@
 
                     // 重新載入卡片夾列表
                     await loadBoxList(collectionId);
+
+                    // 重新載入收藏卡片區
+                    await loadBoxCards();
                 } else {
                     console.error('❌ [卡片夾] 新增失敗:', result.error);
                     alert('❌ 新增失敗：' + result.error);
