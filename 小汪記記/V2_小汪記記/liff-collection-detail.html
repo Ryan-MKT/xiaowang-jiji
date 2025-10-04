@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收藏卡詳情</title>
+
+    <!-- LINE LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 800px;
+        }
+
+        .detail-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .card-header-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .card-header-custom h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+        }
+
+        .detail-section {
+            padding: 20px;
+        }
+
+        .detail-section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .detail-item {
+            margin-bottom: 15px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            color: #333;
+            font-size: 16px;
+            word-break: break-all;
+        }
+
+        .full-description {
+            color: #333;
+            font-size: 16px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.8;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        .tag-badge {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary-custom {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary-custom:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary-custom {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary-custom:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+        }
+
+        .url-link {
+            color: #667eea;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .url-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="detail-card">
+            <div class="card-header-custom">
+                <h1>📋 收藏卡詳情</h1>
+            </div>
+
+            <!-- 載入中 -->
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">載入中...</span>
+                </div>
+            </div>
+
+            <!-- 卡片內容 -->
+            <div id="cardContent" style="display: none;">
+                <!-- 預覽圖片 -->
+                <div id="previewImageContainer"></div>
+
+                <!-- 標題和描述 -->
+                <div class="detail-section">
+                    <h3>📌 標題</h3>
+                    <div class="detail-value" id="cardTitle">-</div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>🔗 連結</h3>
+                    <div class="detail-value">
+                        <a id="cardUrl" href="#" target="_blank" class="url-link">-</a>
+                    </div>
+                </div>
+
+                <div class="detail-section" id="descriptionSection" style="display: none;">
+                    <h3>📝 描述</h3>
+                    <div class="detail-value" id="cardDescription">-</div>
+                </div>
+
+                <div class="detail-section" id="tagsSection" style="display: none;">
+                    <h3>🏷️ 標籤</h3>
+                    <div id="cardTags"></div>
+                </div>
+
+                <div class="detail-section" id="previewDescriptionSection" style="display: none;">
+                    <h3>📄 完整描述</h3>
+                    <div class="full-description" id="cardPreviewDescription">-</div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>📅 建立時間</h3>
+                    <div class="detail-value" id="cardDate">-</div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="action-buttons" id="actionButtons" style="display: none;">
+                <button class="action-btn btn-primary-custom" onclick="openUrl()">
+                    <i class="bi bi-box-arrow-up-right me-2"></i>開啟連結
+                </button>
+                <button class="action-btn btn-secondary-custom" onclick="liff.closeWindow()">
+                    <i class="bi bi-x-lg me-2"></i>關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let collection = null;
+
+        // 初始化 LIFF
+        async function initializeLiff() {
+            try {
+                // 收藏分頁 LIFF ID
+                await liff.init({ liffId: '2008077335-kPLJw8Ev' });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                // 從 URL 參數取得收藏卡 ID
+                console.log('🔍 [DEBUG] 完整 URL:', window.location.href);
+                console.log('🔍 [DEBUG] Search 參數:', window.location.search);
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const collectionId = urlParams.get('id');
+
+                console.log('🔍 [DEBUG] 取得的 Collection ID:', collectionId);
+                console.log('🔍 [DEBUG] 所有 URL 參數:', Array.from(urlParams.entries()));
+
+                if (!collectionId) {
+                    alert(`找不到收藏卡 ID\n完整URL: ${window.location.href}\nSearch: ${window.location.search}`);
+                    return;
+                }
+
+                // 載入收藏卡詳情
+                await loadCollectionDetail(collectionId);
+
+            } catch (error) {
+                console.error('❌ [LIFF] 初始化失敗:', error);
+                alert('LIFF 初始化失敗');
+            }
+        }
+
+        // 載入收藏卡詳情
+        async function loadCollectionDetail(collectionId) {
+            try {
+                console.log(`🔍 [詳情頁] 載入收藏卡 ID: ${collectionId}`);
+
+                const profile = await liff.getProfile();
+                const userId = profile.userId;
+
+                const response = await fetch(`/api/collections/${userId}`);
+                if (!response.ok) {
+                    throw new Error('載入失敗');
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || '載入失敗');
+                }
+
+                // 找到指定的收藏卡
+                collection = result.data.find(c => c.id == collectionId);
+
+                if (!collection) {
+                    throw new Error('找不到此收藏卡');
+                }
+
+                console.log('✅ [詳情頁] 載入成功:', collection);
+
+                // 顯示收藏卡內容
+                displayCollection(collection);
+
+            } catch (error) {
+                console.error('❌ [詳情頁] 載入失敗:', error);
+                alert('載入收藏卡失敗');
+                document.getElementById('loadingSpinner').innerHTML = `
+                    <div class="text-center">
+                        <p class="text-danger">❌ 載入失敗</p>
+                        <button class="btn btn-primary" onclick="liff.closeWindow()">關閉</button>
+                    </div>
+                `;
+            }
+        }
+
+        // 顯示收藏卡內容
+        function displayCollection(collection) {
+            // 隱藏載入中
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('cardContent').style.display = 'block';
+            document.getElementById('actionButtons').style.display = 'flex';
+
+            // 標題
+            const title = collection.title || collection.content?.preview_title || '無標題';
+            document.getElementById('cardTitle').textContent = title;
+
+            // 連結
+            const url = getCollectionURL(collection);
+            if (url) {
+                document.getElementById('cardUrl').href = url;
+                document.getElementById('cardUrl').textContent = url;
+            } else {
+                document.getElementById('cardUrl').textContent = '無連結';
+            }
+
+            // 預覽圖片
+            const previewImage = collection.preview_image || collection.content?.preview_image || collection.content?.image;
+            if (previewImage) {
+                document.getElementById('previewImageContainer').innerHTML = `
+                    <img src="${previewImage}" alt="預覽圖" class="preview-image">
+                `;
+            }
+
+            // 描述
+            const description = collection.description || collection.content?.preview_description || collection.content?.description;
+            if (description) {
+                document.getElementById('descriptionSection').style.display = 'block';
+                document.getElementById('cardDescription').textContent = description;
+            }
+
+            // 標籤
+            const tags = collection.tags || [];
+            if (tags.length > 0) {
+                document.getElementById('tagsSection').style.display = 'block';
+                document.getElementById('cardTags').innerHTML = tags.map(tag =>
+                    `<span class="tag-badge">${tag}</span>`
+                ).join('');
+            }
+
+            // 完整描述 (preview_description)
+            const previewDescription = collection.preview_description;
+            if (previewDescription && previewDescription.trim() !== '') {
+                document.getElementById('previewDescriptionSection').style.display = 'block';
+                document.getElementById('cardPreviewDescription').textContent = previewDescription;
+            }
+
+            // 建立時間
+            const date = new Date(collection.created_at).toLocaleString('zh-TW');
+            document.getElementById('cardDate').textContent = date;
+        }
+
+        // 取得收藏卡 URL
+        function getCollectionURL(collection) {
+            if (collection.title && collection.title.startsWith('http')) {
+                return collection.title;
+            }
+            if (collection.content && collection.content.url) {
+                return collection.content.url;
+            }
+            if (collection.message_text && collection.message_text.startsWith('http')) {
+                return collection.message_text;
+            }
+            return null;
+        }
+
+        // 開啟連結
+        function openUrl() {
+            const url = getCollectionURL(collection);
+            if (url) {
+                liff.openWindow({
+                    url: url,
+                    external: true
+                });
+            } else {
+                alert('無可開啟的連結');
+            }
+        }
+
+        // 頁面載入時初始化
+        window.onload = function() {
+            initializeLiff();
+        };
+    </script>
+</body>
+</html>
