@@ -748,6 +748,32 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
                 ]
               },
               {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#E8E8E8',
+                cornerRadius: '8px',
+                paddingTop: 'xs',
+                paddingBottom: 'xs',
+                paddingStart: 'md',
+                paddingEnd: 'md',
+                flex: 0,
+                margin: 'sm',
+                action: {
+                  type: 'postback',
+                  label: '指令',
+                  data: 'command_list'
+                },
+                contents: [
+                  {
+                    type: 'text',
+                    text: '指令',
+                    size: 'sm',
+                    color: '#666666',
+                    align: 'center'
+                  }
+                ]
+              },
+              {
                 type: 'text',
                 text: '近7天 »',
                 size: 'sm',
