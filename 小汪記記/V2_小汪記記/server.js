@@ -5052,7 +5052,9 @@ async function handleEvent(event) {
       originalText: userMessage, // 保留完整原始訊息到 originalText 欄位
       scheduledDate: parsedTask.scheduledDate, // AI 解析的時間
       timestamp: new Date().toISOString(),
-      tag: parsedTask.tag || '無標籤' // 使用AI識別的標籤，若無則為預設
+      tag: parsedTask.tag || '無標籤', // 使用AI識別的標籤，若無則為預設
+      google_calendar_enabled: parsedTask.needGoogleCalendar || false,
+      google_calendar_who: null
     };
 
     // 如果是 URL，取得預覽資訊
@@ -5190,6 +5192,8 @@ async function handleEvent(event) {
               message_text: parsedTask.text, // 儲存AI解析的任務文字（去除時間）
               scheduled_date: parsedTask.scheduledDate, // AI解析的時間
               tag: detectedTag,
+              google_calendar_enabled: parsedTask.needGoogleCalendar || false,
+              google_calendar_who: null,
               created_at: new Date().toISOString()
             }
           ]);
@@ -6100,6 +6104,113 @@ app.patch('/api/collections/:userId/:collectionId/box', async (req, res) => {
   }
 });
 
+// ===== 與會人 API =====
+
+// 取得所有與會人
+app.get('/api/guests', async (req, res) => {
+  try {
+    const userId = req.query.userId || req.session?.userId;
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少 userId' });
+    }
+
+    const { data, error } = await supabase
+      .from('dev_guest')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ [與會人API] 查詢失敗:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.log(`✅ [與會人API] 查詢成功，共 ${data.length} 筆`);
+    res.json({ guests: data });
+  } catch (error) {
+    console.error('❌ [與會人API] 系統錯誤:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 新增與會人
+app.post('/api/guests', async (req, res) => {
+  try {
+    const { guest_name, guest_email } = req.body;
+    const userId = req.query.userId || req.session?.userId;
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少 userId' });
+    }
+
+    if (!guest_name || !guest_email) {
+      return res.status(400).json({ error: '姓名和 Email 為必填' });
+    }
+
+    // 檢查是否已存在相同的 email
+    const { data: existing } = await supabase
+      .from('dev_guest')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('guest_email', guest_email)
+      .single();
+
+    if (existing) {
+      return res.status(400).json({ error: '此 Email 已存在' });
+    }
+
+    const { data, error } = await supabase
+      .from('dev_guest')
+      .insert([{
+        user_id: userId,
+        guest_name,
+        guest_email
+      }])
+      .select();
+
+    if (error) {
+      console.error('❌ [與會人API] 新增失敗:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.log(`✅ [與會人API] 成功新增與會人: ${guest_name} (${guest_email})`);
+    res.json({ success: true, guest: data[0] });
+  } catch (error) {
+    console.error('❌ [與會人API] 系統錯誤:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 刪除與會人
+app.delete('/api/guests/:guestId', async (req, res) => {
+  try {
+    const { guestId } = req.params;
+    const userId = req.query.userId || req.session?.userId;
+
+    if (!userId) {
+      return res.status(400).json({ error: '缺少 userId' });
+    }
+
+    const { error } = await supabase
+      .from('dev_guest')
+      .delete()
+      .eq('id', guestId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('❌ [與會人API] 刪除失敗:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.log(`✅ [與會人API] 成功刪除與會人 ID: ${guestId}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ [與會人API] 系統錯誤:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // 網址預覽 API
 const { openGraphAPI } = require('./open-graph-api');
 
@@ -6735,7 +6846,7 @@ app.get('/api/get-task', async (req, res) => {
       });
 
       // 回傳記憶體中的資料（包含AI解析的時間）
-      return res.json({
+      const memoryResponseData = {
         success: true,
         taskData: {
           id: memoryTask.id,
@@ -6744,9 +6855,13 @@ app.get('/api/get-task', async (req, res) => {
           note: memoryTask.note || null,
           date: memoryTask.scheduledDate, // AI解析的時間
           reminder: memoryTask.reminder || memoryTask.reminder_minutes || null,
-          repeat: memoryTask.repeat || memoryTask.repeat_pattern || null
+          repeat: memoryTask.repeat || memoryTask.repeat_pattern || null,
+          googleCalendar: memoryTask.google_calendar_enabled || false,
+          guestEmail: memoryTask.google_calendar_who || null
         }
-      });
+      };
+      console.log('📤 [載入任務] 從記憶體回傳資料給前端:', JSON.stringify(memoryResponseData, null, 2));
+      return res.json(memoryResponseData);
     }
 
     // 從 Supabase 數據庫查詢任務詳細資料
@@ -6782,7 +6897,7 @@ app.get('/api/get-task', async (req, res) => {
             google_calendar_who: taskData.google_calendar_who
           }, userId);
 
-          res.json({
+          const responseData = {
             success: true,
             taskData: {
               id: taskData.id,
@@ -6795,7 +6910,9 @@ app.get('/api/get-task', async (req, res) => {
               googleCalendar: taskData.google_calendar_enabled || false,
               guestEmail: taskData.google_calendar_who || null
             }
-          });
+          };
+          console.log('📤 [載入任務] 準備回傳資料給前端:', JSON.stringify(responseData, null, 2));
+          res.json(responseData);
         } else {
           console.log(`⚠️ [載入任務] 未找到任務資料: "${taskText}"`);
           res.json({

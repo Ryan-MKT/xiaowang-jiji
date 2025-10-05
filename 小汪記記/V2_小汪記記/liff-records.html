@@ -1004,6 +1004,190 @@
             box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3);
         }
 
+        /* 與會人區域 */
+        .attendees-section {
+            margin-top: 20px;
+            padding: 0 10px;
+        }
+
+        .attendees-container {
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            min-height: 150px;
+        }
+
+        .attendees-header {
+            margin-bottom: 10px;
+        }
+
+        .attendees-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .attendees-list {
+            margin-bottom: 10px;
+            min-height: 60px;
+        }
+
+        .attendee-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #007bff;
+        }
+
+        .attendee-info {
+            flex: 1;
+        }
+
+        .attendee-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .attendee-email {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .attendee-delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .attendee-delete-btn:hover {
+            background: #c82333;
+        }
+
+        .add-attendee-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            margin: 0 auto;
+            transition: background 0.2s;
+        }
+
+        .add-attendee-btn:hover {
+            background: #0056b3;
+        }
+
+        /* 彈出表單遮罩 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .modal-btn-cancel:hover {
+            background: #5a6268;
+        }
+
+        .modal-btn-save {
+            background: #007bff;
+            color: white;
+        }
+
+        .modal-btn-save:hover {
+            background: #0056b3;
+        }
+
     </style>
 </head>
 <body>
@@ -1035,6 +1219,21 @@
                         <div id="calendarDays" class="calendar-days">
                             <!-- 日期會動態生成 -->
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下方：與會人管理區域 -->
+            <div class="attendees-section">
+                <div class="attendees-container">
+                    <div class="attendees-header">
+                        <h4>與會人</h4>
+                    </div>
+                    <div id="attendeesList" class="attendees-list">
+                        <!-- 與會人會動態插入這裡 -->
+                    </div>
+                    <div class="add-attendee-btn" onclick="showAddAttendeeForm()">
+                        <span>+</span>
                     </div>
                 </div>
             </div>
@@ -1219,7 +1418,25 @@
     </div>
 
     <button class="floating-button" onclick="closeApp()">✕</button>
-    
+
+    <!-- 與會人新增表單彈窗 -->
+    <div class="modal-overlay" id="attendeeModal">
+        <div class="modal-content">
+            <div class="modal-header">新增與會人</div>
+            <div class="form-group">
+                <label for="attendeeName">姓名</label>
+                <input type="text" id="attendeeName" placeholder="請輸入姓名">
+            </div>
+            <div class="form-group">
+                <label for="attendeeEmail">Gmail</label>
+                <input type="email" id="attendeeEmail" placeholder="請輸入 Gmail 地址">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeAttendeeModal()">取消</button>
+                <button class="modal-btn modal-btn-save" onclick="saveAttendee()">儲存</button>
+            </div>
+        </div>
+    </div>
 
 
     <script>
@@ -1285,6 +1502,9 @@
 
                 // 啟動自動同步機制
                 startAutoSync();
+
+                // 載入與會人列表
+                await loadAttendees();
 
             } catch (error) {
                 console.error('LIFF 初始化失敗:', error);
@@ -2566,6 +2786,141 @@ Item: ${taskItem?.offsetWidth}px (left: ${taskItem?.offsetLeft}px)
 
             document.getElementById('debugInfo').innerHTML = info;
         }, 2000);
+
+        // ===== 與會人管理功能 =====
+        let attendees = [];
+
+        // 從後端載入與會人列表
+        async function loadAttendees() {
+            if (!currentUserId) {
+                console.log('尚未取得 userId');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/guests?userId=${currentUserId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    attendees = data.guests || [];
+                    renderAttendees();
+                } else {
+                    console.error('載入與會人失敗');
+                }
+            } catch (error) {
+                console.error('載入與會人錯誤:', error);
+            }
+        }
+
+        // 顯示所有與會人
+        function renderAttendees() {
+            const attendeesList = document.getElementById('attendeesList');
+            if (attendees.length === 0) {
+                attendeesList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">尚未新增與會人</div>';
+                return;
+            }
+
+            attendeesList.innerHTML = attendees.map((attendee) => `
+                <div class="attendee-item">
+                    <div class="attendee-info">
+                        <div class="attendee-name">${attendee.guest_name}</div>
+                        <div class="attendee-email">${attendee.guest_email}</div>
+                    </div>
+                    <button class="attendee-delete-btn" onclick="deleteAttendee(${attendee.id})">刪除</button>
+                </div>
+            `).join('');
+        }
+
+        // 顯示新增表單
+        function showAddAttendeeForm() {
+            document.getElementById('attendeeModal').classList.add('active');
+            document.getElementById('attendeeName').value = '';
+            document.getElementById('attendeeEmail').value = '';
+        }
+
+        // 關閉表單
+        function closeAttendeeModal() {
+            document.getElementById('attendeeModal').classList.remove('active');
+        }
+
+        // 儲存與會人
+        async function saveAttendee() {
+            const name = document.getElementById('attendeeName').value.trim();
+            const email = document.getElementById('attendeeEmail').value.trim();
+
+            if (!name) {
+                alert('請輸入姓名');
+                return;
+            }
+
+            if (!email) {
+                alert('請輸入 Gmail 地址');
+                return;
+            }
+
+            // 簡單的 email 驗證
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('請輸入有效的 Gmail 地址');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/guests?userId=${currentUserId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        guest_name: name,
+                        guest_email: email
+                    })
+                });
+
+                if (response.ok) {
+                    await loadAttendees();
+                    closeAttendeeModal();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || '儲存失敗');
+                }
+            } catch (error) {
+                console.error('儲存與會人錯誤:', error);
+                alert('儲存失敗');
+            }
+        }
+
+        // 刪除與會人
+        async function deleteAttendee(guestId) {
+            const attendee = attendees.find(a => a.id === guestId);
+            if (!attendee) return;
+
+            if (confirm(`確定要刪除「${attendee.guest_name}」嗎?`)) {
+                try {
+                    const response = await fetch(`/api/guests/${guestId}?userId=${currentUserId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        await loadAttendees();
+                    } else {
+                        alert('刪除失敗');
+                    }
+                } catch (error) {
+                    console.error('刪除與會人錯誤:', error);
+                    alert('刪除失敗');
+                }
+            }
+        }
+
     </script>
 </body>
 </html>

@@ -737,6 +737,58 @@
             transition: border-color 0.2s ease;
         }
 
+        /* 與會人快速選擇列表 */
+        .guest-quick-select {
+            margin-top: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .guest-option {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .guest-option:hover {
+            background: #e9ecef;
+        }
+
+        .guest-option-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .guest-option-info {
+            flex: 1;
+        }
+
+        .guest-option-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .guest-option-email {
+            font-size: 12px;
+            color: #666;
+        }
+
         /* 提醒時間選項樣式 (在日期選擇器內) */
         .reminder-section {
             margin-top: 16px;
@@ -1257,6 +1309,10 @@
                                            class="google-guest-input"
                                            placeholder="輸入 Gmail 地址"
                                            autocomplete="email">
+                                    <!-- 與會人快速選擇列表 -->
+                                    <div id="guestQuickSelect" class="guest-quick-select">
+                                        <!-- 這裡會動態插入與會人選項 -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1456,6 +1512,7 @@
                     console.log('✅ [使用者驗證] 使用者已登入');
                     liffProfile = await liff.getProfile();
                     await loadTaskData();
+                    await loadGuestsForQuickSelect();
                 } else {
                     console.log('❌ [使用者驗證] 使用者未登入，導向登入頁面');
                     // 指定 redirectUri 為當前頁面（不含參數）
@@ -1600,8 +1657,13 @@
                             // 載入Google日曆設定
                             if (data.googleCalendar !== undefined) {
                                 currentTaskData.googleCalendar = data.googleCalendar;
-                                document.getElementById('taskGoogleCalendar').textContent = data.googleCalendar ? '是' : '否';
-                                console.log('📅 [任務載入] 載入Google日曆設定:', data.googleCalendar);
+                                const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
+                                if (taskGoogleCalendarElement) {
+                                    taskGoogleCalendarElement.textContent = data.googleCalendar ? '是' : '否';
+                                    console.log('📅 [任務載入] 載入Google日曆設定:', data.googleCalendar, '顯示為:', taskGoogleCalendarElement.textContent);
+                                } else {
+                                    console.error('❌ [任務載入] 找不到 taskGoogleCalendar 元素');
+                                }
 
                                 // 根據Google日曆設定顯示或隱藏訪客郵件欄位
                                 const guestSection = document.getElementById('googleGuestSection');
@@ -1610,7 +1672,11 @@
                                 }
                             } else {
                                 currentTaskData.googleCalendar = false;
-                                document.getElementById('taskGoogleCalendar').textContent = '否';
+                                const taskGoogleCalendarElement = document.getElementById('taskGoogleCalendar');
+                                if (taskGoogleCalendarElement) {
+                                    taskGoogleCalendarElement.textContent = '否';
+                                    console.log('📅 [任務載入] Google日曆設定未定義，設為「否」');
+                                }
 
                                 // 隱藏訪客郵件欄位
                                 const guestSection = document.getElementById('googleGuestSection');
@@ -3094,6 +3160,63 @@
                 // 清除URL參數
                 const newUrl = window.location.pathname;
                 window.history.replaceState({}, document.title, newUrl);
+            }
+        }
+
+        // ===== 與會人快速選擇功能 =====
+        let guestsData = [];
+
+        // 載入與會人列表
+        async function loadGuestsForQuickSelect() {
+            if (!liffProfile || !liffProfile.userId) {
+                console.log('⚠️ 尚未取得 userId，跳過載入與會人');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/guests?userId=${liffProfile.userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    guestsData = data.guests || [];
+                    renderGuestQuickSelect();
+                } else {
+                    console.error('載入與會人失敗');
+                }
+            } catch (error) {
+                console.error('載入與會人錯誤:', error);
+            }
+        }
+
+        // 渲染與會人快速選擇列表
+        function renderGuestQuickSelect() {
+            const container = document.getElementById('guestQuickSelect');
+            if (!container) return;
+
+            if (guestsData.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = guestsData.map(guest => {
+                const initial = guest.guest_name.charAt(0).toUpperCase();
+                return `
+                    <div class="guest-option" onclick="selectGuest('${guest.guest_email}', '${guest.guest_name}')">
+                        <div class="guest-option-icon">${initial}</div>
+                        <div class="guest-option-info">
+                            <div class="guest-option-name">${guest.guest_name}</div>
+                            <div class="guest-option-email">${guest.guest_email}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 選擇與會人
+        function selectGuest(email, name) {
+            const input = document.getElementById('googleGuestEmail');
+            if (input) {
+                input.value = email;
+                console.log(`✅ 已選擇與會人: ${name} (${email})`);
             }
         }
 
