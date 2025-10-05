@@ -253,7 +253,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
             decoration: isCompleted ? 'line-through' : 'none',
             action: {
               type: 'uri',
-              uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+              uri: `https://liff.line.me/2008077335-rZlgE4bX?liff.state=%2F%3FtaskId%3D${task.id}%26taskText%3D${encodeURIComponent(task.text)}`
             }
           }
         ];
@@ -392,7 +392,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
             decoration: isCompleted ? 'line-through' : 'none',
             action: {
               type: 'uri',
-              uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
+              uri: `https://liff.line.me/2008077335-rZlgE4bX?liff.state=%2F%3FtaskId%3D${task.id}%26taskText%3D${encodeURIComponent(task.text)}`
             }
           }
         ];
