@@ -98,7 +98,7 @@ class GlobalSidebar {
             console.log('🏷️ [全域側邊欄] 關閉右側面板');
         }
 
-        // 只在桌面版顯示側邊欄
+        // 桌面版和手機版都顯示側邊欄（位置不同）
         const isDesktop = window.innerWidth >= 1024;
         const sidebar = document.querySelector('.global-sidebar');
 
@@ -109,9 +109,11 @@ class GlobalSidebar {
 
         console.log('🏷️ [全域側邊欄] 是否為桌面版:', isDesktop);
 
+        // 側邊欄始終顯示
+        sidebar.style.display = 'block';
+
         if (isDesktop) {
-            sidebar.style.display = 'block';
-            console.log('🏷️ [全域側邊欄] 顯示側邊欄');
+            console.log('🏷️ [全域側邊欄] 顯示左側邊欄（桌面版）');
 
             // 調整各種容器的邊距
             const selectors = [
@@ -141,6 +143,7 @@ class GlobalSidebar {
                     } else {
                         // 強制清除任何舊的inline styles並重新設置
                         element.style.marginLeft = '125px';
+                        element.style.removeProperty('padding-bottom');
                         console.log(`🏷️ [全域側邊欄] 強制設置 ${selector}[${index}] 左邊距為125px`);
                     }
                 });
@@ -148,8 +151,7 @@ class GlobalSidebar {
 
             console.log(`🏷️ [全域側邊欄] 總共調整了 ${foundContainers} 個容器`);
         } else {
-            sidebar.style.display = 'none';
-            console.log('🏷️ [全域側邊欄] 隱藏側邊欄（手機版）');
+            console.log('🏷️ [全域側邊欄] 顯示底部導航欄（手機版）');
 
             // 強制移除桌面版的所有邊距，並清除任何inline styles
             const selectors = [
@@ -169,7 +171,8 @@ class GlobalSidebar {
                     if (element.tagName !== 'BODY') {
                         // 完全清除margin-left的inline style，讓CSS媒體查詢生效
                         element.style.removeProperty('margin-left');
-                        console.log(`🏷️ [全域側邊欄] 清除手機版 ${selector}[${index}] 左邊距inline樣式`);
+                        element.style.paddingBottom = '70px';
+                        console.log(`🏷️ [全域側邊欄] 清除手機版 ${selector}[${index}] 左邊距，增加底部內距`);
                     }
                 });
             });
@@ -384,14 +387,59 @@ body {
 /* 日曆樣式已完全移除 */
 
 
-/* 響應式設計 - 手機版隱藏側邊欄 */
+/* 響應式設計 - 手機版底部導航欄 */
 @media (max-width: 1023px) {
     .global-sidebar {
-        display: none !important;
+        /* 改為底部固定 */
+        left: 0;
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-top: 1px solid #e9ecef;
+        padding: 10px;
+        display: block !important;
     }
 
-    .main-layout {
+    /* 手機版隱藏用戶資料區 */
+    .sidebar-profile {
+        display: none;
+    }
+
+    /* 手機版導航按鈕水平排列 */
+    .sidebar-nav {
+        flex-direction: row;
+        justify-content: space-around;
+        gap: 0;
+    }
+
+    .nav-btn {
+        flex: 1;
+        padding: 8px 4px;
+        border-radius: 0;
+        border: none;
+    }
+
+    .nav-icon {
+        font-size: 20px;
+    }
+
+    .nav-text {
+        font-size: 10px;
+    }
+
+    /* 手機版移除左邊距 */
+    .main-layout,
+    .container,
+    .container-fluid,
+    body > .row,
+    main,
+    .content-wrapper,
+    .main-content,
+    #mainContent {
         margin-left: 0 !important;
+        padding-bottom: 70px !important; /* 為底部導航欄留出空間 */
     }
 }
 
