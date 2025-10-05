@@ -979,7 +979,7 @@ function generateQuickReply(userTags) {
       type: 'action',
       action: {
         type: 'message',
-        label: '⮂',
+        label: '⟳',
         text: '返回'
       }
     },
