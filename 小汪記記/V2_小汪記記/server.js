@@ -6666,8 +6666,8 @@ app.get('/api/get-task', async (req, res) => {
           tag: memoryTask.tag || null,
           note: memoryTask.note || null,
           date: memoryTask.scheduledDate, // AI解析的時間
-          reminder: memoryTask.reminder || null,
-          repeat: memoryTask.repeat || null
+          reminder: memoryTask.reminder || memoryTask.reminder_minutes || null,
+          repeat: memoryTask.repeat || memoryTask.repeat_pattern || null
         }
       });
     }
@@ -6864,7 +6864,7 @@ app.post('/api/save-task', async (req, res) => {
           console.log(`🎯 [TAG確認] 更新後的TAG值: "${textUpdate[0].tag}"`);
 
           // 同步更新記憶體中的任務
-          console.log(`🔄 [記憶體同步] 開始同步記憶體中的任務標籤`);
+          console.log(`🔄 [記憶體同步] 開始同步記憶體中的任務資料`);
           const userTasks = userTaskStacks.get(userId) || [];
           let memoryUpdated = false;
 
@@ -6872,8 +6872,14 @@ app.post('/api/save-task', async (req, res) => {
             if (userTasks[i].text === safeTitle || userTasks[i].id == taskId) {
               console.log(`🎯 [記憶體同步] 找到匹配任務: "${userTasks[i].text}"`);
               userTasks[i].tag = safeTag;
+              userTasks[i].note = safeNote;
+              userTasks[i].scheduled_date = date;
+              userTasks[i].reminder_minutes = reminder ? parseInt(reminder.replace(/[^\d]/g, '')) : null;
+              userTasks[i].repeat_pattern = repeat;
+              userTasks[i].google_calendar_enabled = googleCalendar === true || googleCalendar === 'true';
+              userTasks[i].google_calendar_who = safeGuestEmail;
               memoryUpdated = true;
-              console.log(`✅ [記憶體同步] 已更新記憶體中任務的標籤為: "${safeTag}"`);
+              console.log(`✅ [記憶體同步] 已更新記憶體中任務的所有欄位`);
               break;
             }
           }

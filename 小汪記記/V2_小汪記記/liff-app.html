@@ -2322,6 +2322,10 @@
                     // 更新本地資料
                     currentTaskData.text = taskTitle;
                     currentTaskData.note = taskNote;
+                    currentTaskData.tag = taskTag !== '無' ? taskTag : null;
+                    currentTaskData.date = taskDate;
+                    currentTaskData.reminder = taskReminder !== '否' ? taskReminder : null;
+                    currentTaskData.repeat = taskRepeat !== '不重複' ? taskRepeat : null;
                     currentTaskData.googleCalendar = taskGoogleCalendar === '是';
 
                     console.log('✅ [儲存任務] 儲存成功:', result);
