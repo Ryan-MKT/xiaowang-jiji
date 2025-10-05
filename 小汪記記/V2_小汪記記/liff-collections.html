@@ -29,6 +29,15 @@
             padding: 20px;
         }
 
+        /* 桌面版：考慮左側邊欄，調整容器邊距 */
+        @media (min-width: 1024px) {
+            .container {
+                margin-left: 125px !important; /* 側邊欄寬度，由 global-sidebar.js 設置 */
+                margin-right: 20px !important; /* 右側邊距 20px */
+                max-width: calc(100% - 145px) !important; /* 總寬度 - (125px 側邊欄 + 20px 右邊距) */
+            }
+        }
+
         .header-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
