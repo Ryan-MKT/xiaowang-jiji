@@ -755,63 +755,100 @@
                 margin-top: 20px;
             }
         }
+
+        /* 搜尋欄樣式 */
+        .search-bar {
+            width: 100%;
+        }
+
+        .search-input-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 18px;
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 45px;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            background: white;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #999;
+        }
+
+        /* 卡片夾標籤樣式 (Pinterest 風格) */
+        .box-tag {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .box-tag:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .box-tag:active {
+            transform: translateY(0);
+        }
+
+        .box-tag.active {
+            background: #111;
+            color: white;
+            border-color: #111;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <!-- 頁面標題 -->
-        <div style="text-align: left; padding: 20px 0;">
-            <h2 style="margin: 0; font-size: 36px; font-weight: 600; color: #333;">收藏卡</h2>
+        <!-- 上方空白 -->
+        <div style="height: 20px;"></div>
+
+        <!-- 搜尋欄 -->
+        <div class="search-bar mb-4">
+            <div class="search-input-container">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="search-input" id="searchInput" placeholder="搜尋">
+            </div>
         </div>
 
-        <!-- 篩選器 -->
-        <div class="filter-bar">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0">篩選分類</h6>
-                <small class="text-muted" id="collectionCount">載入中...</small>
-            </div>
+        <!-- 卡片夾標籤 -->
+        <div id="boxCardsContainer" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 30px;">
+            <!-- 動態載入卡片夾 -->
+        </div>
 
-            <!-- 收藏卡片區 UI -->
-            <div class="collection-folders-ui mb-3" style="background: #f0f4f8; border-radius: 12px; padding: 20px;">
-                <div style="display: flex; align-items: center; margin-bottom: 16px;">
-                    <span style="font-size: 20px; font-weight: 600; color: #2c3e50;">📁 收藏卡片區</span>
-                </div>
-                <div id="boxCardsContainer" style="display: flex; gap: 16px; flex-wrap: wrap;">
-                    <!-- 動態載入卡片夾 -->
-                </div>
-            </div>
-
-            <!-- 卡片夾篩選提示 -->
-            <div id="boxFilterNotice" style="display: none; background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 18px;">📁</span>
-                        <span style="color: #1976d2; font-weight: 600;">正在顯示「<span id="currentBoxName"></span>」卡片夾</span>
-                    </div>
-                    <button onclick="clearBoxFilter()" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 14px; padding: 4px 8px;">
-                        ✕ 清除篩選
-                    </button>
-                </div>
-            </div>
-
-            <div class="filter-buttons">
-                <button class="filter-btn active" data-filter="all">
-                    <i class="bi bi-grid-3x3-gap me-1"></i>全部
-                </button>
-                <button class="filter-btn" data-filter="url">
-                    <i class="bi bi-link-45deg me-1"></i>網址
-                </button>
-                <button class="filter-btn" data-filter="video">
-                    <i class="bi bi-play-circle me-1"></i>影片
-                </button>
-                <button class="filter-btn" data-filter="image">
-                    <i class="bi bi-image me-1"></i>圖片
-                </button>
-                <button class="filter-btn" data-filter="text">
-                    <i class="bi bi-file-text me-1"></i>文字
-                </button>
-            </div>
+        <!-- 隱藏的元素 (保留功能) -->
+        <div style="display: none;">
+            <small class="text-muted" id="collectionCount">載入中...</small>
+            <div id="boxFilterNotice"></div>
         </div>
 
         <!-- 收藏品網格 -->
@@ -1887,19 +1924,38 @@
                         </div>
                     `;
                 } else {
-                    container.innerHTML = boxs.map(box => `
-                        <div style="flex: 1; min-width: 150px; max-width: 200px; background: white; border-radius: 10px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; transition: transform 0.2s ease;"
-                             onmouseover="this.style.transform='translateY(-4px)'"
-                             onmouseout="this.style.transform='translateY(0)'"
-                             onclick="filterByBox('${box.box_name}')">
-                            <div style="font-size: 56px; margin-bottom: 12px;">${getBoxIcon(box.box_name)}</div>
-                            <div style="font-size: 15px; color: #555; font-weight: 500;">${box.box_name}</div>
+                    // 添加「全部」標籤在最前面
+                    const allTag = `
+                        <div class="box-tag active" onclick="clearBoxFilter()">
+                            全部
+                        </div>
+                    `;
+
+                    const boxTags = boxs.map(box => `
+                        <div class="box-tag" onclick="filterByBox('${box.box_name}')">
+                            ${box.box_name}
                         </div>
                     `).join('');
+
+                    container.innerHTML = allTag + boxTags;
                 }
             } catch (error) {
                 console.error('❌ [收藏卡片區] 載入錯誤:', error);
             }
+        }
+
+        // 更新卡片夾標籤的 active 狀態
+        function updateBoxTagsActiveState(activeBoxName) {
+            const allTags = document.querySelectorAll('.box-tag');
+            allTags.forEach((tag, index) => {
+                tag.classList.remove('active');
+                // 第一個標籤是「全部」
+                if (index === 0 && !activeBoxName) {
+                    tag.classList.add('active');
+                } else if (tag.textContent.trim() === activeBoxName) {
+                    tag.classList.add('active');
+                }
+            });
         }
 
         // 根據卡片夾篩選收藏卡片
@@ -1919,7 +1975,12 @@
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+            if (document.querySelector('.filter-btn[data-filter="all"]')) {
+                document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+            }
+
+            // 更新標籤 active 狀態
+            updateBoxTagsActiveState(boxName);
 
             // 顯示篩選提示
             document.getElementById('boxFilterNotice').style.display = 'block';
@@ -1939,6 +2000,9 @@
 
             // 隱藏篩選提示
             document.getElementById('boxFilterNotice').style.display = 'none';
+
+            // 更新標籤 active 狀態
+            updateBoxTagsActiveState(null);
 
             filterAndDisplayCollections();
         }
