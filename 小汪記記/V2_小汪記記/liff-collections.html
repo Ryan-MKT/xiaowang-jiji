@@ -943,7 +943,8 @@
             try {
                 console.log('🔄 [收藏卡] 開始載入收藏品...');
 
-                const response = await fetch(`/api/collections/${userId}`);
+                // 移除 limit 限制，載入所有收藏卡以支援卡片夾篩選
+                const response = await fetch(`/api/collections/${userId}?limit=1000`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -1211,9 +1212,18 @@
 
             // 按卡片夾標籤篩選
             if (currentBoxFilter) {
+                console.log('🔍 [DEBUG] 目前篩選:', currentBoxFilter);
+
+                // 檢查所有收藏卡的 tags
+                const withTags = collections.filter(c => c.tags && c.tags.length > 0);
+                const withoutTags = collections.filter(c => !c.tags || c.tags.length === 0);
+                console.log('🔍 [DEBUG] 有 tags 的收藏卡:', withTags.length, withTags.map(c => ({ id: c.id, tags: c.tags })));
+                console.log('🔍 [DEBUG] 沒有 tags 的收藏卡:', withoutTags.length);
+
                 filteredCollections = filteredCollections.filter(collection => {
                     const tags = collection.tags || [];
-                    return tags.includes(currentBoxFilter);
+                    const matches = tags.includes(currentBoxFilter);
+                    return matches;
                 });
                 console.log(`🔍 [卡片夾篩選] 篩選「${currentBoxFilter}」，結果: ${filteredCollections.length} 個`);
             }
@@ -1982,10 +1992,6 @@
             // 更新標籤 active 狀態
             updateBoxTagsActiveState(boxName);
 
-            // 顯示篩選提示
-            document.getElementById('boxFilterNotice').style.display = 'block';
-            document.getElementById('currentBoxName').textContent = boxName;
-
             // 執行篩選並顯示
             filterAndDisplayCollections();
 
@@ -1997,9 +2003,6 @@
         function clearBoxFilter() {
             currentBoxFilter = null;
             currentPage = 1;
-
-            // 隱藏篩選提示
-            document.getElementById('boxFilterNotice').style.display = 'none';
 
             // 更新標籤 active 狀態
             updateBoxTagsActiveState(null);
