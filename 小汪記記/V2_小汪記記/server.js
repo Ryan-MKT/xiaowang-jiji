@@ -746,6 +746,71 @@ const userTaskStacks = new Map();
 // 資料結構: Map<userId, 'taskStack' | 'collections'>
 const userLastMessageType = new Map();
 
+// 🔁 重複性任務判斷函數：檢查任務是否應該在目標日期出現
+function shouldTaskAppearOnDate(task, targetDateString) {
+  // 如果沒有重複模式，返回 false（不是重複任務）
+  if (!task.repeat_pattern || task.repeat_pattern === '不重複') {
+    return false;
+  }
+
+  // 如果沒有 scheduled_date，無法判斷重複基準，返回 false
+  if (!task.scheduled_date) {
+    return false;
+  }
+
+  try {
+    // 解析任務的原始日期（重複的基準日期）
+    const taskDate = new Date(task.scheduled_date);
+    const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+    const taskDateString = taiwanTaskDate.toISOString().split('T')[0];
+
+    // 解析目標日期
+    const targetDate = new Date(targetDateString + 'T00:00:00Z');
+    const targetDateObj = new Date(targetDate.getTime() + 8 * 60 * 60 * 1000);
+
+    // 計算日期差異
+    const taskDateTime = new Date(taskDateString + 'T00:00:00Z');
+    const timeDiff = targetDate.getTime() - taskDateTime.getTime();
+    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+
+    // 根據重複模式判斷
+    switch (task.repeat_pattern) {
+      case '每天':
+        // 只要目標日期 >= 任務原始日期，就應該出現
+        return daysDiff >= 0;
+
+      case '每週':
+        // 檢查是否為同一星期幾，且目標日期 >= 任務原始日期
+        if (daysDiff < 0) return false;
+        const taskDayOfWeek = new Date(taskDateString).getDay();
+        const targetDayOfWeek = targetDateObj.getDay();
+        return taskDayOfWeek === targetDayOfWeek;
+
+      case '每月':
+        // 檢查是否為同一天（日期），且目標日期 >= 任務原始日期
+        if (daysDiff < 0) return false;
+        const taskDay = new Date(taskDateString).getDate();
+        const targetDay = targetDateObj.getDate();
+        return taskDay === targetDay;
+
+      case '每年':
+        // 檢查是否為同一月日，且目標日期 >= 任務原始日期
+        if (daysDiff < 0) return false;
+        const taskMonth = new Date(taskDateString).getMonth();
+        const taskDayOfMonth = new Date(taskDateString).getDate();
+        const targetMonth = targetDateObj.getMonth();
+        const targetDayOfMonth = targetDateObj.getDate();
+        return taskMonth === targetMonth && taskDayOfMonth === targetDayOfMonth;
+
+      default:
+        return false;
+    }
+  } catch (error) {
+    console.error(`❌ [重複性任務] 日期解析錯誤:`, error);
+    return false;
+  }
+}
+
 // 🗓️ 日期過濾幫助函數：只返回今天的任務
 function filterTodayTasks(allTasks) {
   console.log(`📅 [日期過濾] 開始過濾，總任務數: ${allTasks.length}`);
@@ -758,6 +823,12 @@ function filterTodayTasks(allTasks) {
   console.log(`📅 [日期過濾] 今天日期: ${todayDateString}`);
 
   const todayTasks = allTasks.filter(task => {
+    // 🔁 首先檢查是否為重複性任務
+    if (shouldTaskAppearOnDate(task, todayDateString)) {
+      console.log(`🔁 [重複性任務] "${task.text}": ${task.repeat_pattern} ✅今天出現`);
+      return true;
+    }
+
     // 檢查任務文字中是否包含日期資訊（例如 "9/30", "10/1" 等）
     const taskText = task.text || '';
     const datePattern = /(\d{1,2})\/(\d{1,2})/;
@@ -914,6 +985,12 @@ function filterTasksByDaysOffset(allTasks, daysOffset) {
   console.log(`📅 [${dayName}過濾] ${dayName}日期: ${targetDateString}`);
 
   const filteredTasks = allTasks.filter(task => {
+    // 🔁 首先檢查是否為重複性任務
+    if (shouldTaskAppearOnDate(task, targetDateString)) {
+      console.log(`🔁 [重複性任務] "${task.text}": ${task.repeat_pattern} ✅${dayName}出現`);
+      return true;
+    }
+
     // 📋 新邏輯：優先檢查 scheduled_date，如果沒有則檢查 created_at (和 filterTodayTasks 相同邏輯)
 
     // 1. 優先檢查 scheduled_date (task.scheduled_date)
@@ -7967,7 +8044,7 @@ app.get('/api/messages', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     const dateFilter = req.query.date; // YYYY-MM-DD 格式
-    
+
     if (!userId) {
       return res.status(400).json({ error: 'Missing user ID' });
     }
@@ -7977,43 +8054,89 @@ app.get('/api/messages', async (req, res) => {
     }
 
     console.log(`🔍 [訊息API] 查詢使用者 ${userId} 的訊息記錄${dateFilter ? ` (日期: ${dateFilter})` : ''}`);
-    
+
     let query = supabase
       .from('dev_messages')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    
-    // 如果有日期篩選，加入日期條件
+
+    // 🔁 如果有日期篩選，需要特殊處理重複性任務
     if (dateFilter) {
+      // 先獲取所有該使用者的訊息（不限日期）
+      const { data: allData, error: allError } = await query;
+
+      if (allError) {
+        console.error('❌ [訊息API] Supabase 查詢錯誤:', allError);
+        return res.status(500).json({ error: allError.message });
+      }
+
       const startDate = `${dateFilter}T00:00:00.000Z`;
       const endDate = `${dateFilter}T23:59:59.999Z`;
-      
-      query = query
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
+
+      // 篩選出符合條件的訊息
+      const filteredData = allData.filter(msg => {
+        // 1. 檢查是否為重複性任務且應該在該日期顯示
+        if (msg.repeat_pattern && msg.repeat_pattern !== '不重複') {
+          const shouldAppear = shouldTaskAppearOnDate(msg, dateFilter);
+          if (shouldAppear) {
+            console.log(`🔁 [訊息API] 重複性任務 "${msg.message_text}": ${msg.repeat_pattern} ✅ ${dateFilter} 出現`);
+            return true;
+          }
+        }
+
+        // 2. 檢查是否在該日期建立
+        const createdAt = new Date(msg.created_at);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        return createdAt >= start && createdAt <= end;
+      });
+
+      // 轉換格式以符合前端預期
+      const formattedMessages = filteredData.map(msg => ({
+        text: msg.message_text,
+        timestamp: msg.created_at,
+        completed: false,
+        id: msg.id,
+        repeat_pattern: msg.repeat_pattern || null, // 🔁 包含重複模式以顯示圖示
+        scheduled_date: msg.scheduled_date || null,
+        note: msg.note || null,
+        tag: msg.tag || null,
+        reminder_minutes: msg.reminder_minutes || null
+      }));
+
+      console.log(`✅ [訊息API] 成功回傳 ${formattedMessages.length} 筆訊息記錄 (含重複性任務)`);
+      console.log(`📝 [訊息API] 訊息預覽:`, formattedMessages.slice(0, 3).map(msg => `${msg.text}${msg.repeat_pattern ? ' 🔁' + msg.repeat_pattern : ''}`));
+
+      return res.json(formattedMessages);
     }
-    
+
+    // 無日期篩選，回傳所有訊息
     const { data, error } = await query;
-    
+
     if (error) {
       console.error('❌ [訊息API] Supabase 查詢錯誤:', error);
       return res.status(500).json({ error: error.message });
     }
-    
+
     // 轉換格式以符合前端預期
     const formattedMessages = data.map(msg => ({
       text: msg.message_text,
       timestamp: msg.created_at,
-      completed: false, // 訊息記錄預設為未完成狀態
-      id: msg.id
+      completed: false,
+      id: msg.id,
+      repeat_pattern: msg.repeat_pattern || null,
+      scheduled_date: msg.scheduled_date || null,
+      note: msg.note || null,
+      tag: msg.tag || null,
+      reminder_minutes: msg.reminder_minutes || null
     }));
-    
+
     console.log(`✅ [訊息API] 成功回傳 ${formattedMessages.length} 筆訊息記錄`);
     console.log(`📝 [訊息API] 訊息預覽:`, formattedMessages.slice(0, 3).map(msg => msg.text));
-    
+
     res.json(formattedMessages);
-    
+
   } catch (err) {
     console.error('❌ [訊息API] 錯誤:', err);
     res.status(500).json({ error: 'Internal server error' });

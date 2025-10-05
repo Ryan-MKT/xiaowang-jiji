@@ -1525,12 +1525,20 @@
                 dayTasks.forEach((task, index) => {
                     const taskItem = document.createElement('div');
                     taskItem.className = `task-item ${task.completed ? 'task-completed' : ''}`;
+
+                    // 檢查是否為重複性任務,顯示具體重複模式
+                    const repeatBadge = task.repeat_pattern && task.repeat_pattern !== '不重複'
+                        ? `<span style="margin-left: 6px; font-size: 12px; background: #4CAF50; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 500;">🔁 ${task.repeat_pattern}</span>`
+                        : '';
+
                     taskItem.innerHTML = `
                         <div style="display: flex; align-items: center; flex: 1;">
                             <div class="task-checkbox ${task.completed ? 'completed' : ''}" onclick="toggleTask('${task.id}')">
                                 ${task.completed ? '✓' : ''}
                             </div>
-                            <span class="task-text" onclick="openTaskEditor('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}', ${task.completed || false}, '${task.timestamp}')" style="cursor: pointer; flex: 1;">${task.text || '未命名任務'}</span>
+                            <span class="task-text" onclick="openTaskEditor('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}', ${task.completed || false}, '${task.timestamp}')" style="cursor: pointer; flex: 1;">
+                                ${task.text || '未命名任務'}${repeatBadge}
+                            </span>
                         </div>
                         <span class="task-time" onclick="editTask('${task.id}', '${encodeURIComponent(task.text || '未命名任務')}')" style="cursor: pointer;">
                             ${new Date(task.timestamp || Date.now()).toLocaleTimeString('zh-TW', {
@@ -1906,7 +1914,7 @@
         let currentEditingTaskId = null;
 
         // 打開任務編輯器
-        function openTaskEditor(taskId, taskText, completed, timestamp) {
+        async function openTaskEditor(taskId, taskText, completed, timestamp) {
             const rightPanel = document.getElementById('rightPanel');
             const rightPanelTitle = document.getElementById('rightPanelTitle');
             const mainLayout = document.querySelector('.main-layout');
@@ -1920,9 +1928,8 @@
             // 設置面板標題
             rightPanelTitle.textContent = '編輯任務';
 
-            // 填充表單數據 - 使用新的 UI 元素
+            // 先顯示基本資訊
             document.getElementById('taskTitle').value = decodedText;
-            document.getElementById('noteTextarea').value = ''; // 暫時為空，後續可擴展
 
             // 設置日期
             if (timestamp) {
@@ -1942,15 +1949,62 @@
                 document.getElementById('taskDate').textContent = formattedDate;
             }
 
-            // 重置其他設定
-            document.getElementById('taskTag').textContent = '無';
-            document.getElementById('taskReminder').textContent = '否';
-            document.getElementById('taskRepeat').textContent = '不重複';
-            document.getElementById('taskGoogleCalendar').textContent = '否';
-
             // 顯示面板
             rightPanel.classList.add('open');
             mainLayout.classList.add('panel-open');
+
+            // 🆕 從 API 載入完整任務資料 (包括 repeat、note 等)
+            try {
+                console.log('📋 [任務編輯器] 從 API 載入完整任務資料:', decodedText);
+                const response = await fetch(`/api/get-task?taskText=${encodeURIComponent(decodedText)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': liffProfile.userId
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ [任務編輯器] API 回傳資料:', result);
+
+                    if (result.success && result.taskData) {
+                        const data = result.taskData;
+
+                        // 載入備註
+                        document.getElementById('noteTextarea').value = data.note || '';
+
+                        // 載入標籤
+                        document.getElementById('taskTag').textContent = data.tag || '無';
+
+                        // 載入提醒時間
+                        document.getElementById('taskReminder').textContent = data.reminder ? data.reminder : '否';
+
+                        // 🔁 載入重複模式
+                        document.getElementById('taskRepeat').textContent = data.repeat || '不重複';
+                        console.log('🔁 [任務編輯器] 載入重複模式:', data.repeat);
+
+                        // 載入 Google 日曆設定
+                        document.getElementById('taskGoogleCalendar').textContent = data.googleCalendar ? '是' : '否';
+                    }
+                } else {
+                    console.warn('⚠️ [任務編輯器] 無法載入完整任務資料,使用預設值');
+                    // 使用預設值
+                    document.getElementById('noteTextarea').value = '';
+                    document.getElementById('taskTag').textContent = '無';
+                    document.getElementById('taskReminder').textContent = '否';
+                    document.getElementById('taskRepeat').textContent = '不重複';
+                    document.getElementById('taskGoogleCalendar').textContent = '否';
+                }
+            } catch (error) {
+                console.error('❌ [任務編輯器] 載入任務資料失敗:', error);
+                // 使用預設值
+                document.getElementById('noteTextarea').value = '';
+                document.getElementById('taskTag').textContent = '無';
+                document.getElementById('taskReminder').textContent = '否';
+                document.getElementById('taskRepeat').textContent = '不重複';
+                document.getElementById('taskGoogleCalendar').textContent = '否';
+            }
 
             console.log('📋 [任務編輯器] 已打開:', decodedText);
         }
