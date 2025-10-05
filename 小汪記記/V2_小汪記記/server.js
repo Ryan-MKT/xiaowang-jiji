@@ -4957,49 +4957,54 @@ async function handleEvent(event) {
 用戶可用標籤：${tagNames || '無'}
 
 重要規則：
-1. 提取任務的核心動作（去除時間相關詞彙、Google日曆關鍵字、標籤提示詞）
+1. 提取任務的核心動作（去除時間相關詞彙、Google日曆關鍵字、標籤提示詞、與會人邀請詞彙）
 2. 只有在用戶明確提到時間時才解析時間，轉換為台灣時區格式 YYYY-MM-DDTHH:mm:00+08:00
 3. 如果用戶沒有明確提到任何時間詞彙，scheduledDate 必須設為 null
 4. 明確的時間詞彙包括：今天、明天、後天、幾點、幾時、上午、下午、晚上、特定日期、24小時制時間格式（如：18:00、14:30、09:15等）
 5. 如果只有時間沒有日期，使用今天的日期
-6. 在提取任務內容時，去除"記到GOOGLE日曆"、"記到Google日曆"、"打標籤"等相關詞彙
+6. 在提取任務內容時，去除"記到GOOGLE日曆"、"記到Google日曆"、"打標籤"、"發送給"、"邀請"、"通知"等相關詞彙
 7. 自動檢測標籤：如果訊息中明確提到"打標籤'標籤名'"或"打標籤\"標籤名\""格式，且該標籤名存在於用戶可用標籤中，則自動設定該標籤
 8. 標籤必須完全匹配用戶可用標籤清單中的名稱
+9. 檢測與會人邀請：識別"發送給XXX"、"邀請XXX"、"通知XXX"等格式，提取與會人姓名（XXX部分）
 
 回覆格式（必須是有效JSON）：
 {
   "task": "任務核心內容",
   "scheduledDate": "2025-09-26T18:00:00+08:00" 或 null,
-  "tag": "偵測到的標籤名稱" 或 null
+  "tag": "偵測到的標籤名稱" 或 null,
+  "guestName": "識別到的與會人姓名" 或 null
 }
 
 範例：
 輸入："我今天晚上6點回家"
-輸出：{"task": "回家", "scheduledDate": "${today}T18:00:00+08:00", "tag": null}
+輸出：{"task": "回家", "scheduledDate": "${today}T18:00:00+08:00", "tag": null, "guestName": null}
 
 輸入："18:00 睡覺 記到GOOGLE日曆"
-輸出：{"task": "睡覺", "scheduledDate": "${today}T18:00:00+08:00", "tag": null}
+輸出：{"task": "睡覺", "scheduledDate": "${today}T18:00:00+08:00", "tag": null, "guestName": null}
+
+輸入："10/05 21:00 火焰 記錄到google日曆 發送給Ryan"
+輸出：{"task": "火焰", "scheduledDate": "2025-10-05T21:00:00+08:00", "tag": null, "guestName": "Ryan"}
 
 輸入："18:00 回家吃飯 打標籤'走路'"
-輸出：{"task": "回家吃飯", "scheduledDate": "${today}T18:00:00+08:00", "tag": "走路"}
+輸出：{"task": "回家吃飯", "scheduledDate": "${today}T18:00:00+08:00", "tag": "走路", "guestName": null}
 
 輸入："14:30 開會"
-輸出：{"task": "開會", "scheduledDate": "${today}T14:30:00+08:00", "tag": null}
+輸出：{"task": "開會", "scheduledDate": "${today}T14:30:00+08:00", "tag": null, "guestName": null}
 
-輸入："明天下午2點開會 打標籤\"工作\""
-輸出：{"task": "開會", "scheduledDate": "${new Date(taiwanDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T14:00:00+08:00", "tag": "工作"}
+輸入："明天下午2點開會 打標籤\"工作\" 邀請Amy"
+輸出：{"task": "開會", "scheduledDate": "${new Date(taiwanDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}T14:00:00+08:00", "tag": "工作", "guestName": "Amy"}
 
 輸入："買牛奶"
-輸出：{"task": "買牛奶", "scheduledDate": null, "tag": null}
+輸出：{"task": "買牛奶", "scheduledDate": null, "tag": null, "guestName": null}
 
 輸入："吃飯"
-輸出：{"task": "吃飯", "scheduledDate": null, "tag": null}
+輸出：{"task": "吃飯", "scheduledDate": null, "tag": null, "guestName": null}
 
 輸入："去運動 打標籤'健身'"
-輸出：{"task": "去運動", "scheduledDate": null, "tag": "健身"}
+輸出：{"task": "去運動", "scheduledDate": null, "tag": "健身", "guestName": null}
 
 輸入："睡覺"
-輸出：{"task": "睡覺", "scheduledDate": null, "tag": null}
+輸出：{"task": "睡覺", "scheduledDate": null, "tag": null, "guestName": null}
 
 特別注意：不要為沒有明確時間的日常活動添加時間！`
             },
@@ -5021,11 +5026,13 @@ async function handleEvent(event) {
             parsedTask.text = parsedResult.task;
             parsedTask.scheduledDate = parsedResult.scheduledDate;
             parsedTask.tag = parsedResult.tag; // 加入AI識別的標籤
+            parsedTask.guestName = parsedResult.guestName; // 加入AI識別的與會人名字
             console.log('✅ [AI解析] 成功解析:', {
               原始訊息: userMessage,
               解析任務: parsedTask.text,
               預定時間: parsedTask.scheduledDate,
-              AI識別標籤: parsedTask.tag
+              AI識別標籤: parsedTask.tag,
+              AI識別與會人: parsedTask.guestName
             });
           }
         } catch (parseError) {
@@ -5037,6 +5044,29 @@ async function handleEvent(event) {
       }
     } else {
       console.log('⚠️ [AI解析] OpenAI API Key 未設定，跳過AI解析');
+    }
+
+    // 🔍 查詢與會人 email
+    let guestEmail = null;
+    if (parsedTask.guestName) {
+      console.log(`🔍 [與會人查詢] 正在查詢與會人: ${parsedTask.guestName}`);
+      try {
+        const { data: guestData, error: guestError } = await supabase
+          .from('dev_guest')
+          .select('guest_email')
+          .eq('user_id', userId)
+          .eq('guest_name', parsedTask.guestName)
+          .single();
+
+        if (guestError) {
+          console.log(`⚠️ [與會人查詢] 找不到與會人 "${parsedTask.guestName}"`);
+        } else if (guestData) {
+          guestEmail = guestData.guest_email;
+          console.log(`✅ [與會人查詢] 找到與會人 email: ${guestEmail}`);
+        }
+      } catch (error) {
+        console.error('❌ [與會人查詢] 查詢失敗:', error.message);
+      }
     }
 
     // 取得或初始化用戶任務堆疊
@@ -5054,7 +5084,7 @@ async function handleEvent(event) {
       timestamp: new Date().toISOString(),
       tag: parsedTask.tag || '無標籤', // 使用AI識別的標籤，若無則為預設
       google_calendar_enabled: parsedTask.needGoogleCalendar || false,
-      google_calendar_who: null
+      google_calendar_who: guestEmail // 儲存查詢到的與會人 email
     };
 
     // 如果是 URL，取得預覽資訊
@@ -5140,10 +5170,17 @@ async function handleEvent(event) {
               },
             };
 
+            // 🔔 如果有與會人 email，加入 attendees
+            if (guestEmail) {
+              event.attendees = [{ email: guestEmail }];
+              console.log(`📧 [自動Google日曆] 已加入與會人: ${guestEmail}`);
+            }
+
             // 建立事件
             const result = await calendar.events.insert({
               calendarId: 'primary',
               resource: event,
+              sendUpdates: guestEmail ? 'all' : 'none', // 如果有與會人，自動發送邀請
             });
 
             console.log('✅ [自動Google日曆] Google日曆事件自動建立成功:', result.data.id);
@@ -5193,7 +5230,7 @@ async function handleEvent(event) {
               scheduled_date: parsedTask.scheduledDate, // AI解析的時間
               tag: detectedTag,
               google_calendar_enabled: parsedTask.needGoogleCalendar || false,
-              google_calendar_who: null,
+              google_calendar_who: guestEmail, // 儲存查詢到的與會人 email
               created_at: new Date().toISOString()
             }
           ]);
@@ -5206,7 +5243,9 @@ async function handleEvent(event) {
             原始訊息: userMessage,
             message_text: parsedTask.text,
             scheduled_date: parsedTask.scheduledDate,
-            標籤: detectedTag || '無標籤'
+            標籤: detectedTag || '無標籤',
+            Google日曆: parsedTask.needGoogleCalendar || false,
+            與會人Email: guestEmail || '無'
           });
         }
       } catch (err) {
