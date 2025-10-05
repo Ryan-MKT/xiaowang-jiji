@@ -3,8 +3,8 @@ class GlobalSidebar {
     constructor() {
         this.sidebarData = {
             profile: {
-                name: 'Ryan',
-                title: '每日任務'
+                name: '小汪記記',
+                title: ''
             }
         };
         this.init();
@@ -19,6 +19,8 @@ class GlobalSidebar {
         console.log('🏷️ [全域側邊欄] 事件監聽器已設置');
         this.adjustMainContent();
         console.log('🏷️ [全域側邊欄] 內容調整完成');
+        this.highlightCurrentPage();
+        console.log('🏷️ [全域側邊欄] 當前頁面已高亮');
     }
 
     // 創建側邊欄HTML結構
@@ -34,6 +36,22 @@ class GlobalSidebar {
                 <div class="sidebar-profile">
                     <div class="profile-title">${this.sidebarData.profile.title}</div>
                     <div class="profile-name">${this.sidebarData.profile.name}</div>
+                </div>
+
+                <!-- 導航按鈕區 -->
+                <div class="sidebar-nav">
+                    <button class="nav-btn" data-page="calendar">
+                        <span class="nav-icon">📅</span>
+                        <span class="nav-text">日曆</span>
+                    </button>
+                    <button class="nav-btn" data-page="collections">
+                        <span class="nav-icon">⭐</span>
+                        <span class="nav-text">收藏</span>
+                    </button>
+                    <button class="nav-btn" data-page="account">
+                        <span class="nav-icon">👤</span>
+                        <span class="nav-text">我的</span>
+                    </button>
                 </div>
             </div>
         `;
@@ -169,6 +187,82 @@ class GlobalSidebar {
             this.adjustMainContent();
         });
 
+        // 導航按鈕點擊事件
+        document.querySelectorAll('.nav-btn[data-page]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const page = e.currentTarget.getAttribute('data-page');
+                this.navigateToPage(page);
+            });
+        });
+    }
+
+    // 導航到指定頁面
+    navigateToPage(page) {
+        console.log('🏷️ [全域側邊欄] 導航到頁面:', page);
+
+        // 各頁面對應的 LIFF URL
+        const liffUrls = {
+            'calendar': 'https://liff.line.me/2008077335-RWndA7y1',
+            'collections': 'https://liff.line.me/2008077335-RL1d4G2g',
+            'account': 'https://liff.line.me/2008077335-wV60bmGQ'
+        };
+
+        const pageUrls = {
+            'calendar': 'liff-records.html',
+            'collections': 'liff-collections.html',
+            'account': 'liff-account.html'
+        };
+
+        // 檢查是否在 LIFF 環境中
+        if (typeof liff !== 'undefined' && liff.isLoggedIn()) {
+            // 在 LIFF 環境中，使用對應的 LIFF URL
+            const targetUrl = liffUrls[page];
+            if (!targetUrl) {
+                console.error('🏷️ [全域側邊欄] 未知的頁面:', page);
+                return;
+            }
+            console.log('🏷️ [全域側邊欄] LIFF環境，導航到:', targetUrl);
+            window.location.href = targetUrl;
+        } else {
+            // 在瀏覽器中，使用相對路徑
+            const targetUrl = pageUrls[page];
+            if (!targetUrl) {
+                console.error('🏷️ [全域側邊欄] 未知的頁面:', page);
+                return;
+            }
+            console.log('🏷️ [全域側邊欄] 瀏覽器環境，導航到:', targetUrl);
+            window.location.href = targetUrl;
+        }
+    }
+
+    // 高亮當前頁面的按鈕
+    highlightCurrentPage() {
+        const currentPath = window.location.pathname;
+        console.log('🏷️ [全域側邊欄] 當前路徑:', currentPath);
+
+        const pageMapping = {
+            '/liff-records.html': 'calendar',
+            '/liff-collections.html': 'collections',
+            '/liff-account.html': 'account'
+        };
+
+        const currentPage = pageMapping[currentPath];
+        if (!currentPage) {
+            console.log('🏷️ [全域側邊欄] 當前頁面不在導航列表中');
+            return;
+        }
+
+        // 移除所有按鈕的 active 狀態
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // 為當前頁面的按鈕添加 active 狀態
+        const activeButton = document.querySelector(`.nav-btn[data-page="${currentPage}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+            console.log('🏷️ [全域側邊欄] 已高亮按鈕:', currentPage);
+        }
     }
 
 
@@ -235,6 +329,56 @@ body {
 .profile-name {
     font-size: 14px;
     font-weight: bold;
+}
+
+/* 導航按鈕區 */
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nav-btn {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-family: inherit;
+}
+
+.nav-btn:hover {
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.nav-btn:active {
+    transform: translateY(0);
+}
+
+.nav-btn.active {
+    background: #007bff;
+    border-color: #007bff;
+}
+
+.nav-btn.active .nav-text {
+    color: white;
+}
+
+.nav-icon {
+    font-size: 24px;
+}
+
+.nav-text {
+    font-size: 12px;
+    color: #333;
+    font-weight: 500;
 }
 
 /* 日曆樣式已完全移除 */

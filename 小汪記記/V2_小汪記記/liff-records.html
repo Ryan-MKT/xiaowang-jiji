@@ -35,7 +35,7 @@
         .middle-section {
             flex: 0 0 400px;
             width: 400px;
-            padding: 0;
+            padding: 20px 20px 0 20px;
         }
 
         /* 日曆區域 */
@@ -47,7 +47,8 @@
         .tasks-section {
             flex: 1;
             margin: 0;
-            padding: 0;
+            margin-left: 20px;
+            padding: 20px 20px 0 0;
         }
 
         /* 右側滑動面板 */
@@ -1724,7 +1725,7 @@
                     align-items: center;
                     padding: 15px;
                     margin: 0;
-                    font-size: 16px;
+                    font-size: 32px;
                     font-weight: 600;
                     color: #333;
                     background: transparent;
@@ -1732,13 +1733,14 @@
 
                 // 格式化日期顯示
                 const dateObj = new Date(date);
-                const month = dateObj.getMonth() + 1;
-                const day = dateObj.getDate();
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 const weekday = weekdays[dateObj.getDay()];
 
                 dateHeader.innerHTML = `
-                    <span>${month}/${day} (${weekday})</span>
+                    <span>${year}/${month}/${day} 週${weekday}</span>
                 `;
 
                 recordsContainer.appendChild(dateHeader);
