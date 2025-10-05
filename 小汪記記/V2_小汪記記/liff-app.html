@@ -1568,7 +1568,15 @@
                                 taskDateElement.textContent = displayText;
                                 taskDateElement.setAttribute('data-full-datetime', data.date);
 
+                                // 🆕 同步更新日期選擇器和時間選擇器的值
+                                const datePicker = document.getElementById('datePicker');
+                                const timePicker = document.getElementById('timePicker');
+                                datePicker.value = `${year}-${month}-${day}`;
+                                timePicker.value = `${hour}:${minute}`;
+
                                 console.log('📅 [任務載入] 載入日期時間:', displayText);
+                                console.log('📅 [任務載入] 同步日期選擇器:', datePicker.value);
+                                console.log('📅 [任務載入] 同步時間選擇器:', timePicker.value);
                                 hasScheduledDate = true;
                             }
 
@@ -1795,12 +1803,18 @@
             const timePicker = document.getElementById('timePicker');
             const currentDateText = document.getElementById('taskDate').textContent;
 
-            // 設置今天日期作為預設值
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-            datePicker.value = todayStr;
+            console.log('🔧 [初始化日期選擇器] 開始初始化');
+            console.log('🔧 [初始化] 當前 datePicker.value:', datePicker.value);
+            console.log('🔧 [初始化] 當前 timePicker.value:', timePicker.value);
+            console.log('🔧 [初始化] taskDate.textContent:', currentDateText);
 
-            // 如果當前已有日期設定，嘗試解析
+            // 🆕 如果 datePicker 已經有值，就不要重新初始化（保留使用者已設定的值）
+            if (datePicker.value && timePicker.value) {
+                console.log('✅ [初始化] 選擇器已有值，保留現有設定');
+                return;
+            }
+
+            // 如果當前已有日期設定，從顯示文字解析
             if (currentDateText && currentDateText !== '2025/09/14') {
                 try {
                     // 解析現有日期格式 (YYYY/MM/DD 或包含時間)
@@ -1810,15 +1824,23 @@
                     if (dateMatch) {
                         const [, year, month, day] = dateMatch;
                         datePicker.value = `${year}-${month}-${day}`;
+                        console.log('📅 [初始化] 從文字解析日期:', datePicker.value);
                     }
 
                     if (timeMatch) {
                         const [, hour, minute] = timeMatch;
                         timePicker.value = `${hour}:${minute}`;
+                        console.log('⏰ [初始化] 從文字解析時間:', timePicker.value);
                     }
                 } catch (error) {
-                    console.log('解析現有日期時間失敗:', error);
+                    console.error('❌ [初始化] 解析現有日期時間失敗:', error);
                 }
+            } else {
+                // 沒有現有日期，設置今天作為預設值
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                datePicker.value = todayStr;
+                console.log('📅 [初始化] 設定預設日期為今天:', todayStr);
             }
         }
 
@@ -2432,6 +2454,28 @@
                     currentTaskData.reminder = taskReminder !== '否' ? taskReminder : null;
                     currentTaskData.repeat = taskRepeat !== '不重複' ? taskRepeat : null;
                     currentTaskData.googleCalendar = taskGoogleCalendar === '是';
+
+                    // 🆕 同步更新日期選擇器和時間選擇器，確保下次打開時顯示正確
+                    if (taskDate) {
+                        try {
+                            const savedDate = new Date(taskDate);
+                            const year = savedDate.getFullYear();
+                            const month = String(savedDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(savedDate.getDate()).padStart(2, '0');
+                            const hour = String(savedDate.getHours()).padStart(2, '0');
+                            const minute = String(savedDate.getMinutes()).padStart(2, '0');
+
+                            const datePicker = document.getElementById('datePicker');
+                            const timePicker = document.getElementById('timePicker');
+                            datePicker.value = `${year}-${month}-${day}`;
+                            timePicker.value = `${hour}:${minute}`;
+
+                            console.log('🔄 [儲存同步] 已同步更新日期選擇器:', datePicker.value);
+                            console.log('🔄 [儲存同步] 已同步更新時間選擇器:', timePicker.value);
+                        } catch (syncError) {
+                            console.error('❌ [儲存同步] 同步日期選擇器失敗:', syncError);
+                        }
+                    }
 
                     console.log('✅ [儲存任務] 儲存成功:', result);
 

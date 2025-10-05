@@ -6951,12 +6951,13 @@ app.post('/api/save-task', async (req, res) => {
               userTasks[i].tag = safeTag;
               userTasks[i].note = safeNote;
               userTasks[i].scheduled_date = date;
+              userTasks[i].scheduledDate = date; // 🆕 同步更新 scheduledDate（AI解析時間欄位）
               userTasks[i].reminder_minutes = reminder ? parseInt(reminder.replace(/[^\d]/g, '')) : null;
               userTasks[i].repeat_pattern = repeat;
               userTasks[i].google_calendar_enabled = googleCalendar === true || googleCalendar === 'true';
               userTasks[i].google_calendar_who = safeGuestEmail;
               memoryUpdated = true;
-              console.log(`✅ [記憶體同步] 已更新記憶體中任務的所有欄位`);
+              console.log(`✅ [記憶體同步] 已更新記憶體中任務的所有欄位（包含 scheduledDate）`);
               break;
             }
           }
@@ -9344,6 +9345,98 @@ app.get('/api/test-past-tasks/:userId/:pastDate', async (req, res) => {
   }
 });
 
+// 🔔 檢查並發送任務提醒
+async function checkTaskReminders() {
+  console.log('🔔 [任務提醒] 開始檢查需要提醒的任務...');
+
+  try {
+    const now = new Date();
+    const taiwanNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+
+    console.log(`🔔 [任務提醒] 當前台灣時間: ${taiwanNow.toISOString()}`);
+
+    // 從資料庫查詢所有有提醒時間且未完成的任務
+    const tableName = process.env.SUPABASE_TABLE || 'dev_tasks';
+    const { data: tasks, error } = await supabase
+      .from(tableName)
+      .select('id, user_id, message_text, scheduled_date, reminder_minutes, completed')
+      .eq('completed', false)
+      .not('reminder_minutes', 'is', null)
+      .not('scheduled_date', 'is', null);
+
+    if (error) {
+      console.error('❌ [任務提醒] 查詢任務失敗:', error);
+      return;
+    }
+
+    if (!tasks || tasks.length === 0) {
+      console.log('🔔 [任務提醒] 沒有需要檢查的任務');
+      return;
+    }
+
+    console.log(`🔔 [任務提醒] 找到 ${tasks.length} 個有提醒設定的未完成任務`);
+
+    // 檢查每個任務
+    for (const task of tasks) {
+      try {
+        const scheduledDate = new Date(task.scheduled_date);
+        const reminderMinutes = parseInt(task.reminder_minutes);
+
+        // 計算提醒時間點 = 任務時間 - 提醒分鐘數
+        const reminderTime = new Date(scheduledDate.getTime() - reminderMinutes * 60 * 1000);
+
+        // 計算當前時間與提醒時間的差距（分鐘）
+        const timeDiff = Math.floor((taiwanNow - reminderTime) / (60 * 1000));
+
+        // 如果提醒時間在當前時間的 ±2 分鐘內，就發送提醒
+        // （允許 ±2 分鐘的誤差，因為定時器是每分鐘執行一次）
+        if (timeDiff >= 0 && timeDiff < 2) {
+          console.log(`🔔 [任務提醒] 需要提醒任務: "${task.message_text}" (提醒時間: ${reminderTime.toISOString()})`);
+
+          // 發送提醒訊息
+          await sendTaskReminder(task.user_id, task.message_text, reminderMinutes, scheduledDate);
+
+          // 標記已發送提醒（將 reminder_minutes 設為 null，避免重複提醒）
+          await supabase
+            .from(tableName)
+            .update({ reminder_minutes: null })
+            .eq('id', task.id);
+
+          console.log(`✅ [任務提醒] 已發送並標記提醒: "${task.message_text}"`);
+        }
+      } catch (taskError) {
+        console.error(`❌ [任務提醒] 處理任務 ${task.id} 失敗:`, taskError);
+      }
+    }
+
+    console.log('🔔 [任務提醒] 檢查完成');
+  } catch (error) {
+    console.error('❌ [任務提醒] 檢查失敗:', error);
+  }
+}
+
+// 🔔 發送任務提醒訊息
+async function sendTaskReminder(userId, taskTitle, reminderMinutes, scheduledDate) {
+  try {
+    // 格式化任務時間
+    const taskDate = new Date(scheduledDate);
+    const taiwanTaskDate = new Date(taskDate.getTime() + 8 * 60 * 60 * 1000);
+    const hours = taiwanTaskDate.getUTCHours();
+    const minutes = taiwanTaskDate.getUTCMinutes();
+    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+    const message = {
+      type: 'text',
+      text: `⏰ 提醒通知\n\n「${taskTitle}」\n\n將在 ${reminderMinutes} 分鐘後開始喔！\n(預定時間: ${timeStr})`
+    };
+
+    await client.pushMessage(userId, message);
+    console.log(`✅ [任務提醒] 已發送提醒給用戶 ${userId}: "${taskTitle}"`);
+  } catch (error) {
+    console.error(`❌ [任務提醒] 發送訊息給用戶 ${userId} 失敗:`, error);
+  }
+}
+
 // 啟動伺服器
 app.listen(PORT, async () => {
   console.log(`🤖 LINE Bot server running on port ${PORT} with Open Graph API`);
@@ -9363,4 +9456,14 @@ app.listen(PORT, async () => {
   });
 
   console.log('⏰ [定時任務] 已設定每天晚上 12 點檢查未完成任務');
+
+  // 🔔 設定每分鐘檢查任務提醒
+  // '* * * * *' = 每分鐘執行
+  cron.schedule('* * * * *', async () => {
+    await checkTaskReminders();
+  }, {
+    timezone: "Asia/Taipei"
+  });
+
+  console.log('🔔 [任務提醒] 已設定每分鐘檢查任務提醒');
 });// 強制重啟 西元2025年09月18日 (星期四) 13時03分19秒    
