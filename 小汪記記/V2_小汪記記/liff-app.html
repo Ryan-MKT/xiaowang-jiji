@@ -588,7 +588,8 @@
         }
 
         .date-dropdown.show {
-            max-height: 450px;
+            max-height: 1200px; /* 增加高度確保提醒時間選項完全顯示 */
+            overflow: visible; /* 展開時改成 visible 讓提醒下拉選單可以超出範圍 */
             border-left: 3px solid #007AFF;
         }
 
@@ -734,6 +735,69 @@
             color: #333;
             background-color: #fff;
             transition: border-color 0.2s ease;
+        }
+
+        /* 提醒時間選項樣式 (在日期選擇器內) */
+        .reminder-section {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .reminder-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 0;
+            transition: background-color 0.2s ease;
+        }
+
+        .reminder-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .reminder-icon {
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .reminder-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+        }
+
+        .reminder-label {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .reminder-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .reminder-value {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .reminder-arrow {
+            font-size: 16px;
+            color: #999;
+            transition: transform 0.2s ease;
+        }
+
+        .reminder-dropdown-inline {
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 8px;
+            padding: 8px;
+            max-height: 240px;
+            overflow-y: auto;
         }
 
         .google-guest-input:focus {
@@ -1196,6 +1260,30 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 提醒時間選項 -->
+                        <div class="reminder-section">
+                            <div class="reminder-item" onclick="toggleReminderInDatePicker()">
+                                <div class="reminder-icon">🔔</div>
+                                <div class="reminder-content">
+                                    <span class="reminder-label">提醒時間</span>
+                                    <div class="reminder-toggle">
+                                        <span class="reminder-value" id="taskReminderInPicker">否</span>
+                                        <span class="reminder-arrow" id="reminderArrowInPicker">›</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 提醒時間下拉選單 (在日期選擇器內) -->
+                            <div class="reminder-dropdown-inline" id="reminderDropdownInline" style="display: none;">
+                                <div class="reminder-option" onclick="selectReminderInPicker('5分鐘')">5分鐘</div>
+                                <div class="reminder-option" onclick="selectReminderInPicker('10分鐘')">10分鐘</div>
+                                <div class="reminder-option" onclick="selectReminderInPicker('30分鐘')">30分鐘</div>
+                                <div class="reminder-option" onclick="selectReminderInPicker('60分鐘')">60分鐘</div>
+                                <div class="reminder-option" onclick="selectReminderInPicker('120分鐘')">120分鐘</div>
+                                <div class="reminder-option" onclick="selectReminderInPicker('自訂')">自訂</div>
+                                <div class="reminder-option remove-option" onclick="selectReminderInPicker('否')">移除提醒</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 確認按鈕 -->
@@ -1203,30 +1291,6 @@
                         <button class="datetime-btn cancel" onclick="closeDatePicker()">取消</button>
                         <button class="datetime-btn confirm" onclick="confirmDateTime()">確認</button>
                     </div>
-                </div>
-            </div>
-
-            <div class="setting-item" onclick="toggleReminderPicker()">
-                <div class="setting-icon">🔔</div>
-                <div class="setting-content">
-                    <span class="setting-label">提醒時間</span>
-                    <div>
-                        <span class="setting-value" id="taskReminder">否</span>
-                        <span class="setting-arrow" id="reminderArrow">›</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 提醒時間下拉選單 -->
-            <div class="dropdown-container" id="reminderDropdown">
-                <div class="dropdown-content">
-                    <div class="reminder-option" onclick="selectReminder('5分鐘')">5分鐘</div>
-                    <div class="reminder-option" onclick="selectReminder('10分鐘')">10分鐘</div>
-                    <div class="reminder-option" onclick="selectReminder('30分鐘')">30分鐘</div>
-                    <div class="reminder-option" onclick="selectReminder('60分鐘')">60分鐘</div>
-                    <div class="reminder-option" onclick="selectReminder('120分鐘')">120分鐘</div>
-                    <div class="reminder-option" onclick="selectReminder('自訂')">自訂</div>
-                    <div class="reminder-option remove-option" onclick="selectReminder('否')">移除提醒</div>
                 </div>
             </div>
 
@@ -1511,7 +1575,8 @@
                             // 載入提醒時間資訊
                             if (data.reminder) {
                                 currentTaskData.reminder = data.reminder;
-                                document.getElementById('taskReminder').textContent = data.reminder + '分鐘前';
+                                // 🆕 更新到日期選擇器內的提醒時間
+                                document.getElementById('taskReminderInPicker').textContent = data.reminder + '分鐘前';
                                 console.log('📢 [任務載入] 載入提醒時間:', data.reminder);
                             }
 
@@ -1863,10 +1928,15 @@
                 taskDateElement.setAttribute('data-full-datetime', fullDateTime);
             }
 
+            // 🆕 同步提醒時間設定 - 從日期選擇器內的提醒時間同步到外部
+            const reminderInPicker = document.getElementById('taskReminderInPicker').textContent;
+            // 注意:因為我們已經移除了外部的 taskReminder 元素,所以不需要同步
+
             console.log('📅 [confirmDateTime] 用戶選擇日期時間:', displayText);
             console.log('📅 [confirmDateTime] 完整 DateTime 格式:', taskDateElement.getAttribute('data-full-datetime'));
             console.log('📅 [confirmDateTime] selectedDate:', selectedDate);
             console.log('📅 [confirmDateTime] selectedTime:', selectedTime);
+            console.log('📢 [confirmDateTime] 提醒時間:', reminderInPicker);
 
             // 關閉選擇器
             closeDatePicker();
@@ -1962,6 +2032,40 @@
             closeReminderPicker();
 
             console.log('📢 [提醒設定] 選擇提醒時間:', reminderValue);
+        }
+
+        // 🆕 在日期選擇器內切換提醒時間下拉選單
+        function toggleReminderInDatePicker() {
+            const dropdown = document.getElementById('reminderDropdownInline');
+            const arrow = document.getElementById('reminderArrowInPicker');
+
+            if (dropdown.style.display === 'none' || !dropdown.style.display) {
+                dropdown.style.display = 'block';
+                arrow.textContent = '⌄';
+            } else {
+                dropdown.style.display = 'none';
+                arrow.textContent = '›';
+            }
+        }
+
+        // 🆕 在日期選擇器內選擇提醒時間
+        function selectReminderInPicker(reminderValue) {
+            const taskReminderInPicker = document.getElementById('taskReminderInPicker');
+
+            if (reminderValue === '自訂') {
+                showAlert('自訂提醒', '自訂時間功能開發中，請先選擇預設選項');
+                return;
+            }
+
+            taskReminderInPicker.textContent = reminderValue;
+
+            // 收起下拉選單
+            const dropdown = document.getElementById('reminderDropdownInline');
+            const arrow = document.getElementById('reminderArrowInPicker');
+            dropdown.style.display = 'none';
+            arrow.textContent = '›';
+
+            console.log('📢 [提醒設定] 在日期選擇器內選擇提醒時間:', reminderValue);
         }
 
         // 切換重複任務選擇器
@@ -2210,7 +2314,8 @@
                 const taskNote = document.getElementById('noteTextarea').value.trim();
                 const taskTag = document.getElementById('taskTag').textContent;
                 const taskDateElement = document.getElementById('taskDate');
-                const taskReminder = document.getElementById('taskReminder').textContent;
+                // 🆕 從日期選擇器內的提醒時間讀取
+                const taskReminder = document.getElementById('taskReminderInPicker').textContent;
                 const taskRepeat = document.getElementById('taskRepeat').textContent;
                 const taskGoogleCalendar = document.getElementById('taskGoogleCalendar').textContent;
 
