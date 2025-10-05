@@ -163,17 +163,148 @@
         .heatmap-cell.level-2 { background: #d0d0d0; }
         .heatmap-cell.level-3 { background: #888; }
         .heatmap-cell.level-4 { background: black; }
+
+        /* 連續記帳卡片 */
+        .streak-card {
+            background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+        }
+
+        .day-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .day-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .day-circle.active {
+            background: white;
+            border-color: white;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .streak-card h5 {
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        /* 全新 UI 樣式 */
+        .profile-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-avatar-large {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            border: 4px solid #f0f0f0;
+            object-fit: cover;
+        }
+
+        .stats-card-new {
+            background: #2C5F7C;
+            border-radius: 20px;
+            padding: 30px 20px;
+            color: white;
+        }
+
+        .stat-number-large {
+            font-size: 48px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            line-height: 1;
+        }
+
+        .stat-number-large::after {
+            content: '天';
+            font-size: 20px;
+            font-weight: 400;
+            margin-left: 5px;
+        }
+
+        .stat-label-small {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 400;
+        }
+
+        .upgrade-btn {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            border: none;
+            border-radius: 15px;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 600;
+            color: black;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .upgrade-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .setting-item {
+            background: #2C5F7C;
+            border-radius: 12px;
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+        }
+
+        .setting-item i {
+            font-size: 20px;
+            color: white;
+        }
+
+        .setting-item .fw-bold {
+            color: white;
+        }
+
+        .setting-item .text-muted {
+            color: rgba(255, 255, 255, 0.7) !important;
+        }
+
+        .contact-item {
+            background: #2C5F7C;
+            border-radius: 12px;
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        .contact-item i {
+            font-size: 20px;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- 標題卡片 -->
-        <div class="card header-card">
-            <div class="card-body text-center py-4">
-                <h1 class="h3 mb-2 text-primary">👤 帳戶設定</h1>
-                <p class="text-muted mb-0">個人資料與設定管理</p>
-            </div>
-        </div>
 
         <!-- 載入中顯示 -->
         <div id="loading" class="loading">
@@ -185,91 +316,93 @@
         <!-- 錯誤訊息 -->
         <div id="error" class="error" style="display: none;"></div>
 
-        <!-- 帳戶資訊卡片 -->
-        <div id="accountContent" class="card account-card" style="display: none;">
-            <div class="card-body p-4">
-                <!-- 使用者資料 -->
-                <div class="text-center mb-4">
-                    <img id="userAvatar" src="" alt="大頭照" class="profile-avatar mb-3">
-                    <h4 id="userName" class="text-dark mb-1">--</h4>
-                    <p id="userStatus" class="text-muted mb-0">--</p>
-                </div>
+        <!-- 帳戶資訊 - 全新左右分欄設計 -->
+        <div id="accountContent" style="display: none;">
+            <div class="row g-4">
+                <!-- 左側：個人資料區 -->
+                <div class="col-md-5">
+                    <div class="profile-section">
+                        <!-- 大頭貼 -->
+                        <div class="text-center mb-4">
+                            <img id="userAvatar" src="" alt="大頭貼" class="profile-avatar-large mb-3">
+                        </div>
 
-                <!-- 詳細資訊 -->
-                <div class="row g-3">
-                    <div class="col-12">
-                        <div class="info-item p-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-person-badge text-primary me-3 fs-5"></i>
-                                <div>
-                                    <div class="fw-bold text-dark">使用者 ID</div>
-                                    <div id="userId" class="text-muted small">--</div>
+                        <!-- 帳戶名稱 -->
+                        <div class="text-center mb-3">
+                            <h4 id="userName" class="fw-bold mb-2">--</h4>
+                            <p id="userStatus" class="text-muted">--</p>
+                        </div>
+
+                        <!-- 統計卡片 -->
+                        <div class="stats-card-new mb-4">
+                            <div class="row g-0">
+                                <div class="col-4 text-center">
+                                    <div class="stat-number-large" id="usageDays">0</div>
+                                    <div class="stat-label-small">已使用天數</div>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <div class="stat-number-large" id="tasksCount">0</div>
+                                    <div class="stat-label-small">已新增任務</div>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <div class="stat-number-large" id="collectionsCount">0</div>
+                                    <div class="stat-label-small">已收藏卡片</div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="col-12">
-                        <div class="info-item p-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-envelope text-primary me-3 fs-5"></i>
-                                <div>
-                                    <div class="fw-bold text-dark">電子郵件</div>
-                                    <div id="userEmail" class="text-muted small">未設定</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12">
-                        <div class="info-item p-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-star text-warning me-3 fs-5"></i>
-                                <div class="flex-grow-1">
-                                    <div class="fw-bold text-dark">會員狀態</div>
-                                    <div id="subscriptionStatus" class="text-muted small">載入中...</div>
-                                </div>
-                                <div id="subscriptionBadge" class="badge bg-secondary">--</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12">
-                        <div class="info-item p-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-calendar-check text-primary me-3 fs-5"></i>
-                                <div>
-                                    <div class="fw-bold text-dark">加入時間</div>
-                                    <div id="joinDate" class="text-muted small">--</div>
-                                </div>
-                            </div>
-                        </div>
+
+                        <!-- 訂閱升級按鈕 -->
+                        <button class="upgrade-btn w-100">
+                            ⭐ 訂閱升級
+                        </button>
                     </div>
                 </div>
 
-                <!-- 功能按鈕 -->
-                <div class="mt-4 pt-3 border-top">
-                    <div class="row g-2 mb-2">
-                        <div class="col-12">
-                            <button class="btn btn-warning w-100" onclick="upgradeSubscription()">
-                                <i class="bi bi-star me-2"></i>訂閱升級
-                            </button>
+                <!-- 右側：功能區 -->
+                <div class="col-md-7">
+
+                    <!-- 帳戶設定 -->
+                    <div class="section-title mb-3">帳戶設定</div>
+
+                    <div class="setting-item mb-3">
+                        <i class="bi bi-person-badge me-3"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">使用者 ID</div>
+                            <div id="userId" class="text-muted small">--</div>
                         </div>
                     </div>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <button class="btn btn-outline-primary w-100" onclick="closeApp()">
-                                <i class="bi bi-arrow-left me-2"></i>返回
-                            </button>
+
+                    <div class="setting-item mb-3">
+                        <i class="bi bi-envelope me-3"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">電子郵件</div>
+                            <div id="userEmail" class="text-muted small">未設定</div>
                         </div>
-                        <div class="col-6">
-                            <button class="btn btn-primary w-100" onclick="refreshProfile()">
-                                <i class="bi bi-arrow-clockwise me-2"></i>重新整理
-                            </button>
+                    </div>
+
+                    <div class="setting-item mb-4">
+                        <i class="bi bi-star me-3"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">會員狀態</div>
+                            <div id="membershipStatus" class="text-muted small">載入中...</div>
                         </div>
+                    </div>
+
+                    <!-- 聯絡我們 -->
+                    <div class="section-title mb-3">聯絡我們</div>
+
+                    <div class="contact-item mb-3">
+                        <i class="bi bi-instagram me-3"></i>
+                        <span>INSTAGRAM</span>
+                    </div>
+
+                    <div class="contact-item">
+                        <i class="bi bi-threads me-3"></i>
+                        <span>THREADS</span>
                     </div>
                 </div>
             </div>
+
         </div>
 
     </div>
@@ -327,9 +460,6 @@
             document.getElementById('userName').textContent = liffProfile.displayName || '未設定';
             document.getElementById('userStatus').textContent = liffProfile.statusMessage || '沒有狀態訊息';
             document.getElementById('userId').textContent = liffProfile.userId;
-            
-            // 設定加入時間（模擬）
-            document.getElementById('joinDate').textContent = new Date().toLocaleDateString('zh-TW');
         }
 
         // 重新整理資料
@@ -384,35 +514,30 @@
 
         // 顯示訂閱狀態
         function displaySubscriptionStatus(subscription) {
-            const statusElement = document.getElementById('subscriptionStatus');
-            const badgeElement = document.getElementById('subscriptionBadge');
-            const upgradeButton = document.querySelector('.btn-warning');
+            const statusElement = document.getElementById('membershipStatus');
+            const upgradeButton = document.querySelector('.upgrade-btn');
             
             if (subscription && subscription.subscription_type === 'premium' && subscription.status === 'active') {
                 // Premium 會員
                 const expiryDate = new Date(subscription.expires_at);
                 const expiryDateStr = expiryDate.toLocaleDateString('zh-TW');
-                
-                statusElement.textContent = `Premium 會員，有效期至 ${expiryDateStr}`;
-                badgeElement.textContent = 'Premium';
-                badgeElement.className = 'badge bg-warning';
-                
-                // 更新按鈕為續約
-                upgradeButton.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>續約 Premium';
-                upgradeButton.className = 'btn btn-outline-warning w-100';
-                
+
+                if (statusElement) {
+                    statusElement.textContent = `Premium 會員，有效期至 ${expiryDateStr}`;
+                }
+
+                if (upgradeButton) {
+                    upgradeButton.textContent = '⭐ 續約 Premium';
+                }
+
                 console.log('✨ [訂閱狀態] 顯示 Premium 會員狀態');
-                
+
             } else {
                 // 免費會員
-                statusElement.textContent = '免費會員，立即升級享受進階功能';
-                badgeElement.textContent = '免費';
-                badgeElement.className = 'badge bg-secondary';
-                
-                // 保持原來的升級按鈕
-                upgradeButton.innerHTML = '<i class="bi bi-star me-2"></i>訂閱升級';
-                upgradeButton.className = 'btn btn-warning w-100';
-                
+                if (statusElement) {
+                    statusElement.textContent = '載入中...';
+                }
+
                 console.log('📄 [訂閱狀態] 顯示免費會員狀態');
             }
         }
