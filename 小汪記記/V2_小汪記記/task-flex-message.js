@@ -245,7 +245,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
         const taskBoxContents = [
           {
             type: 'text',
-            text: task.text,
+            text: `${taskIndex + 1}. ${task.text}`,
             size: 'lg',
             color: isCompleted ? '#999999' : '#333333',
             flex: 1,
@@ -285,34 +285,11 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           spacing: 'sm',
           contents: [
             {
-              type: 'image',
-              url: FLEX_IMAGE_URLS.EDIT_ICON,
-              size: 'xxs',
-              flex: 0,
-              gravity: 'top',
-              action: {
-                type: 'uri',
-                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
-              }
-            },
-            {
               type: 'box',
               layout: 'vertical',
               spacing: 'none',
               contents: taskBoxContents,
               flex: 1
-            },
-            {
-              type: 'image',
-              url: FLEX_IMAGE_URLS.DELETE_ICON,
-              size: 'xxs',
-              flex: 0,
-              gravity: 'top',
-              action: {
-                type: 'postback',
-                data: `action=delete_task&taskId=${task.id}`,
-                displayText: `刪除任務：${task.text}`
-              }
             },
             {
               type: 'text',
@@ -384,7 +361,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
         const taskBoxContents = [
           {
             type: 'text',
-            text: task.text,
+            text: `${taskIndex + 1}. ${task.text}`,
             size: 'lg',
             color: isCompleted ? '#999999' : '#333333',
             flex: 1,
@@ -424,34 +401,11 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           spacing: 'sm',
           contents: [
             {
-              type: 'image',
-              url: FLEX_IMAGE_URLS.EDIT_ICON,
-              size: 'xxs',
-              flex: 0,
-              gravity: 'top',
-              action: {
-                type: 'uri',
-                uri: `https://138b00c20997.ngrok.app/liff-app.html?taskId=${task.id}&taskText=${encodeURIComponent(task.text)}`
-              }
-            },
-            {
               type: 'box',
               layout: 'vertical',
               spacing: 'none',
               contents: taskBoxContents,
               flex: 1
-            },
-            {
-              type: 'image',
-              url: FLEX_IMAGE_URLS.DELETE_ICON,
-              size: 'xxs',
-              flex: 0,
-              gravity: 'top',
-              action: {
-                type: 'postback',
-                data: `action=delete_task&taskId=${task.id}`,
-                displayText: `刪除任務：${task.text}`
-              }
             },
             {
               type: 'text',
@@ -506,7 +460,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
     const taskBoxContents = [
       {
         type: 'text',
-        text: task.text,
+        text: `${index + 1}. ${task.text}`,
         size: 'lg',
         color: isCompleted ? '#999999' : '#333333',
         flex: 1,
@@ -568,17 +522,6 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
           layout: 'vertical',
           flex: 1,
           contents: taskBoxContents
-        },
-        {
-          type: 'image',
-          url: FLEX_IMAGE_URLS.DELETE_ICON,
-          size: 'xxs',
-          flex: 0,
-          action: {
-            type: 'postback',
-            data: `action=delete_task&taskId=${task.id}`,
-            displayText: `刪除任務：${task.text}`
-          }
         },
         {
           type: 'text',
@@ -1217,17 +1160,6 @@ function createTagBubble(tagName, tasks, userTags = null) {
           contents: taskBoxContents
         },
         {
-          type: 'image',
-          url: FLEX_IMAGE_URLS.DELETE_ICON,
-          size: 'xxs',
-          flex: 0,
-          action: {
-            type: 'postback',
-            data: `action=delete_task&taskId=${task.id}`,
-            displayText: `刪除任務：${task.text}`
-          }
-        },
-        {
           type: 'text',
           text: isCompleted ? '🅥' : '○',
           size: 'xl',
@@ -1365,16 +1297,6 @@ function createMainTaskList(tasks, userTags = null, completedCount = 0, favorite
             layout: 'vertical',
             flex: 1,
             contents: taskBoxContents
-          },
-          {
-            type: 'icon',
-            url: FLEX_IMAGE_URLS.DELETE_ICON,
-            size: 'sm',
-            action: {
-              type: 'postback',
-              data: `action=delete_task&taskId=${task.id}`,
-              displayText: `刪除任務：${task.text}`
-            }
           },
           {
             type: 'text',

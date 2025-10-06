@@ -9,6 +9,7 @@ const FLEX_IMAGE_URLS = {
 
 const express = require('express');
 const line = require('@line/bot-sdk');
+const { messagingApi } = require('@line/bot-sdk');
 const session = require('express-session');
 const supabase = require('./supabase-client');
 const { authenticateUser } = require('./auth');
@@ -1506,10 +1507,18 @@ const config = {
 
 // 只在有真實 token 時建立 client
 console.log('🔑 LINE_CHANNEL_ACCESS_TOKEN exists:', !!process.env.LINE_CHANNEL_ACCESS_TOKEN);
-const client = process.env.LINE_CHANNEL_ACCESS_TOKEN ? 
-  new line.Client(config) : 
+const client = process.env.LINE_CHANNEL_ACCESS_TOKEN ?
+  new line.Client(config) :
   null;
 console.log('📱 LINE Client created:', !!client);
+
+// 新的 Messaging API client (支援 Loading Animation)
+const messagingClient = process.env.LINE_CHANNEL_ACCESS_TOKEN ?
+  new messagingApi.MessagingApiClient({
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN
+  }) :
+  null;
+console.log('📱 LINE Messaging API Client created:', !!messagingClient);
 
 // Google Calendar OAuth2 設定
 const oauth2Client = new google.auth.OAuth2(
@@ -3332,6 +3341,19 @@ async function handleEvent(event) {
   let userMessage = '';
   let isVoiceMessage = false;
 
+  // 🔄 顯示載入動畫（讓用戶知道 Bot 正在處理）
+  if (messagingClient) {
+    try {
+      await messagingClient.showLoadingAnimation({
+        chatId: userId,
+        loadingSeconds: 20  // 顯示最多 20 秒，發送訊息時會自動消失
+      });
+      console.log('⏳ [Loading] 顯示載入動畫');
+    } catch (loadingError) {
+      console.log('⚠️ [Loading] 載入動畫顯示失敗（可能是舊版 SDK 或不支援的聊天類型）:', loadingError.message);
+    }
+  }
+
   // 處理不同類型的訊息
   if (event.message.type === 'text') {
     // 文字訊息
@@ -3545,6 +3567,150 @@ async function handleEvent(event) {
       console.log(`✅ [返回按鈕] 已記錄訊息類型: collections`);
 
       return client.replyMessage(event.replyToken, collectionsFlexMessage);
+    }
+  }
+
+  // 特殊指令：數字操作指令 - 使用 AI 識別更靈活的語法
+  // 先用正則快速判斷是否包含數字和操作關鍵字
+  if (/\d+/.test(userMessage) && /(刪除|完成|收藏|delete|done|save)/.test(userMessage)) {
+    try {
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `你是任務操作指令解析器。請分析用戶的指令，判斷是否要對某個【序號】的任務執行操作。
+
+⚠️ 重要規則：
+1. 數字必須代表「任務序號」，不是任務內容中的數字
+2. 只有明確的操作指令才回傳 true
+3. 任務內容描述一律回傳 false
+
+如果是操作指令，回傳 JSON 格式：{"isCommand": true, "taskNumber": 序號數字, "action": "刪除/完成/收藏"}
+如果不是操作指令，回傳：{"isCommand": false}
+
+✅ 正確範例（操作指令）：
+"4刪除" -> {"isCommand": true, "taskNumber": 4, "action": "刪除"}
+"刪除 4" -> {"isCommand": true, "taskNumber": 4, "action": "刪除"}
+"把第8個完成" -> {"isCommand": true, "taskNumber": 8, "action": "完成"}
+"delete 5" -> {"isCommand": true, "taskNumber": 5, "action": "刪除"}
+"完成第3個" -> {"isCommand": true, "taskNumber": 3, "action": "完成"}
+
+❌ 錯誤範例（任務內容，不是指令）：
+"4月去日本" -> {"isCommand": false}（這是時間描述）
+"還4本書" -> {"isCommand": false}（這是任務內容）
+"買2個蘋果" -> {"isCommand": false}（這是任務內容）
+"2.還4本書" -> {"isCommand": false}（這是任務標題格式，不是操作指令）`
+          },
+          {
+            role: "user",
+            content: userMessage
+          }
+        ],
+        temperature: 0
+      });
+
+      const aiResult = JSON.parse(aiResponse.choices[0].message.content);
+      console.log(`🤖 [AI指令判斷] 訊息: "${userMessage}" | 結果:`, aiResult);
+
+      if (aiResult.isCommand) {
+        const taskNumber = aiResult.taskNumber;
+        const action = aiResult.action;
+        console.log(`🔢 [數字指令] AI 識別到操作: 第 ${taskNumber} 個任務執行「${action}」`);
+
+    // 獲取今日任務列表
+    const userTasks = userTaskStacks.get(userId) || [];
+    const todayTasks = filterTodayTasks(userTasks);
+
+    // 根據序號找到對應任務
+    if (taskNumber >= 1 && taskNumber <= todayTasks.length) {
+      const targetTask = todayTasks[taskNumber - 1];
+      console.log(`✅ [數字指令] 找到任務: ${targetTask.text} (ID: ${targetTask.id})`);
+
+      if (action === '刪除') {
+        // 使用刪除任務模組
+        const taskToDelete = targetTask;
+        const taskId = targetTask.id;
+
+        // 從記憶體中移除任務
+        const taskIndex = userTasks.findIndex(task => task.id == taskId);
+        userTasks.splice(taskIndex, 1);
+        userTaskStacks.set(userId, userTasks);
+        console.log(`✅ [數字刪除] 記憶體任務已移除: ${taskToDelete.text}`);
+
+        // 從數據庫中刪除任務記錄
+        if (supabase) {
+          try {
+            const tablePrefix = process.env.TABLE_PREFIX || '';
+            const tableName = tablePrefix + 'messages';
+
+            const { data, error } = await supabase
+              .from(tableName)
+              .delete()
+              .eq('id', taskId)
+              .eq('user_id', userId)
+              .select();
+
+            if (error) {
+              console.error('❌ [數字刪除] 數據庫刪除失敗:', error);
+            } else if (data && data.length > 0) {
+              console.log(`✅ [數字刪除] 數據庫記錄已刪除:`, data[0]);
+            } else {
+              console.log(`⚠️ [數字刪除] 在數據庫中未找到匹配的記錄`);
+            }
+          } catch (dbError) {
+            console.error('❌ [數字刪除] 數據庫操作失敗:', dbError);
+          }
+        }
+
+        // 發送確認訊息和更新的任務堆疊
+        const confirmationMessage = {
+          type: 'text',
+          text: `${taskToDelete.text} 已刪除`
+        };
+
+        // 重新生成任務堆疊 Flex Message
+        const userTags = await getUserTags(userId);
+        const { createTaskStackFlexMessage, generateQuickReply } = getTaskFlexModule();
+        const updatedTodayTasks = filterTodayTasks(userTasks);
+        const viewMode = userViewModePreferences.get(userId) || 'general';
+
+        const updatedFlexMessage = createTaskStackFlexMessage(updatedTodayTasks, userTags, viewMode);
+
+        const quickReply = generateQuickReply(userTags);
+        if (quickReply && quickReply.items && quickReply.items.length > 0) {
+          confirmationMessage.quickReply = quickReply;
+          updatedFlexMessage.quickReply = quickReply;
+          console.log('🎯 [數字刪除] 為兩則訊息添加 Quick Reply 按鈕');
+        }
+
+        if (client) {
+          return client.replyMessage(event.replyToken, [confirmationMessage, updatedFlexMessage])
+            .then(result => {
+              console.log('✅ [數字刪除] 雙訊息發送成功');
+              return result;
+            })
+            .catch(error => {
+              console.error('❌ [數字刪除] 雙訊息發送失敗:', error);
+              throw error;
+            });
+        } else {
+          console.log('測試模式：數字刪除成功');
+          return Promise.resolve(null);
+        }
+      }
+    } else {
+      console.log(`❌ [數字指令] 任務序號 ${taskNumber} 超出範圍 (共 ${todayTasks.length} 個任務)`);
+      const errorMessage = {
+        type: 'text',
+        text: `找不到第 ${taskNumber} 個任務（今日共 ${todayTasks.length} 個任務）`
+      };
+      return replyWithQuickReply(client, event.replyToken, errorMessage, userId);
+    }
+      }
+    } catch (aiError) {
+      console.error('❌ [AI指令判斷] AI 解析失敗:', aiError);
+      // AI 解析失敗時繼續執行後續邏輯（當作一般訊息處理）
     }
   }
 
