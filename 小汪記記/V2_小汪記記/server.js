@@ -4,6 +4,12 @@ if (!process.env.VERCEL) {
   require('dotenv').config();
 }
 
+// 除錯: 檢查環境變數
+console.log('🔍 環境變數檢查:');
+console.log('VERCEL:', process.env.VERCEL);
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? '已設定' : '未設定');
+console.log('LINE_CHANNEL_ACCESS_TOKEN:', process.env.LINE_CHANNEL_ACCESS_TOKEN ? '已設定' : '未設定');
+
 // LINE Flex Message 圖片資源
 const SUPABASE_STORAGE_URL = process.env.SUPABASE_URL || 'https://dvarirqrahqvlijkxqdc.supabase.co';
 const FLEX_IMAGE_URLS = {
