@@ -9828,3 +9828,6 @@ app.listen(PORT, async () => {
 
   console.log('🔔 [任務提醒] 已設定每分鐘檢查任務提醒');
 });// 強制重啟 西元2025年09月18日 (星期四) 13時03分19秒    
+
+// Vercel Serverless Function export
+module.exports = app;

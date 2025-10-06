@@ -1,0 +1,74 @@
+# ============================================
+# 小汪記記 V2 生產環境變數
+# ============================================
+#
+# ⚠️ 重要：這個檔案包含敏感資訊，請妥善保管！
+# 將這些變數複製到 Vercel 的環境變數設定中
+#
+# ============================================
+
+# ============================================
+# LINE Bot 設定
+# ============================================
+LINE_CHANNEL_ACCESS_TOKEN=你已提供的實際TOKEN
+LINE_CHANNEL_SECRET=你已提供的實際SECRET
+
+# ============================================
+# Supabase 資料庫設定（生產環境）
+# ============================================
+SUPABASE_URL=你已提供的實際URL
+SUPABASE_ANON_KEY=你已提供的實際ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY=你已提供的實際SERVICE_ROLE_KEY
+
+# 資料表前綴（生產環境不使用前綴，留空）
+TABLE_PREFIX=
+
+# ============================================
+# 服務器設定
+# ============================================
+# 基礎 URL（部署後 Vercel 會提供，例如：https://your-app.vercel.app）
+BASE_URL=https://your-vercel-url.vercel.app
+
+# Webhook URL（與 BASE_URL 相同）
+WEBHOOK_BASE_URL=https://your-vercel-url.vercel.app
+
+# 環境類型
+NODE_ENV=production
+
+# 伺服器埠號（Vercel 會自動處理，但保留設定）
+PORT=3003
+
+# ============================================
+# Session 設定
+# ============================================
+SESSION_SECRET=89ea6011956bcbc61fb5f5b8c76193214a7aecff22247d2bb8b83b438bc33151
+
+# ============================================
+# LIFF APP 設定（部署後設定，暫時留空）
+# ============================================
+LIFF_APP_ID=
+LIFF_COLLECTIONS_ID=
+LIFF_RECORDS_ID=
+LIFF_ACCOUNT_ID=
+LIFF_ANALYTICS_ID=
+
+# ============================================
+# OpenAI API 設定
+# ============================================
+OPENAI_API_KEY=你已提供的實際API_KEY
+
+# ============================================
+# Google Calendar API 設定
+# ============================================
+GOOGLE_CLIENT_ID=你已提供的實際CLIENT_ID
+GOOGLE_CLIENT_SECRET=你已提供的實際CLIENT_SECRET
+# 重定向 URI（部署後更新，例如：https://your-vercel-url.vercel.app/api/google-calendar/callback）
+GOOGLE_REDIRECT_URI=https://your-vercel-url.vercel.app/api/google-calendar/callback
+
+# ============================================
+# Oen Payment 設定（暫不處理，留空）
+# ============================================
+OEN_PAYMENT_TEST_MERCHANT_ID=
+OEN_PAYMENT_TEST_AUTH_TOKEN=
+OEN_PAYMENT_MERCHANT_ID=
+OEN_PAYMENT_AUTH_TOKEN=
