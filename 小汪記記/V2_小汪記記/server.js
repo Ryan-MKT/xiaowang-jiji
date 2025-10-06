@@ -1,5 +1,8 @@
 // 載入環境變數（必須在最頂端）
-require('dotenv').config();
+// Vercel 會自動注入環境變數,本地開發才需要 dotenv
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 // LINE Flex Message 圖片資源
 const SUPABASE_STORAGE_URL = process.env.SUPABASE_URL || 'https://dvarirqrahqvlijkxqdc.supabase.co';
