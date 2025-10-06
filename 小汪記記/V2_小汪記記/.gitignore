@@ -1,0 +1,30 @@
+# 環境變數檔案（包含敏感資訊，絕對不可上傳）
+.env
+.env.local
+.env.production
+.env.development
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 作業系統檔案
+.DS_Store
+Thumbs.db
+
+# IDE 設定
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 暫存檔案
+*.log
+*.tmp
+*.temp
+
+# 備份檔案
+*.backup
+*.bak
