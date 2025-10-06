@@ -1,7 +1,11 @@
 // 載入環境變數（必須在最頂端）
 // Vercel 會自動注入環境變數,本地開發才需要 dotenv
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config();
+try {
+  if (process.env.VERCEL !== '1') {
+    require('dotenv').config();
+  }
+} catch (e) {
+  // Vercel 環境不需要 dotenv
 }
 
 // LINE Flex Message 圖片資源
