@@ -889,7 +889,19 @@ function filterTodayTasks(allTasks) {
   console.log(`📅 [日期過濾] 過濾結果：總任務數 ${allTasks.length} → 今天任務數 ${todayTasks.length}`);
   console.log(`📅 [日期過濾] 今天的任務: ${todayTasks.map(t => t.text).join(', ')}`);
 
-  return todayTasks;
+  // ✅ 排序：未完成任務在上方，已完成任務在下方
+  const sortedTasks = todayTasks.sort((a, b) => {
+    // 未完成 (false) 排在已完成 (true) 前面
+    if (a.completed === b.completed) {
+      return 0; // 相同完成狀態，保持原順序
+    }
+    return a.completed ? 1 : -1; // 未完成在上 (-1)，已完成在下 (1)
+  });
+
+  console.log(`✅ [任務排序] 未完成在上，已完成在下`);
+  console.log(`📋 [排序結果] 未完成: ${sortedTasks.filter(t => !t.completed).length} 個，已完成: ${sortedTasks.filter(t => t.completed).length} 個`);
+
+  return sortedTasks;
 }
 
 // 過濾明天的任務
