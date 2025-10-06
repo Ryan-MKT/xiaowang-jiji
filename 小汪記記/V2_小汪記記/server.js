@@ -9804,36 +9804,49 @@ async function sendTaskReminder(userId, taskTitle, reminderMinutes, scheduledDat
   }
 }
 
-// 啟動伺服器
-app.listen(PORT, async () => {
-  console.log(`🤖 LINE Bot server running on port ${PORT} with Open Graph API`);
+// 初始化函數（在 Vercel 和本地都會執行）
+async function initializeApp() {
+  console.log(`🤖 LINE Bot initializing...`);
   console.log(`📅 Started at: ${new Date().toISOString()}`);
 
   // 啟動時載入數據庫任務到記憶體
   await loadTasksFromDatabase();
 
-  // 設定每天晚上 12 點的定時任務（檢查今天未完成的任務）
-  // cron 格式: 分 時 日 月 星期
-  // '0 0 * * *' = 每天 00:00 (午夜12點)
-  cron.schedule('0 0 * * *', async () => {
-    console.log('⏰ [定時任務] 晚上 12 點檢查未完成任務');
-    await checkAndAskMoveUncompletedTasks();
-  }, {
-    timezone: "Asia/Taipei"
+  // 只在非 Vercel 環境設定定時任務（Vercel Serverless 不支持長時間運行的 cron）
+  if (!process.env.VERCEL) {
+    // 設定每天晚上 12 點的定時任務（檢查今天未完成的任務）
+    cron.schedule('0 0 * * *', async () => {
+      console.log('⏰ [定時任務] 晚上 12 點檢查未完成任務');
+      await checkAndAskMoveUncompletedTasks();
+    }, {
+      timezone: "Asia/Taipei"
+    });
+
+    console.log('⏰ [定時任務] 已設定每天晚上 12 點檢查未完成任務');
+
+    // 🔔 設定每分鐘檢查任務提醒
+    cron.schedule('* * * * *', async () => {
+      await checkTaskReminders();
+    }, {
+      timezone: "Asia/Taipei"
+    });
+
+    console.log('🔔 [任務提醒] 已設定每分鐘檢查任務提醒');
+  }
+}
+
+// 只在非 Vercel 環境啟動伺服器
+if (!process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    console.log(`🤖 LINE Bot server running on port ${PORT} with Open Graph API`);
+    await initializeApp();
   });
-
-  console.log('⏰ [定時任務] 已設定每天晚上 12 點檢查未完成任務');
-
-  // 🔔 設定每分鐘檢查任務提醒
-  // '* * * * *' = 每分鐘執行
-  cron.schedule('* * * * *', async () => {
-    await checkTaskReminders();
-  }, {
-    timezone: "Asia/Taipei"
+} else {
+  // Vercel 環境：立即初始化
+  initializeApp().catch(err => {
+    console.error('❌ [初始化] 失敗:', err);
   });
-
-  console.log('🔔 [任務提醒] 已設定每分鐘檢查任務提醒');
-});// 強制重啟 西元2025年09月18日 (星期四) 13時03分19秒    
+}
 
 // Vercel Serverless Function export
 module.exports = app;
