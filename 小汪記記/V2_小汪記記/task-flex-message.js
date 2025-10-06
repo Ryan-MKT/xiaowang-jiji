@@ -618,7 +618,7 @@ function createTaskStackFlexMessage(tasks, userTags = null, activeTab = 'general
     altText: altText,
     contents: {
       type: 'bubble',
-      size: 'giga',
+      size: 'mega',
       body: {
         type: 'box',
         layout: 'vertical',

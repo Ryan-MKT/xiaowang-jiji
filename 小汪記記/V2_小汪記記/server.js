@@ -1082,8 +1082,12 @@ async function generateSevenDaysFlexMessage(userId, userTasks, userTags, tabMode
       const dayTasks = filterTasksByDaysOffset(userTasks, dayOffset);
       taskCounts.push(dayTasks.length);
 
+      // 限制每天最多顯示5個任務,避免Flex Message過大
+      const limitedDayTasks = dayTasks.slice(0, 5);
+      console.log(`📊 [7天列表] 第${dayOffset}天: 總任務${dayTasks.length}個,顯示${limitedDayTasks.length}個`);
+
       // 生成該天的Flex Message
-      const dayFlexMessage = createTaskStackFlexMessage(dayTasks, userTags, tabMode, dayOffset);
+      const dayFlexMessage = createTaskStackFlexMessage(limitedDayTasks, userTags, tabMode, dayOffset, 'all', userId);
 
       // 修改該天頁面的標題
       const dayTitle = generateDateTitle(dayOffset);
