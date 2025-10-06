@@ -1520,6 +1520,26 @@ const messagingClient = process.env.LINE_CHANNEL_ACCESS_TOKEN ?
   null;
 console.log('📱 LINE Messaging API Client created:', !!messagingClient);
 
+// 🔕 包裝 client.replyMessage 和 client.pushMessage，統一加上靜音功能
+// 未來可以根據訊息類型決定是否靜音
+if (client) {
+  // 保存原始方法
+  const originalReplyMessage = client.replyMessage.bind(client);
+  const originalPushMessage = client.pushMessage.bind(client);
+
+  // 覆寫 replyMessage，預設靜音
+  client.replyMessage = function(replyToken, messages, notificationDisabled = true) {
+    console.log(`🔕 [靜音控制] replyMessage - 靜音: ${notificationDisabled}`);
+    return originalReplyMessage(replyToken, messages, notificationDisabled);
+  };
+
+  // 覆寫 pushMessage，預設靜音
+  client.pushMessage = function(to, messages, notificationDisabled = true) {
+    console.log(`🔕 [靜音控制] pushMessage - 靜音: ${notificationDisabled}`);
+    return originalPushMessage(to, messages, notificationDisabled);
+  };
+}
+
 // Google Calendar OAuth2 設定
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
